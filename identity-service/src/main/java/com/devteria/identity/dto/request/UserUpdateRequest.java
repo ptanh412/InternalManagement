@@ -1,8 +1,9 @@
 package com.devteria.identity.dto.request;
-
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 
+import com.devteria.identity.enums.BusinessRole;
 import com.devteria.identity.validator.DobConstraint;
 
 import lombok.*;
@@ -22,4 +23,16 @@ public class UserUpdateRequest {
     LocalDate dob;
 
     List<String> roles;
+
+    // New business attributes
+    String departmentId;
+    BusinessRole businessRole;
+    String employeeId;
+    String phoneNumber;
+    String city;
+    boolean isActive;
+
+    // Online status and last login (for admin/manual update if needed)
+    Boolean online;
+    LocalDateTime lastLogin;
 }

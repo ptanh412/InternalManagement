@@ -26,7 +26,7 @@ import {
 import { isAuthenticated, logOut } from "../services/authenticationService";
 import Scene from "./Scene";
 
-export default function Profile() {
+export default function Profile({ darkMode, onToggleDarkMode }) {
   const navigate = useNavigate();
   const [userDetails, setUserDetails] = useState({});
   const [firstName, setFirstName] = useState("");
@@ -160,7 +160,7 @@ export default function Profile() {
   }, [navigate]);
 
   return (
-    <Scene>
+    <Scene darkMode={darkMode} onToggleDarkMode={onToggleDarkMode}>
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={6000}

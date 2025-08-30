@@ -3,16 +3,37 @@ import Login from "../pages/Login";
 import Home from "../pages/Home";
 import Profile from "../pages/Profile";
 import Chat from "../pages/Chat";
+import Admin from "../pages/Admin";
 
-const AppRoutes = () => {
+const AppRoutes = ({ darkMode, onToggleDarkMode }) => {
   return (
     <Router>
       <Routes>
-        {" "}
         <Route path="/login" element={<Login />} />
-        <Route path="/" element={<Home />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/chat" element={<Chat />} />
+        <Route 
+          path="/" 
+          element={
+            <Home darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} />
+          } 
+        />
+        <Route 
+          path="/profile" 
+          element={
+            <Profile darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} />
+          } 
+        />
+        <Route 
+          path="/chat" 
+          element={
+            <Chat darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} />
+          } 
+        />
+        <Route 
+          path="/admin" 
+          element={
+            <Admin darkMode={darkMode} onToggleDarkMode={onToggleDarkMode} />
+          } 
+        />
       </Routes>
     </Router>
   );

@@ -17,8 +17,10 @@ import java.util.Map;
 public class NotificationEvent {
     String channel;
     String recipient;
+    String recipientName; // Add recipient name for better email formatting
     String templateCode;
     Map<String, Object> param;
     String subject;
     String body;
+    String contentType; // Add content type (text/plain, text/html)
 }

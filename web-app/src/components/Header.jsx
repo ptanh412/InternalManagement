@@ -6,26 +6,45 @@ import InputBase from "@mui/material/InputBase";
 import Badge from "@mui/material/Badge";
 import MenuItem from "@mui/material/MenuItem";
 import Menu from "@mui/material/Menu";
+import Chip from "@mui/material/Chip";
+import Tooltip from "@mui/material/Tooltip";
 import SearchIcon from "@mui/icons-material/Search";
 import AccountCircle from "@mui/icons-material/AccountCircle";
 import MailIcon from "@mui/icons-material/Mail";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import MoreIcon from "@mui/icons-material/MoreVert";
+import AdminPanelSettingsIcon from "@mui/icons-material/AdminPanelSettings";
+import DarkModeIcon from "@mui/icons-material/DarkMode";
+import LightModeIcon from "@mui/icons-material/LightMode";
 import { logOut } from "../services/authenticationService";
+import NotificationMenu from './NotificationMenu';
 
 const Search = styled("div")(({ theme }) => ({
   position: "relative",
   borderRadius: theme.shape.borderRadius,
-  backgroundColor: alpha(theme.palette.common.white, 0.15),
+  backgroundColor: theme.palette.mode === 'dark'
+    ? alpha(theme.palette.common.white, 0.15)
+    : alpha(theme.palette.grey[500], 0.15),
   "&:hover": {
-    backgroundColor: alpha(theme.palette.common.white, 0.25),
+    backgroundColor: theme.palette.mode === 'dark'
+      ? alpha(theme.palette.common.white, 0.25)
+      : alpha(theme.palette.grey[500], 0.25),
   },
   marginRight: theme.spacing(2),
   marginLeft: 0,
   width: "100%",
+  border: `1px solid ${alpha(theme.palette.divider, 0.5)}`,
+  transition: theme.transitions.create(['background-color', 'border-color']),
+  "&:focus-within": {
+    borderColor: theme.palette.primary.main,
+    backgroundColor: theme.palette.mode === 'dark'
+      ? alpha(theme.palette.common.white, 0.1)
+      : alpha(theme.palette.primary.main, 0.05),
+  },
   [theme.breakpoints.up("sm")]: {
     marginLeft: theme.spacing(3),
     width: "auto",
+    minWidth: "300px",
   },
 }));
 
@@ -37,23 +56,34 @@ const SearchIconWrapper = styled("div")(({ theme }) => ({
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  color: theme.palette.text.secondary,
 }));
 
 const StyledInputBase = styled(InputBase)(({ theme }) => ({
-  color: "inherit",
+  color: theme.palette.text.primary,
   "& .MuiInputBase-input": {
     padding: theme.spacing(1, 1, 1, 0),
     // vertical padding + font size from searchIcon
     paddingLeft: `calc(1em + ${theme.spacing(4)})`,
     transition: theme.transitions.create("width"),
     width: "100%",
+    color: theme.palette.text.primary,
+    "&::placeholder": {
+      color: theme.palette.text.secondary,
+      opacity: 1,
+    },
     [theme.breakpoints.up("md")]: {
       width: "20ch",
     },
   },
 }));
 
-export default function Header() {
+export default function Header({
+  userInfo = null,
+  darkMode = false,
+  onToggleDarkMode = () => { },
+  showAdminBadge = false
+}) {
   const [anchorEl, setAnchorEl] = React.useState(null);
   const [mobileMoreAnchorEl, setMobileMoreAnchorEl] = React.useState(null);
 
@@ -77,6 +107,13 @@ export default function Header() {
     setAnchorEl(null);
     window.location.href = "/profile";
   };
+
+  const handleOpenAdmin = () => {
+    setAnchorEl(null);
+    window.location.href = "/admin";
+  };
+
+  const isAdmin = userInfo?.role === 'ADMIN' || userInfo?.isAdmin;
 
   const handleMobileMenuOpen = (event) => {
     setMobileMoreAnchorEl(event.currentTarget);
@@ -106,6 +143,12 @@ export default function Header() {
       onClose={handleMenuClose}
     >
       <MenuItem onClick={handleOpenProfile}>Profile</MenuItem>
+      {isAdmin && (
+        <MenuItem onClick={handleOpenAdmin}>
+          <AdminPanelSettingsIcon sx={{ mr: 1 }} />
+          Admin Panel
+        </MenuItem>
+      )}
       <MenuItem onClick={handleMenuClose}>Settings</MenuItem>
       <MenuItem onClick={handleLogout}>Log Out</MenuItem>
     </Menu>
@@ -129,7 +172,7 @@ export default function Header() {
       onClose={handleMobileMenuClose}
     >
       <MenuItem>
-        <IconButton size="large" aria-label="show 2 new mails" color="inherit">
+        <IconButton size="large" aria-label="show 2 new mails" sx={{ color: 'text.primary' }}>
           <Badge badgeContent={2} color="error">
             <MailIcon />
           </Badge>
@@ -140,7 +183,7 @@ export default function Header() {
         <IconButton
           size="large"
           aria-label="show 4 new notifications"
-          color="inherit"
+          sx={{ color: 'text.primary' }}
         >
           <Badge badgeContent={4} color="error">
             <NotificationsIcon />
@@ -154,7 +197,7 @@ export default function Header() {
           aria-label="account of current user"
           aria-controls="primary-search-account-menu"
           aria-haspopup="true"
-          color="inherit"
+          sx={{ color: 'text.primary' }}
         >
           <AccountCircle />
         </IconButton>
@@ -168,9 +211,8 @@ export default function Header() {
       <IconButton
         size="large"
         edge="start"
-        color="inherit"
         aria-label="open drawer"
-        sx={{ mr: 2 }}
+        sx={{ mr: 2, color: 'text.primary' }}
         onClick={() => (window.location.href = "/")}
       >
         <Box
@@ -193,21 +235,41 @@ export default function Header() {
         />
       </Search>
       <Box sx={{ flexGrow: 1 }} />
-      <Box sx={{ display: { xs: "none", md: "flex" } }}>
-        <IconButton size="large" aria-label="show 4 new mails" color="inherit">
+      <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: 'center', gap: 1 }}>
+        {/* Admin Badge */}
+        {showAdminBadge && isAdmin && (
+          <Tooltip title="Admin User">
+            <Chip
+              icon={<AdminPanelSettingsIcon />}
+              label="Admin"
+              color="secondary"
+              size="small"
+              sx={{ mr: 1 }}
+            />
+          </Tooltip>
+        )}
+
+        {/* Dark Mode Toggle */}
+        <Tooltip title={darkMode ? "Switch to Light Mode" : "Switch to Dark Mode"}>
+          <IconButton
+            size="large"
+            onClick={onToggleDarkMode}
+            sx={{ color: 'text.primary' }}
+          >
+            {darkMode ? <LightModeIcon /> : <DarkModeIcon />}
+          </IconButton>
+        </Tooltip>
+
+        <IconButton
+          size="large"
+          aria-label="show 4 new mails"
+          sx={{ color: 'text.primary' }}
+        >
           <Badge badgeContent={4} color="error">
             <MailIcon />
           </Badge>
         </IconButton>
-        <IconButton
-          size="large"
-          aria-label="show 17 new notifications"
-          color="inherit"
-        >
-          <Badge badgeContent={17} color="error">
-            <NotificationsIcon />
-          </Badge>
-        </IconButton>
+        <NotificationMenu userId={userInfo?.userId} />
         <IconButton
           size="large"
           edge="end"
@@ -215,7 +277,7 @@ export default function Header() {
           aria-controls={menuId}
           aria-haspopup="true"
           onClick={handleProfileMenuOpen}
-          color="inherit"
+          sx={{ color: 'text.primary' }}
         >
           <AccountCircle />
         </IconButton>
@@ -227,7 +289,7 @@ export default function Header() {
           aria-controls={mobileMenuId}
           aria-haspopup="true"
           onClick={handleMobileMenuOpen}
-          color="inherit"
+          sx={{ color: 'text.primary' }}
         >
           <MoreIcon />
         </IconButton>

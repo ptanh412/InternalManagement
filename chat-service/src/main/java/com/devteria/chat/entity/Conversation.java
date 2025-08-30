@@ -1,13 +1,14 @@
 package com.devteria.chat.entity;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
+import java.time.Instant;
+import java.util.List;
+
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
-import java.time.Instant;
-import java.util.List;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 @Setter
 @Getter
@@ -27,6 +28,12 @@ public class Conversation {
 
     List<ParticipantInfo> participants;
 
+    ChatMessage lastMessage;
+
+    // Group conversation specific fields
+    String groupName; // Name of the group (only for GROUP type)
+    String createdBy; // User ID who created the conversation
+    String groupAvatar;
     Instant createdDate;
 
     Instant modifiedDate;

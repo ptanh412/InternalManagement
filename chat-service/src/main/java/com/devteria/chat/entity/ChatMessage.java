@@ -1,13 +1,15 @@
 package com.devteria.chat.entity;
 
-import lombok.*;
-import lombok.experimental.FieldDefaults;
-import org.springframework.data.mongodb.core.index.CompoundIndex;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
-import java.time.Instant;
+import lombok.*;
+import lombok.experimental.FieldDefaults;
 
 @Setter
 @Getter
@@ -25,8 +27,41 @@ public class ChatMessage {
 
     String message;
 
+    String type;
+
+    String status; // SEEN, SENT
+
+    Instant readDate;
+
+    // Support both single reader (for direct conversations) and multiple readers (for group conversations)
+    ParticipantInfo reader; // Keep for backward compatibility with direct conversations
+
+    @Builder.Default
+    List<ParticipantInfo> readers = new ArrayList<>(); // List of users who have read the message in group conversations
+
     ParticipantInfo sender;
+
+    String replyToMessageId; // ID of the message being replied to
 
     @Indexed
     Instant createdDate;
+    Instant modifiedDate;
+
+    // Recall-related fields
+    boolean isRecalled; // Whether the message has been recalled
+    String recallType; // "self" or "everyone"
+    String recalledBy; // User ID who recalled the message
+    Instant recalledDate; // When the message was recalled
+    String originalMessage; // Store original message content before recall
+
+    // Pin-related fields
+    boolean isPinned; // Whether the message has been pinned
+    Instant pinnedDate; // When the message was pinned
+    String pinnedBy; // User ID who pinned the message
+
+    // Media-related fields
+    String mediaUrl; // URL of the uploaded media file
+    String mediaType; // Type of media (image, video, audio, document)
+    String fileName; // Original filename
+    Long fileSize; // File size in bytes
 }

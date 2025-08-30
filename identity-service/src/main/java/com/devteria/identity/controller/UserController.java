@@ -2,6 +2,7 @@ package com.devteria.identity.controller;
 
 import java.util.List;
 
+import com.devteria.identity.dto.request.UserStatusUpdateRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.*;
@@ -29,6 +30,26 @@ public class UserController {
     ApiResponse<UserResponse> createUser(@RequestBody @Valid UserCreationRequest request) {
         return ApiResponse.<UserResponse>builder()
                 .result(userService.createUser(request))
+                .build();
+    }
+    @PostMapping("/{userId}/status")
+    public ApiResponse<Void> updateUserStatus(@PathVariable("userId") String userId, @RequestBody UserStatusUpdateRequest request) {
+        userService.updateUserStatus(userId, request);
+        return ApiResponse.<Void>builder().result(null).build();
+    }
+    //    @PostMapping("/admin-creation")
+    //    ApiResponse<UserResponse> createAdminUser(@RequestBody @Valid AdminUserCreationRequest request) {
+    //        log.info("Admin user creation request received for username: {}", request.getUsername());
+    //        return ApiResponse.<UserResponse>builder()
+    //                .result(userService.createAdminUser(request))
+    //                .build();
+    //    }
+
+    @PostMapping("/admin/create")
+    ApiResponse<UserResponse> createUserByAdmin(@RequestBody @Valid UserCreationRequest request) {
+        log.info("Admin user creation request received for username: {}", request.getUsername());
+        return ApiResponse.<UserResponse>builder()
+                .result(userService.createUserByAdmin(request))
                 .build();
     }
 
@@ -60,7 +81,8 @@ public class UserController {
     }
 
     @PutMapping("/{userId}")
-    ApiResponse<UserResponse> updateUser(@PathVariable String userId, @RequestBody UserUpdateRequest request) {
+    ApiResponse<UserResponse> updateUser(
+            @PathVariable("userId") String userId, @RequestBody UserUpdateRequest request) {
         return ApiResponse.<UserResponse>builder()
                 .result(userService.updateUser(userId, request))
                 .build();

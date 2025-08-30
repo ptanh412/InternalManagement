@@ -34,17 +34,24 @@ public class UserProfileService {
     UserProfileMapper userProfileMapper;
 
     public UserProfileResponse createProfile(ProfileCreationRequest request) {
+        log.info("Creating profile for userId: {}", request.getUserId());
         UserProfile userProfile = userProfileMapper.toUserProfile(request);
         userProfile = userProfileRepository.save(userProfile);
+        log.info("Profile created successfully with ID: {} for userId: {}", userProfile.getId(), userProfile.getUserId());
 
         return userProfileMapper.toUserProfileResponse(userProfile);
     }
 
     public UserProfileResponse getByUserId(String userId) {
+        log.info("Looking up profile for userId: {}", userId);
         UserProfile userProfile =
                 userProfileRepository.findByUserId(userId)
-                        .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+                        .orElseThrow(() -> {
+                            log.error("Profile not found for userId: {}", userId);
+                            return new AppException(ErrorCode.USER_NOT_EXISTED);
+                        });
 
+        log.info("Profile found: {} for userId: {}", userProfile.getId(), userId);
         return userProfileMapper.toUserProfileResponse(userProfile);
     }
 
@@ -106,5 +113,17 @@ public class UserProfileService {
                 .filter(userProfile -> !userId.equals(userProfile.getUserId()))
                 .map(userProfileMapper::toUserProfileResponse)
                 .toList();
+    }
+
+    // Debug method to help troubleshoot admin profile issue
+    public List<UserProfile> getAllProfilesForDebug() {
+        log.info("Debug: Getting all profiles from database");
+        List<UserProfile> profiles = userProfileRepository.findAll();
+        log.info("Debug: Found {} profiles in database", profiles.size());
+        for (UserProfile profile : profiles) {
+            log.info("Debug: Profile - ID: {}, UserID: {}, Username: {}, Email: {}",
+                    profile.getId(), profile.getUserId(), profile.getUsername(), profile.getEmail());
+        }
+        return profiles;
     }
 }

@@ -15,5 +15,5 @@ import lombok.experimental.FieldDefaults;
 public class SendEmailRequest {
     Recipient to;
     String subject;
-    String htmlContent;
+    String content;
 }

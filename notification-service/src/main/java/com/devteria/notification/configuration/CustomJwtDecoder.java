@@ -23,7 +23,11 @@ public class CustomJwtDecoder implements JwtDecoder {
             );
 
         } catch (ParseException e) {
-            throw new JwtException("Invalid token");
+            System.err.println("JWT ParseException: " + e.getMessage() + ", token: " + token);
+            throw new JwtException("Invalid token: " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("JWT Exception: " + e.getMessage() + ", token: " + token);
+            throw new JwtException("Invalid token: " + e.getMessage());
         }
     }
 }

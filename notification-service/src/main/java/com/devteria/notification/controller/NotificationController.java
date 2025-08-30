@@ -1,34 +1,74 @@
 package com.devteria.notification.controller;
 
-
-import com.devteria.event.dto.NotificationEvent;
-import com.devteria.notification.dto.request.Recipient;
-import com.devteria.notification.dto.request.SendEmailRequest;
-import com.devteria.notification.service.EmailService;
-import lombok.AccessLevel;
+import com.devteria.notification.dto.request.MarkReadRequest;
+import com.devteria.notification.dto.response.NotificationResponse;
+import com.devteria.notification.dto.response.NotificationSummaryResponse;
+import com.devteria.notification.service.UserNotificationService;
 import lombok.RequiredArgsConstructor;
-import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.kafka.annotation.KafkaListener;
-import org.springframework.stereotype.Component;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
 
-@Slf4j
-@Component
+import java.util.List;
+
+@RestController
+@RequestMapping("/notifications")
 @RequiredArgsConstructor
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
+@Slf4j
 public class NotificationController {
 
-    EmailService emailService;
+    private final UserNotificationService userNotificationService;
 
-    @KafkaListener(topics = "notification-delivery")
-    public void listenNotificationDelivery(NotificationEvent message){
-        log.info("Message received: {}", message);
-        emailService.sendEmail(SendEmailRequest.builder()
-                        .to(Recipient.builder()
-                                .email(message.getRecipient())
-                                .build())
-                        .subject(message.getSubject())
-                        .htmlContent(message.getBody())
-                .build());
+    @GetMapping("/user/{userId}")
+    public ResponseEntity<NotificationSummaryResponse> getUserNotifications(
+            @PathVariable("userId") String userId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size) {
+
+        log.info("Getting notifications for user: {}, page: {}, size: {}", userId, page, size);
+        NotificationSummaryResponse response = userNotificationService.getUserNotifications(userId, page, size);
+        return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/user/{userId}/unread")
+    public ResponseEntity<List<NotificationResponse>> getUnreadNotifications(@PathVariable String userId) {
+        log.info("Getting unread notifications for user: {}", userId);
+        List<NotificationResponse> unreadNotifications = userNotificationService.getUnreadNotifications(userId);
+        return ResponseEntity.ok(unreadNotifications);
+    }
+
+    @GetMapping("/user/{userId}/unread-count")
+    public ResponseEntity<Long> getUnreadCount(@PathVariable String userId) {
+        log.info("Getting unread count for user: {}", userId);
+        long count = userNotificationService.getUnreadCount(userId);
+        return ResponseEntity.ok(count);
+    }
+
+    @GetMapping("/user/{userId}/recent")
+    public ResponseEntity<List<NotificationResponse>> getRecentNotifications(
+            @PathVariable String userId,
+            @RequestParam(defaultValue = "7") int days) {
+
+        log.info("Getting recent notifications for user: {} (last {} days)", userId, days);
+        List<NotificationResponse> recentNotifications = userNotificationService.getRecentNotifications(userId, days);
+        return ResponseEntity.ok(recentNotifications);
+    }
+
+    @PostMapping("/user/{userId}/mark-read")
+    public ResponseEntity<Void> markNotificationsAsRead(
+            @PathVariable("userId") String userId,
+            @RequestBody MarkReadRequest request) {
+
+        List<String> notificationIds = request.getIds();
+        log.info("Marking {} notifications as read for user: {}", notificationIds.size(), userId);
+        userNotificationService.markNotificationsAsRead(userId, notificationIds);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/user/{userId}/mark-all-read")
+    public ResponseEntity<Void> markAllNotificationsAsRead(@PathVariable String userId) {
+        log.info("Marking all notifications as read for user: {}", userId);
+        userNotificationService.markAllNotificationsAsRead(userId);
+        return ResponseEntity.ok().build();
     }
 }

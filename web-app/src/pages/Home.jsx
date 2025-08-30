@@ -18,7 +18,7 @@ import Scene from "./Scene";
 import Post from "../components/Post";
 import { getMyPosts, createPost } from "../services/postService";
 
-export default function Home() {
+export default function Home({ darkMode, onToggleDarkMode }) {
   const [posts, setPosts] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
@@ -97,7 +97,7 @@ export default function Home() {
         console.log("loaded posts:", response.data.result);
       })
       .catch((error) => {
-        if (error.response.status === 401) {
+        if (error.response?.status === 401) {
           logOut();
           navigate("/login");
         }
@@ -126,7 +126,7 @@ export default function Home() {
   }, [hasMore]);
 
   return (
-    <Scene>
+    <Scene darkMode={darkMode} onToggleDarkMode={onToggleDarkMode}>
       {" "}
       <Snackbar
         open={snackbarOpen}

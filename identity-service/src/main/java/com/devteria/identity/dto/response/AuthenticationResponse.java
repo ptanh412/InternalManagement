@@ -1,6 +1,7 @@
 package com.devteria.identity.dto.response;
 
 import java.util.Date;
+import java.util.Set;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -13,4 +14,6 @@ import lombok.experimental.FieldDefaults;
 public class AuthenticationResponse {
     String token;
     Date expiryTime;
+    Set<String> roles;
+    boolean isAdmin;
 }

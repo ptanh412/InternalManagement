@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
+import com.devteria.identity.enums.BusinessRole;
 import com.devteria.identity.validator.DobConstraint;
 
 import lombok.*;
@@ -22,9 +23,11 @@ public class UserCreationRequest {
 
     @Size(min = 6, message = "INVALID_PASSWORD")
     String password;
+
     @Email(message = "INVALID_EMAIL")
     @NotBlank(message = "EMAIL_IS_REQUIRED")
     String email;
+
     String firstName;
     String lastName;
 
@@ -32,4 +35,10 @@ public class UserCreationRequest {
     LocalDate dob;
 
     String city;
+
+    // New business attributes
+    String departmentId;
+    BusinessRole businessRole;
+    String employeeId;
+    String phoneNumber;
 }

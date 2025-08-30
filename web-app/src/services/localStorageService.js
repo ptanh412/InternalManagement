@@ -5,7 +5,10 @@ export const setToken = (token) => {
 };
 
 export const getToken = () => {
-  return localStorage.getItem(KEY_TOKEN);
+  console.log("Fetching token");
+  const token = localStorage.getItem(KEY_TOKEN);
+  console.log("Retrieved token:", token);
+  return token;
 };
 
 export const removeToken = () => {
