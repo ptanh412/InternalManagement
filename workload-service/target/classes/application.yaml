@@ -1,0 +1,38 @@
+server:
+  port: 8087
+  servlet:
+    context-path: /workload
+
+spring:
+  application:
+    name: workload-service
+  datasource:
+    url: "jdbc:mysql://localhost:3306/workload_db"
+    driverClassName: "com.mysql.cj.jdbc.Driver"
+    username: root
+    password: 123456
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  kafka:
+    bootstrap-servers: localhost:9094
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: task-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+jwt:
+  signerKey: "1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij"
+  valid-duration: 3600 # in seconds
+  refreshable-duration: 36000 # in seconds
+
+app:
+  services:
+    profile: http://localhost:8081/profile
+    identity: http://localhost:8080/identity

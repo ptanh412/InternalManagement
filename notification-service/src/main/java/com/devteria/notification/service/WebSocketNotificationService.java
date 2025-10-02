@@ -1,13 +1,15 @@
 package com.devteria.notification.service;
 
-import com.devteria.event.dto.NotificationEvent;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.devteria.event.dto.NotificationEvent;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -40,10 +42,7 @@ public class WebSocketNotificationService {
             // This would require additional logic to determine target users
 
             // Send real-time broadcast
-            messagingTemplate.convertAndSend(
-                "/topic/notifications",
-                createNotificationPayload(event)
-            );
+            messagingTemplate.convertAndSend("/topic/notifications", createNotificationPayload(event));
             log.info("Broadcasted WebSocket notification to all connected users");
         } catch (Exception e) {
             log.error("Failed to broadcast WebSocket notification", e);
@@ -55,10 +54,7 @@ public class WebSocketNotificationService {
         try {
             log.info("Sending WebSocket notification to principal: {}", principalName);
             messagingTemplate.convertAndSendToUser(
-                principalName,
-                "/queue/notifications",
-                createNotificationPayload(event)
-            );
+                    principalName, "/queue/notifications", createNotificationPayload(event));
             log.info("Sent real-time WebSocket notification to principal: {}", principalName);
         } catch (Exception e) {
             log.error("Failed to send WebSocket notification to principal: {}", principalName, e);
@@ -76,14 +72,13 @@ public class WebSocketNotificationService {
                     : createNotificationMessage(event);
 
             userNotificationService.saveNotification(
-                userId,
-                event.getParam() != null ? (String) event.getParam().get("type") : "SYSTEM",
-                title,
-                message,
-                event.getParam(),
-                event.getChannel(),
-                event.getTemplateCode()
-            );
+                    userId,
+                    event.getParam() != null ? (String) event.getParam().get("type") : "SYSTEM",
+                    title,
+                    message,
+                    event.getParam(),
+                    event.getChannel(),
+                    event.getTemplateCode());
 
         } catch (Exception e) {
             log.error("Failed to persist notification for user: {}", userId, e);
@@ -104,26 +99,25 @@ public class WebSocketNotificationService {
     }
 
     private Map<String, Object> createNotificationPayload(NotificationEvent event) {
-    Map<String, Object> payload = new HashMap<>();
+        Map<String, Object> payload = new HashMap<>();
 
-    if (event.getParam() != null) {
-        payload.put("type", event.getParam().get("type"));
-        payload.put("data", event.getParam());
-        payload.put("timestamp", event.getParam().get("timestamp"));
-    }
+        if (event.getParam() != null) {
+            payload.put("type", event.getParam().get("type"));
+            payload.put("data", event.getParam());
+            payload.put("timestamp", event.getParam().get("timestamp"));
+        }
 
-    // Use subject/body if present, else fallback to old logic
-    String title = event.getSubject() != null && !event.getSubject().isBlank()
-        ? event.getSubject()
-        : extractTitle(event);
-    String message = event.getBody() != null && !event.getBody().isBlank()
-        ? event.getBody()
-        : createNotificationMessage(event);
+        // Use subject/body if present, else fallback to old logic
+        String title =
+                event.getSubject() != null && !event.getSubject().isBlank() ? event.getSubject() : extractTitle(event);
+        String message = event.getBody() != null && !event.getBody().isBlank()
+                ? event.getBody()
+                : createNotificationMessage(event);
 
-    payload.put("title", title);
-    payload.put("message", message);
+        payload.put("title", title);
+        payload.put("message", message);
 
-    return payload;
+        return payload;
     }
 
     private String createNotificationMessage(NotificationEvent event) {
@@ -142,7 +136,8 @@ public class WebSocketNotificationService {
                 String oldRole = (String) params.get("oldRole");
                 yield String.format("%s role has been updated from %s to %s", changedUserName, oldRole, newRole);
             }
-            case "ROLE_REMOVED" -> String.format("%s role as %s has been removed", changedUserName, params.get("oldRole"));
+            case "ROLE_REMOVED" -> String.format(
+                    "%s role as %s has been removed", changedUserName, params.get("oldRole"));
             default -> String.format("Business role change for %s", changedUserName);
         };
     }

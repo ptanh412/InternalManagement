@@ -1,6 +1,8 @@
 package com.devteria.notification.repository;
 
-import com.devteria.notification.entity.UserNotification;
+import java.time.LocalDateTime;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
@@ -8,8 +10,7 @@ import org.springframework.data.mongodb.repository.Query;
 import org.springframework.data.mongodb.repository.Update;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
-import java.util.List;
+import com.devteria.notification.entity.UserNotification;
 
 @Repository
 public interface UserNotificationRepository extends MongoRepository<UserNotification, String> {
@@ -37,5 +38,6 @@ public interface UserNotificationRepository extends MongoRepository<UserNotifica
     void deleteByCreatedAtBefore(LocalDateTime cutoffDate);
 
     // Get recent notifications for a user (last N days)
-    List<UserNotification> findByUserIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(String userId, LocalDateTime since);
+    List<UserNotification> findByUserIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
+            String userId, LocalDateTime since);
 }

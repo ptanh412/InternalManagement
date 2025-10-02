@@ -1,0 +1,154 @@
+Thế Anh Phạm
+Full-Stack Enterprise Developer
+📞 0853412203
+📧 pham041203theanh@gmail.com
+📍 HCM
+📅 Dec 18, 1997
+
+=== OBJECTIVE ===
+Experienced Full-Stack Developer with 4+ years specializing in enterprise microservices architecture, internal management systems, and business workflow automation. Proven expertise in Spring Boot ecosystem, React.js, and building scalable internal platforms for organizational efficiency. Seeking to contribute to enterprise-grade internal management systems where I can leverage my skills in microservices design, user administration, department management, and business process automation. Passionate about creating robust, secure, and user-friendly internal tools that drive organizational productivity and streamline business operations.
+
+=== TECHNICAL SKILLS ===
+
+Backend Technologies:
+• Java 21, Spring Boot 3.2.x
+• Microservices Architecture
+• Spring Security & JWT Authentication
+• Spring Data JPA & MySQL
+• RESTful APIs & OpenFeign
+• Maven & Dependency Management
+
+Frontend Technologies:
+• React.js (Hooks, Context API, Material-UI)
+• JavaScript (ES6+) & TypeScript
+• Redux for State Management
+• Responsive Web Design
+• Modern CSS & Component Libraries
+
+Enterprise & DevOps:
+• API Gateway & Service Discovery
+• Docker & Containerization
+• Git/GitHub/GitLab
+• Agile/Scrum Methodologies
+• Database Design & Optimization
+• System Security & Authentication
+
+Business Domain Expertise:
+• User Role & Permission Management
+• Department & Organization Structure
+• Document Management Systems
+• Internal Communication Platforms
+• Business Process Automation
+• Reporting & Analytics Dashboards
+
+=== EDUCATION ===
+Bachelor of Science in Computer Science | 2013 - 2017
+TopCV University
+• Coursework: Enterprise Software Architecture, Database Systems, Security & Authentication, Business Process Management
+• Final Year Project: Developed a comprehensive Internal Management System using Spring Boot microservices and React.js, featuring user administration, department management, and real-time communication - reducing administrative overhead by 60%
+• GPA: 3.7/4.0
+
+=== PROFESSIONAL EXPERIENCE ===
+
+Senior Full-Stack Developer | July 2020 - Present
+TopCV Enterprise Solutions Corp
+Specialized in developing enterprise internal management systems and business workflow automation platforms using modern microservices architecture.
+
+🏢 Project: Comprehensive Internal Management Platform
+• Led development of a multi-service internal management system supporting 500+ employees across 8 departments
+• Architected microservices including Identity Service, Chat Service, Profile Service, Project Management, and File Management using Spring Boot 3.2.x and Java 21
+• Implemented role-based access control (RBAC) with 20+ business permissions and department hierarchy management
+• Built responsive React.js admin portal with Material-UI, reducing administrative task completion time by 45%
+• Integrated real-time chat system with WebSocket for internal communications, improving team collaboration by 35%
+
+🏢 Project: Employee Onboarding & HR Management System
+• Developed automated employee onboarding system with email notifications and department assignment workflows
+• Created user profile management with avatar upload, department transfers, and role transitions
+• Implemented comprehensive audit logging and activity tracking for compliance requirements
+• Built reporting dashboard showing user activity, department statistics, and system usage analytics
+
+🏢 Project: Document & Project Management Platform
+• Designed file management service with secure upload/download capabilities and access controls
+• Created project assignment system with workload distribution and progress tracking
+• Built notification service for task assignments, project updates, and system announcements
+• Implemented search service for finding users, documents, and projects across the organization
+
+Junior Enterprise Developer | January 2018 - June 2020
+TopCV Business Systems Inc.
+Focused on internal tools development and business process automation for mid-size organizations.
+
+🏢 Project: Department Management & User Administration System
+• Developed core user management features including account creation, role assignment, and department organization
+• Built department hierarchy system supporting unlimited nesting levels with proper access inheritance
+• Implemented secure authentication system with JWT tokens and refresh token management
+• Created admin interfaces for user lifecycle management and system configuration
+
+🏢 Project: Internal Communication & Collaboration Platform
+• Built real-time messaging system for internal team communications with file sharing capabilities
+• Developed conversation management with group chats, direct messages, and announcement channels
+• Implemented message read status tracking and notification system for important updates
+• Integrated with user management system for automatic user status updates and online presence
+
+🏢 Project: Business Analytics & Reporting Dashboard
+• Created comprehensive reporting system for business insights and organizational metrics
+• Built data visualization components for user activity, department performance, and system usage
+• Implemented export functionality for reports in multiple formats (PDF, Excel, CSV)
+• Developed real-time dashboard updates using WebSocket connections
+
+Enterprise Systems Intern | June 2017 - December 2017
+TopCV Digital Transformation Hub
+Contributed to enterprise digital transformation projects, focusing on internal system modernization and business process optimization.
+
+🏢 Project: Legacy System Migration & Modernization
+• Assisted in migrating legacy business systems to modern Spring Boot microservices architecture
+• Participated in database schema design and data migration processes
+• Developed REST API endpoints for system integration and data synchronization
+• Created user interfaces for business users to manage organizational data and workflows
+
+🏢 Project: Security & Access Control Enhancement
+• Implemented enhanced security measures including multi-factor authentication and session management
+• Developed permission-based UI rendering and API access controls
+• Created security audit logs and compliance reporting features
+• Built user password management and account recovery workflows
+
+=== CERTIFICATIONS ===
+• 2019 Spring Professional Certification - VMware
+• 2019 Oracle Certified Java Developer
+• 2018 Full Stack Enterprise Developer - Udacity
+• 2019 Microservices Architecture Certification
+
+=== HONORS & ACHIEVEMENTS ===
+• 2019 Enterprise Innovation Award - Internal Management System Excellence
+• 2020 CodeFest Winner - Business Automation Category
+• 2021 Spring Boot Community Contributor
+
+=== ACTIVITIES ===
+Enterprise Development Community Participant | 2018 - Present
+• Led team in "Enterprise CodeFest 2023" developing a microservices-based internal management solution
+• Regular contributor to Spring Boot and enterprise development forums
+• Mentored junior developers in enterprise architecture patterns and business domain modeling
+
+=== INTERESTS ===
+• Enterprise Architecture & Design Patterns
+• Business Process Optimization
+• System Security & Compliance
+• Open Source Enterprise Tools
+
+=== REFERENCES ===
+
+Technical Lead
+• Name: Sarah Johnson
+• Position: Senior Enterprise Architect
+• Company: TopCV Enterprise Solutions Corp
+• Relationship: Technical mentor for microservices architecture and internal systems development
+• Contact: sarah.johnson@topcventereprise.com | (456) 789-1234
+
+Project Manager
+• Name: Michael Chen
+• Position: Business Systems Project Manager
+• Company: TopCV Business Systems Inc.
+• Relationship: Project manager for internal management platform development
+• Contact: michael.chen@topcvbusiness.com | (456) 123-7890
+
+---
+© Updated for Internal Management System Excellence

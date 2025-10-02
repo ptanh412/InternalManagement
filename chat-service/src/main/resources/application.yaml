@@ -7,7 +7,7 @@ spring:
     name: chat-service
   data:
     mongodb:
-      uri: mongodb://root:root@localhost:27017/chat-service?authSource=admin
+      uri: mongodb://localhost:27017/chat-service
       auto-index-creation: true
 app:
   services:
@@ -15,3 +15,5 @@ app:
       url: http://localhost:8081/profile
     identity:
       url: http://localhost:8080/identity
+    notification:
+      url: http://localhost:8082/notification

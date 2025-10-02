@@ -1,0 +1,41 @@
+server:
+  port: 8090
+  servlet:
+    context-path: /project
+
+spring:
+  application:
+    name: project-service
+  datasource:
+    url: "jdbc:mysql://localhost:3306/project"
+    driverClassName: "com.mysql.cj.jdbc.Driver"
+    username: root
+    password: 123456
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+  kafka:
+    bootstrap-servers: localhost:9094
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+    consumer:
+      group-id: project-service
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
+
+jwt:
+  signerKey: "1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij"
+  valid-duration: 3600 # in seconds
+  refreshable-duration: 36000 # in seconds
+
+app:
+  services:
+    identity: http://localhost:8080/identity
+    profile: http://localhost:8081/profile
+    task: http://localhost:8088/task
+    workload: http://localhost:8087/workload
+    chat: http://localhost:8085/chat

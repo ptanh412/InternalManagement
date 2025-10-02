@@ -1,0 +1,986 @@
+import React, { useState, useEffect } from 'react';
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Grid,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Chip,
+  Avatar,
+  IconButton,
+  Menu,
+  MenuItem,
+  Paper,
+  Fab,
+  Select,
+  FormControl,
+  InputLabel,
+  FormControlLabel,
+  Switch,
+  Divider,
+  List,
+  ListItem,
+  ListItemText,
+  ListItemAvatar,
+  AvatarGroup,
+  Tooltip,
+  LinearProgress,
+  useTheme,
+  alpha,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Badge,
+  InputAdornment,
+  Autocomplete,
+  Container,
+  Alert,
+  CircularProgress,
+} from '@mui/material';
+import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
+import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
+import {
+  Add as AddIcon,
+  Edit as EditIcon,
+  Delete as DeleteIcon,
+  MoreVert as MoreVertIcon,
+  Search as SearchIcon,
+  FilterList as FilterIcon,
+  Assignment as ProjectIcon,
+  People as PeopleIcon,
+  CalendarToday as CalendarIcon,
+  AttachMoney as BudgetIcon,
+  Flag as PriorityIcon,
+  Timeline as TimelineIcon,
+  Visibility as ViewIcon,
+  PlayArrow as StartIcon,
+  Pause as PauseIcon,
+  Stop as StopIcon,
+  CheckCircle as CompleteIcon,
+  ExpandMore as ExpandMoreIcon,
+  Star as StarIcon,
+  Warning as WarningIcon,
+  Info as InfoIcon,
+  Refresh as RefreshIcon,
+  Save as SaveIcon,
+  Cancel as CancelIcon,
+} from '@mui/icons-material';
+import dayjs from 'dayjs';
+import projectService from '../../services/projectService';
+import { getMyInfo } from '../../services/userService';
+
+const ProjectManagement = ({ showNotification }) => {
+  const theme = useTheme();
+  const [projects, setProjects] = useState([]);
+  const [filteredProjects, setFilteredProjects] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('All');
+  const [priorityFilter, setPriorityFilter] = useState('All');
+  const [currentUser, setCurrentUser] = useState(null);
+  const [error, setError] = useState(null);
+  
+  // Dialog states
+  const [openCreateDialog, setOpenCreateDialog] = useState(false);
+  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [openViewDialog, setOpenViewDialog] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+  
+  // Menu state
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [menuProject, setMenuProject] = useState(null);
+
+  // Form state with proper initial values
+  const [formData, setFormData] = useState({
+    name: '',
+    description: '',
+    status: 'PLANNING',
+    priority: 'MEDIUM',
+    startDate: null,
+    endDate: null,
+    budget: '',
+    projectLeaderId: '',
+    teamLeadId: '',
+    requiredSkills: [],
+  });
+
+  const statusOptions = ['All', 'PLANNING', 'ACTIVE', 'ON_HOLD', 'CANCELLED', 'COMPLETED'];
+  const priorityOptions = ['All', 'LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
+  
+  const skillOptions = [
+    'React', 'Angular', 'Vue.js', 'Node.js', 'Python', 'Java', 'C#', '.NET',
+    'Spring Boot', 'Django', 'Flask', 'MongoDB', 'PostgreSQL', 'MySQL',
+    'Docker', 'Kubernetes', 'AWS', 'Azure', 'GCP', 'DevOps', 'CI/CD',
+    'Machine Learning', 'Data Science', 'AI', 'Blockchain', 'Mobile Development'
+  ];
+
+  const teamMemberOptions = [
+    'Alice Johnson', 'Bob Smith', 'Carol Davis', 'David Wilson', 'Eva Brown',
+    'Frank Miller', 'Grace Lee', 'Henry Taylor', 'Mike Lead', 'Sarah Marketing',
+    'Tom DevOps', 'Jane Designer', 'John Manager'
+  ];
+
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  useEffect(() => {
+    filterProjects();
+  }, [projects, searchTerm, statusFilter, priorityFilter]);
+
+  const loadInitialData = async () => {
+    await Promise.all([
+      loadProjects(),
+      loadCurrentUser()
+    ]);
+  };
+
+  const loadCurrentUser = async () => {
+    try {
+      const response = await getMyInfo();
+      setCurrentUser(response.data.result);
+    } catch (error) {
+      console.error('Error loading current user:', error);
+    }
+  };
+
+  const loadProjects = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await projectService.getProjectsByLeader(currentUser?.id);
+      if (response.result) {
+        setProjects(response.result);
+      } else {
+        setProjects([]);
+      }
+    } catch (error) {
+      console.error('Error loading projects:', error);
+      setError('Failed to load projects. Please try again.');
+      showNotification('Failed to load projects', 'error');
+      // Fallback to empty array
+      setProjects([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCreateProject = async () => {
+    if (!formData.name || !formData.startDate || !formData.endDate) {
+      showNotification('Please fill in all required fields', 'warning');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const projectData = {
+        name: formData.name,
+        description: formData.description,
+        projectLeaderId: currentUser?.id || formData.projectLeaderId,
+        teamLeadId: formData.teamLeadId,
+        status: formData.status,
+        priority: formData.priority,
+        budget: formData.budget ? parseFloat(formData.budget) : null,
+        startDate: formData.startDate.toISOString(),
+        endDate: formData.endDate.toISOString(),
+      };
+
+      const response = await projectService.createProject(projectData);
+      
+      if (response.result) {
+        // Update required skills if provided
+        if (formData.requiredSkills.length > 0) {
+          await projectService.updateProjectSkills(response.result.id, formData.requiredSkills);
+        }
+        
+        showNotification('Project created successfully!', 'success');
+        setOpenCreateDialog(false);
+        resetForm();
+        await loadProjects(); // Reload projects
+      }
+    } catch (error) {
+      console.error('Error creating project:', error);
+      showNotification('Failed to create project. Please try again.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleUpdateProject = async () => {
+    if (!selectedProject || !formData.name || !formData.startDate || !formData.endDate) {
+      showNotification('Please fill in all required fields', 'warning');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const projectData = {
+        name: formData.name,
+        description: formData.description,
+        projectLeaderId: formData.projectLeaderId,
+        teamLeadId: formData.teamLeadId,
+        status: formData.status,
+        priority: formData.priority,
+        budget: formData.budget ? parseFloat(formData.budget) : null,
+        startDate: formData.startDate.toISOString(),
+        endDate: formData.endDate.toISOString(),
+      };
+
+      const response = await projectService.updateProject(selectedProject.id, projectData);
+      
+      if (response.result) {
+        // Update required skills if provided
+        if (formData.requiredSkills.length > 0) {
+          await projectService.updateProjectSkills(selectedProject.id, formData.requiredSkills);
+        }
+        
+        showNotification('Project updated successfully!', 'success');
+        setOpenEditDialog(false);
+        resetForm();
+        await loadProjects(); // Reload projects
+      }
+    } catch (error) {
+      console.error('Error updating project:', error);
+      showNotification('Failed to update project. Please try again.', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDeleteProject = async (project) => {
+    if (window.confirm(`Are you sure you want to delete "${project.name}"?`)) {
+      try {
+        await projectService.deleteProject(project.id);
+        showNotification('Project deleted successfully!', 'success');
+        await loadProjects(); // Reload projects
+      } catch (error) {
+        console.error('Error deleting project:', error);
+        showNotification('Failed to delete project. Please try again.', 'error');
+      }
+    }
+  };
+
+  const handleStatusChange = async (project, newStatus) => {
+    try {
+      await projectService.updateProjectStatus(project.id, newStatus);
+      showNotification(`Project status updated to ${newStatus}`, 'success');
+      await loadProjects(); // Reload projects
+    } catch (error) {
+      console.error('Error updating project status:', error);
+      showNotification('Failed to update project status. Please try again.', 'error');
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: '',
+      description: '',
+      status: 'PLANNING',
+      priority: 'MEDIUM',
+      startDate: null,
+      endDate: null,
+      budget: '',
+      projectLeaderId: '',
+      teamLeadId: '',
+      requiredSkills: [],
+    });
+    setSelectedProject(null);
+  };
+
+  const populateFormForEdit = (project) => {
+    setFormData({
+      name: project.name || '',
+      description: project.description || '',
+      status: project.status || 'PLANNING',
+      priority: project.priority || 'MEDIUM',
+      startDate: project.startDate ? dayjs(project.startDate) : null,
+      endDate: project.endDate ? dayjs(project.endDate) : null,
+      budget: project.budget ? project.budget.toString() : '',
+      projectLeaderId: project.projectLeaderId || '',
+      teamLeadId: project.teamLeadId || '',
+      requiredSkills: project.requiredSkills || [],
+    });
+    setSelectedProject(project);
+  };
+
+
+
+  const filterProjects = () => {
+    let filtered = projects;
+
+    if (searchTerm) {
+      filtered = filtered.filter(project =>
+        (project.name && project.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (project.description && project.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (project.requiredSkills && project.requiredSkills.some(skill => 
+          skill.toLowerCase().includes(searchTerm.toLowerCase())
+        ))
+      );
+    }
+
+    if (statusFilter !== 'All') {
+      filtered = filtered.filter(project => project.status === statusFilter);
+    }
+
+    if (priorityFilter !== 'All') {
+      filtered = filtered.filter(project => project.priority === priorityFilter);
+    }
+
+    setFilteredProjects(filtered);
+  };
+
+  const handleOpenCreateDialog = () => {
+    resetForm();
+    setOpenCreateDialog(true);
+  };
+
+  const handleEditProject = (project) => {
+    populateFormForEdit(project);
+    setOpenEditDialog(true);
+    handleMenuClose();
+  };
+
+  const handleViewProject = (project) => {
+    setSelectedProject(project);
+    setOpenViewDialog(true);
+  };
+
+  const handleDeleteProjectFromMenu = (project) => {
+    handleDeleteProject(project);
+    handleMenuClose();
+  };
+
+  const handleSaveProject = async () => {
+    try {
+      const projectData = {
+        ...formData,
+        budget: parseFloat(formData.budget) || 0,
+        startDate: formData.startDate ? formData.startDate.format('YYYY-MM-DD') : null,
+        endDate: formData.endDate ? formData.endDate.format('YYYY-MM-DD') : null,
+      };
+
+      if (selectedProject) {
+        // Update existing project
+        const updatedProject = { ...selectedProject, ...projectData };
+        setProjects(projects.map(p => p.id === selectedProject.id ? updatedProject : p));
+        showNotification('Project updated successfully', 'success');
+        setOpenEditDialog(false);
+      } else {
+        // Create new project
+        const newProject = {
+          id: Date.now(),
+          ...projectData,
+          progress: 0,
+          tasksTotal: 0,
+          tasksCompleted: 0,
+          createdAt: new Date().toISOString().split('T')[0],
+          createdBy: 'Current User',
+        };
+        setProjects([...projects, newProject]);
+        showNotification('Project created successfully', 'success');
+        setOpenCreateDialog(false);
+      }
+    } catch (error) {
+      showNotification('Failed to save project', 'error');
+    }
+  };
+
+  const handleMenuOpen = (event, project) => {
+    setAnchorEl(event.currentTarget);
+    setMenuProject(project);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+    setMenuProject(null);
+  };
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'COMPLETED':
+        return 'success';
+      case 'ACTIVE':
+        return 'primary';
+      case 'PLANNING':
+        return 'info';
+      case 'ON_HOLD':
+        return 'warning';
+      case 'CANCELLED':
+        return 'error';
+      default:
+        return 'default';
+    }
+  };
+
+  const getPriorityColor = (priority) => {
+    switch (priority) {
+      case 'CRITICAL':
+        return 'error';
+      case 'HIGH':
+        return 'warning';
+      case 'MEDIUM':
+        return 'info';
+      case 'LOW':
+        return 'success';
+      default:
+        return 'default';
+    }
+  };
+
+  const formatStatus = (status) => {
+    return status?.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown';
+  };
+
+  const formatPriority = (priority) => {
+    return priority?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown';
+  };
+
+  const ProjectDialog = ({ open, onClose, title, onSave }) => (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>{title}</DialogTitle>
+      <DialogContent>
+        <Grid container spacing={3} sx={{ mt: 1 }}>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="Project Name"
+              fullWidth
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              required
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="Client"
+              fullWidth
+              value={formData.client}
+              onChange={(e) => setFormData({ ...formData, client: e.target.value })}
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <TextField
+              label="Description"
+              fullWidth
+              multiline
+              rows={3}
+              value={formData.description}
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth>
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={formData.status}
+                label="Status"
+                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+              >
+                {statusOptions.filter(s => s !== 'All').map(status => (
+                  <MenuItem key={status} value={status}>{status}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth>
+              <InputLabel>Priority</InputLabel>
+              <Select
+                value={formData.priority}
+                label="Priority"
+                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+              >
+                {priorityOptions.filter(p => p !== 'All').map(priority => (
+                  <MenuItem key={priority} value={priority}>{priority}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="Project Leader ID"
+              fullWidth
+              value={formData.projectLeaderId}
+              onChange={(e) => setFormData({ ...formData, projectLeaderId: e.target.value })}
+              placeholder={currentUser?.id || "Enter project leader ID"}
+              helperText="Leave empty to use current user as project leader"
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="Team Lead ID"
+              fullWidth
+              value={formData.teamLeadId}
+              onChange={(e) => setFormData({ ...formData, teamLeadId: e.target.value })}
+              placeholder="Enter team lead ID (optional)"
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              label="Budget"
+              fullWidth
+              type="number"
+              value={formData.budget}
+              onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label="Start Date"
+                value={formData.startDate}
+                onChange={(newValue) => setFormData({ ...formData, startDate: newValue })}
+                renderInput={(params) => <TextField {...params} fullWidth />}
+              />
+            </LocalizationProvider>
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <LocalizationProvider dateAdapter={AdapterDayjs}>
+              <DatePicker
+                label="End Date"
+                value={formData.endDate}
+                onChange={(newValue) => setFormData({ ...formData, endDate: newValue })}
+                renderInput={(params) => <TextField {...params} fullWidth />}
+              />
+            </LocalizationProvider>
+          </Grid>
+          <Grid item xs={12}>
+            <Autocomplete
+              multiple
+              options={teamMemberOptions}
+              value={formData.teamMembers}
+              onChange={(event, newValue) => setFormData({ ...formData, teamMembers: newValue })}
+              renderInput={(params) => (
+                <TextField {...params} label="Team Members" placeholder="Select team members" />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip variant="outlined" label={option} {...getTagProps({ index })} />
+                ))
+              }
+            />
+          </Grid>
+          <Grid item xs={12}>
+            <Autocomplete
+              multiple
+              freeSolo
+              options={skillOptions}
+              value={formData.requiredSkills}
+              onChange={(event, newValue) => setFormData({ ...formData, requiredSkills: newValue })}
+              renderInput={(params) => (
+                <TextField {...params} label="Required Skills" placeholder="Add required skills" />
+              )}
+              renderTags={(value, getTagProps) =>
+                value.map((option, index) => (
+                  <Chip variant="outlined" label={option} {...getTagProps({ index })} />
+                ))
+              }
+            />
+          </Grid>
+        </Grid>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} disabled={submitting}>
+          Cancel
+        </Button>
+        <Button 
+          onClick={onSave} 
+          variant="contained"
+          disabled={submitting}
+          startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
+        >
+          {submitting ? 'Saving...' : (selectedProject ? 'Update' : 'Create')} Project
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
+  const ProjectViewDialog = ({ open, onClose, project }) => (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle>
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Typography variant="h6">{project?.name}</Typography>
+          <Box sx={{ display: 'flex', gap: 1 }}>
+            <Chip label={project?.status} color={getStatusColor(project?.status)} />
+            <Chip label={project?.priority} color={getPriorityColor(project?.priority)} />
+          </Box>
+        </Box>
+      </DialogTitle>
+      <DialogContent>
+        {project && (
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" color="text.secondary">Description</Typography>
+              <Typography variant="body1" sx={{ mb: 2 }}>{project.description}</Typography>
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" color="text.secondary">Project Details</Typography>
+              <List dense>
+                <ListItem>
+                  <ListItemText primary="Client" secondary={project.client} />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Department" secondary={project.department} />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Budget" secondary={`$${project.budget?.toLocaleString()}`} />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="Start Date" secondary={new Date(project.startDate).toLocaleDateString()} />
+                </ListItem>
+                <ListItem>
+                  <ListItemText primary="End Date" secondary={new Date(project.endDate).toLocaleDateString()} />
+                </ListItem>
+              </List>
+            </Grid>
+
+            <Grid item xs={12} md={6}>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>Progress</Typography>
+              <Box sx={{ mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography variant="body2">Overall Progress</Typography>
+                  <Typography variant="body2">{project?.completionPercentage?.toFixed(1) || 0}%</Typography>
+                </Box>
+                <LinearProgress variant="determinate" value={project?.completionPercentage || 0} sx={{ height: 8, borderRadius: 4 }} />
+              </Box>
+              <Typography variant="body2" color="text.secondary">
+                {project?.completedTasks || 0} of {project?.totalTasks || 0} tasks completed
+              </Typography>
+            </Grid>
+
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>Project Leaders</Typography>
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Chip 
+                  label={`Project Leader: ${project?.projectLeaderId || 'Not assigned'}`}
+                  color="primary"
+                  variant="outlined"
+                />
+                {project?.teamLeadId && (
+                  <Chip 
+                    label={`Team Lead: ${project.teamLeadId}`}
+                    color="secondary"
+                    variant="outlined"
+                  />
+                )}
+              </Box>
+            </Grid>
+
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Required Skills</Typography>
+              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                {project?.requiredSkills?.length > 0 ? (
+                  project.requiredSkills.map((skill, index) => (
+                    <Chip key={index} label={skill} variant="outlined" size="small" />
+                  ))
+                ) : (
+                  <Typography variant="body2" color="text.secondary">No specific skills required</Typography>
+                )}
+              </Box>
+            </Grid>
+
+            {project?.budget && (
+              <Grid item xs={12}>
+                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Budget Information</Typography>
+                <Box sx={{ display: 'flex', gap: 2 }}>
+                  <Chip label={`Budget: $${project.budget.toLocaleString()}`} color="success" variant="outlined" />
+                  {project.actualCost && (
+                    <Chip label={`Actual Cost: $${project.actualCost.toLocaleString()}`} color="warning" variant="outlined" />
+                  )}
+                </Box>
+              </Grid>
+            )}
+          </Grid>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+        <Button onClick={() => handleEditProject(project)} variant="contained" startIcon={<EditIcon />}>
+          Edit Project
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+
+  return (
+    <Container maxWidth="xl">
+      {/* Error Alert */}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setError(null)}>
+          {error}
+        </Alert>
+      )}
+
+      {/* Header Actions */}
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+        <Box>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+            Project Management
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Manage your projects, track progress, and collaborate with teams
+          </Typography>
+        </Box>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<RefreshIcon />}
+            onClick={loadProjects}
+            disabled={loading}
+            sx={{ borderRadius: 2 }}
+          >
+            Refresh
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleOpenCreateDialog}
+            sx={{ borderRadius: 2 }}
+          >
+            Create Project
+          </Button>
+        </Box>
+      </Box>
+
+      {/* Filters */}
+      <Card elevation={2} sx={{ mb: 3 }}>
+        <CardContent>
+          <Grid container spacing={3} alignItems="center">
+            <Grid item xs={12} md={4}>
+              <TextField
+                fullWidth
+                placeholder="Search projects..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon />
+                    </InputAdornment>
+                  ),
+                }}
+              />
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Status</InputLabel>
+                <Select
+                  value={statusFilter}
+                  label="Status"
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                >
+                  {statusOptions.map(status => (
+                    <MenuItem key={status} value={status}>{status}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel>Priority</InputLabel>
+                <Select
+                  value={priorityFilter}
+                  label="Priority"
+                  onChange={(e) => setPriorityFilter(e.target.value)}
+                >
+                  {priorityOptions.map(priority => (
+                    <MenuItem key={priority} value={priority}>{priority}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid item xs={12} md={2}>
+              <Button
+                fullWidth
+                variant="outlined"
+                startIcon={<FilterIcon />}
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('All');
+                  setPriorityFilter('All');
+                }}
+              >
+                Clear
+              </Button>
+            </Grid>
+          </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Loading State */}
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
+          <CircularProgress size={60} />
+        </Box>
+      )}
+
+      {/* Empty State */}
+      {!loading && filteredProjects.length === 0 && (
+        <Paper sx={{ p: 6, textAlign: 'center' }}>
+          <ProjectIcon sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No projects found
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+            {projects.length === 0 
+              ? "Get started by creating your first project"
+              : "Try adjusting your search criteria"
+            }
+          </Typography>
+          <Button 
+            variant="contained" 
+            startIcon={<AddIcon />}
+            onClick={handleOpenCreateDialog}
+          >
+            Create Project
+          </Button>
+        </Paper>
+      )}
+
+      {/* Projects Grid */}
+      {!loading && filteredProjects.length > 0 && (
+        <Grid container spacing={3}>
+          {filteredProjects.map((project) => (
+          <Grid item xs={12} md={6} lg={4} key={project.id}>
+            <Card
+              elevation={2}
+              sx={{
+                height: '100%',
+                transition: 'all 0.3s ease-in-out',
+                '&:hover': {
+                  transform: 'translateY(-4px)',
+                  boxShadow: theme.shadows[8],
+                },
+                cursor: 'pointer',
+              }}
+              onClick={() => handleViewProject(project)}
+            >
+              <CardContent>
+                <Box sx={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="h6" sx={{ fontWeight: 'bold', flexGrow: 1 }}>
+                    {project.name}
+                  </Typography>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleMenuOpen(e, project);
+                    }}
+                  >
+                    <MoreVertIcon />
+                  </IconButton>
+                </Box>
+
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2, height: 40, overflow: 'hidden' }}>
+                  {project.description}
+                </Typography>
+
+                <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                  <Chip label={formatStatus(project.status)} color={getStatusColor(project.status)} size="small" />
+                  <Chip label={formatPriority(project.priority)} color={getPriorityColor(project.priority)} size="small" />
+                </Box>
+
+                <Box sx={{ mb: 2 }}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                    <Typography variant="body2" color="text.secondary">Progress</Typography>
+                    <Typography variant="body2" color="text.secondary">{project.completionPercentage?.toFixed(1) || 0}%</Typography>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={project.completionPercentage || 0}
+                    sx={{ height: 6, borderRadius: 3 }}
+                  />
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    Due: {project.endDate ? new Date(project.endDate).toLocaleDateString() : 'Not set'}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {project.budget ? `$${project.budget.toLocaleString()}` : 'No budget'}
+                  </Typography>
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Box sx={{ display: 'flex', gap: 1 }}>
+                    {project.requiredSkills?.slice(0, 3).map((skill, index) => (
+                      <Chip key={index} label={skill} size="small" variant="outlined" />
+                    ))}
+                    {project.requiredSkills?.length > 3 && (
+                      <Chip label={`+${project.requiredSkills.length - 3}`} size="small" variant="outlined" />
+                    )}
+                  </Box>
+                  <Typography variant="caption" color="text.secondary">
+                    {project.completedTasks || 0}/{project.totalTasks || 0} tasks
+                  </Typography>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
+        </Grid>
+      )}
+
+      {/* Context Menu */}
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleMenuClose}
+      >
+        <MenuItem onClick={() => handleViewProject(menuProject)}>
+          <ViewIcon sx={{ mr: 1 }} />
+          View Details
+        </MenuItem>
+        <MenuItem onClick={() => handleEditProject(menuProject)}>
+          <EditIcon sx={{ mr: 1 }} />
+          Edit Project
+        </MenuItem>
+        <Divider />
+        <MenuItem onClick={() => handleDeleteProjectFromMenu(menuProject)} sx={{ color: 'error.main' }}>
+          <DeleteIcon sx={{ mr: 1 }} />
+          Delete Project
+        </MenuItem>
+      </Menu>
+
+      {/* Dialogs */}
+      <ProjectDialog
+        open={openCreateDialog}
+        onClose={() => setOpenCreateDialog(false)}
+        title="Create New Project"
+        onSave={handleCreateProject}
+      />
+
+      <ProjectDialog
+        open={openEditDialog}
+        onClose={() => setOpenEditDialog(false)}
+        title="Edit Project"
+        onSave={handleUpdateProject}
+      />
+
+      <ProjectViewDialog
+        open={openViewDialog}
+        onClose={() => setOpenViewDialog(false)}
+        project={selectedProject}
+      />
+    </Container>
+  );
+};
+
+export default ProjectManagement;

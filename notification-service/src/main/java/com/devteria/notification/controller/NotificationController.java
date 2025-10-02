@@ -1,15 +1,17 @@
 package com.devteria.notification.controller;
 
+import java.util.List;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
 import com.devteria.notification.dto.request.MarkReadRequest;
 import com.devteria.notification.dto.response.NotificationResponse;
 import com.devteria.notification.dto.response.NotificationSummaryResponse;
 import com.devteria.notification.service.UserNotificationService;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/notifications")
@@ -46,8 +48,7 @@ public class NotificationController {
 
     @GetMapping("/user/{userId}/recent")
     public ResponseEntity<List<NotificationResponse>> getRecentNotifications(
-            @PathVariable String userId,
-            @RequestParam(defaultValue = "7") int days) {
+            @PathVariable String userId, @RequestParam(defaultValue = "7") int days) {
 
         log.info("Getting recent notifications for user: {} (last {} days)", userId, days);
         List<NotificationResponse> recentNotifications = userNotificationService.getRecentNotifications(userId, days);
@@ -56,8 +57,7 @@ public class NotificationController {
 
     @PostMapping("/user/{userId}/mark-read")
     public ResponseEntity<Void> markNotificationsAsRead(
-            @PathVariable("userId") String userId,
-            @RequestBody MarkReadRequest request) {
+            @PathVariable("userId") String userId, @RequestBody MarkReadRequest request) {
 
         List<String> notificationIds = request.getIds();
         log.info("Marking {} notifications as read for user: {}", notificationIds.size(), userId);

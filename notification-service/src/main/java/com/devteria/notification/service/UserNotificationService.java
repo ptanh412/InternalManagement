@@ -1,21 +1,23 @@
 package com.devteria.notification.service;
 
-import com.devteria.notification.dto.response.NotificationResponse;
-import com.devteria.notification.dto.response.NotificationSummaryResponse;
-import com.devteria.notification.entity.UserNotification;
-import com.devteria.notification.repository.UserNotificationRepository;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import com.devteria.notification.dto.response.NotificationResponse;
+import com.devteria.notification.dto.response.NotificationSummaryResponse;
+import com.devteria.notification.entity.UserNotification;
+import com.devteria.notification.repository.UserNotificationRepository;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -25,35 +27,42 @@ public class UserNotificationService {
     private final UserNotificationRepository notificationRepository;
 
     @Transactional
-    public UserNotification saveNotification(String userId, String type, String title, String message,
-                                           Map<String, Object> data, String channel, String templateCode) {
+    public UserNotification saveNotification(
+            String userId,
+            String type,
+            String title,
+            String message,
+            Map<String, Object> data,
+            String channel,
+            String templateCode) {
         // Convert data map to string map for JPA storage
         Map<String, String> stringData = new HashMap<>();
         if (data != null) {
             data.forEach((key, value) -> stringData.put(key, value != null ? value.toString() : null));
         }
 
-    UserNotification notification = UserNotification.builder()
-        .userId(userId)
-        .type(type)
-        .title(title)
-        .message(message)
-        .data(stringData)
-        .channel(channel)
-        .templateCode(templateCode)
-        .isRead(false)
-        .createdAt(java.time.LocalDateTime.now())
-        .build();
+        UserNotification notification = UserNotification.builder()
+                .userId(userId)
+                .type(type)
+                .title(title)
+                .message(message)
+                .data(stringData)
+                .channel(channel)
+                .templateCode(templateCode)
+                .isRead(false)
+                .createdAt(java.time.LocalDateTime.now())
+                .build();
 
-    UserNotification savedNotification = notificationRepository.save(notification);
-    log.info("Saved notification for user: {} with type: {}", userId, type);
+        UserNotification savedNotification = notificationRepository.save(notification);
+        log.info("Saved notification for user: {} with type: {}", userId, type);
 
-    return savedNotification;
+        return savedNotification;
     }
 
     public NotificationSummaryResponse getUserNotifications(String userId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
-        Page<UserNotification> notificationPage = notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
+        Page<UserNotification> notificationPage =
+                notificationRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
 
         List<NotificationResponse> notifications = notificationPage.getContent().stream()
                 .map(this::mapToNotificationResponse)
@@ -72,10 +81,9 @@ public class UserNotificationService {
     }
 
     public List<NotificationResponse> getUnreadNotifications(String userId) {
-        List<UserNotification> unreadNotifications = notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId);
-        return unreadNotifications.stream()
-                .map(this::mapToNotificationResponse)
-                .toList();
+        List<UserNotification> unreadNotifications =
+                notificationRepository.findByUserIdAndIsReadFalseOrderByCreatedAtDesc(userId);
+        return unreadNotifications.stream().map(this::mapToNotificationResponse).toList();
     }
 
     public long getUnreadCount(String userId) {
@@ -98,10 +106,9 @@ public class UserNotificationService {
 
     public List<NotificationResponse> getRecentNotifications(String userId, int days) {
         LocalDateTime since = LocalDateTime.now().minusDays(days);
-        List<UserNotification> recentNotifications = notificationRepository.findByUserIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(userId, since);
-        return recentNotifications.stream()
-                .map(this::mapToNotificationResponse)
-                .toList();
+        List<UserNotification> recentNotifications =
+                notificationRepository.findByUserIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(userId, since);
+        return recentNotifications.stream().map(this::mapToNotificationResponse).toList();
     }
 
     private NotificationResponse mapToNotificationResponse(UserNotification notification) {

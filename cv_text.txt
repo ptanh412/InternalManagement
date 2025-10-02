@@ -1,0 +1,113 @@
+Thế Anh Phạm
+React Developer
+ 0853412203
+ pham041203theanh@gmail.co
+m
+ HCM
+📅 Dec 18, 1997
+Objective
+Experienced React developer with
+4+ years of building responsive,
+user-friendly web applications.
+Seeking to join an innovative team
+where I can apply my expertise in
+ReactJS, JavaScript, Redux, and
+modern web technologies to solve
+complex problems and deliver
+impactful solutions. Eager to grow
+technically while creating
+applications that exceed
+expectations and drive business
+value. I thrive in collaborative
+environments and enjoy turning
+design concepts into highperformance, scalable interfaces.
+With a strong focus on clean code
+and usability, I aim to build products
+that offer both technical excellence
+and great user experiences.
+Passionate about continuous
+learning, I stay up to date with the
+latest trends in frontend
+development.
+Skill
+JavaScript (ES6+)
+💡 Education
+Bachelor of Science in Computer Science 2013 - 2017
+TopCV University
+• Completed coursework includes Data Structures and Algorithms, Web
+Development, Database Management, and Artificial Intelligence.
+• Final Year Project: Developed a web-based application using React.js and
+Node.js to automate student attendance tracking and analysis, which
+reduced manual input time by 50%.
+• GPA: 3.7/4.0
+ Work experience
+React Developer July 2020 - Present
+TopCV VinTech Corp
+Responsible for the development of client-centric web applications using
+React.js, managing the lifecycle of several high-impact projects from concept
+to deployment.
+Project: E-commerce Platform Revamp
+• Led the redevelopment of a high-traffic e-commerce site, integrating React
+with Redux for state management, which resulted in a 40% increase in user
+engagement and a 30% faster page load time.
+• Collaborated with UX/UI designers to implement a responsive design,
+enhancing mobile accessibility and improving overall customer satisfaction
+ratings by 25%.
+Project: Real Estate Listing Application
+• Developed key features for a real estate platform including advanced
+property filtering, Google Maps API integration for location-based
+searches, virtual tour capabilities using React 360.
+Junior React Developer January 2018 - June 2020
+TopCV Tech Pioneers Inc.
+Developed user interface components and implemented those following wellknown React.js workflows (such as Redux) to build scalable and maintainable
+software.
+• Project: Internal Tool for Project Management
+• Played a key role in building a custom project management tool that
+improved project tracking and resource allocation, widely adopted
+internally.
+• Leveraged React hooks to optimize application performance and simplify
+state management across multiple components.
+• Project: Fitness App Integration
+• Collaborated with a team to integrate fitness tracking devices into a usercentric application, focusing on data synchronization and user analytics.
+Intern June 2017 - December 2017
+TopCV Start-Up Hub
+Contributed to the development of several startup projects, focusing on using
+React.js to build interactive and user-friendly web applications.
+• Project: Social Media Campaign Tool
+• Assisted in developing a tool for managing social media campaigns,
+enabling real-time analytics and performance monitoring for marketing
+professionals.
+React.js (Hooks, Context API, JSX)
+Next.js
+Git / GitHub / GitLab
+Firebase
+RESTful APIs
+TypeScript
+Agile / Scrum methodologies
+Interests
+● Reading
+● Video games
+• Developed reusable React components for real-time data visualization,
+such as campaign engagement and budget utilization charts.
+• Project: Bike Rental App
+• Contribute to the development of the App with know-how of React,
+Firebase and JavaScript
+🏆 Honors & Awards
+2019 Codefest Winner
+🖹 Certifications
+2018 Full Stack Web Developer Nanodegree - Udacity
+2019 Google Developers Certification: Mobile Web Specialist
+2019 Front-End Web Developer Certification - Free Code Camp
+⭐ Activities
+Participant 2018 -
+Hackathons and Coding Competitions
+Participated in the 'CodeFest 2023' where I led a team to develop a Reactbased app for real-time social media analytics.
+🔖 References
+Project Manager
+• Name: Emily White
+• Position: Project Manager
+• Company: Innovative Web Apps
+• Relationship: Oversaw the project timelines and deliverables for projects
+where you extensively used React.
+• Contact Information: emilywhite@iwebapps.com | (456) 123-4567
+© topcv.vn

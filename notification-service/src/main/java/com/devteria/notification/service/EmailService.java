@@ -1,21 +1,23 @@
 package com.devteria.notification.service;
 
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
 import com.devteria.event.dto.NotificationEvent;
 import com.devteria.notification.dto.request.*;
 import com.devteria.notification.dto.response.EmailResponse;
 import com.devteria.notification.exception.AppException;
 import com.devteria.notification.exception.ErrorCode;
 import com.devteria.notification.repository.httpclient.EmailClient;
+
 import feign.FeignException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -35,8 +37,8 @@ public class EmailService {
                         .email("pham041203theanh@gmail.com")
                         .build())
                 .personalizations(List.of(Personalization.builder()
-                                .to(List.of(request.getTo()))
-                                .subject(request.getSubject())
+                        .to(List.of(request.getTo()))
+                        .subject(request.getSubject())
                         .build()))
                 .content(List.of(Content.builder()
                         .type("text/html")
@@ -46,7 +48,7 @@ public class EmailService {
         try {
             String bearerToken = "Bearer " + apiKey;
             return emailClient.sendEmail(bearerToken, emailRequest);
-        } catch (FeignException e){
+        } catch (FeignException e) {
             throw new AppException(ErrorCode.CANNOT_SEND_EMAIL);
         }
     }
@@ -70,10 +72,9 @@ public class EmailService {
                             .email("pham041203theanh@gmail.com")
                             .build())
                     .personalizations(List.of(Personalization.builder()
-                                    .to(List.of(recipient))
-                                    .subject(emailSubject)
+                            .to(List.of(recipient))
+                            .subject(emailSubject)
                             .build()))
-
                     .content(List.of(Content.builder()
                             .type(getContentType(event))
                             .value(formatEmailContent(emailBody))
@@ -142,7 +143,7 @@ public class EmailService {
 
         // Convert plain text to HTML with proper formatting
         return body.replace("\n", "<br>")
-                  .replace("Dear Team Member,", "<h3>Dear Team Member,</h3>")
-                  .replace("Best regards,", "<br><br><strong>Best regards,</strong><br>");
+                .replace("Dear Team Member,", "<h3>Dear Team Member,</h3>")
+                .replace("Best regards,", "<br><br><strong>Best regards,</strong><br>");
     }
 }

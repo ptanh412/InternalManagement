@@ -1,7 +1,7 @@
 package com.devteria.notification.configuration;
+
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -9,12 +9,6 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
- import org.springframework.web.cors.CorsConfiguration;
-import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-
-import java.util.Arrays;
-import java.util.List;
 
 @Configuration
 @EnableWebSecurity
@@ -23,16 +17,16 @@ public class SecurityConfig {
 
     // Thêm nhiều endpoints SockJS vào danh sách public
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/email/send",
-            "/ws/**",           // Tất cả WebSocket endpoints
-            "/ws",              // Base WebSocket endpoint
-            "/ws/info",         // SockJS info endpoint
-            "/ws/info/**",      // SockJS info với parameters
-            "/ws/{server}/{session}/{transport}", // SockJS transport endpoints
-            "/ws/{server}/{session}/websocket",   // SockJS WebSocket transport
-            "/ws/{server}/{session}/xhr",         // SockJS XHR transport
-            "/ws/{server}/{session}/xhr_send",    // SockJS XHR send
-            "/ws/{server}/{session}/xhr_streaming" // SockJS XHR streaming
+        "/email/send",
+        "/ws/**", // Tất cả WebSocket endpoints
+        "/ws", // Base WebSocket endpoint
+        "/ws/info", // SockJS info endpoint
+        "/ws/info/**", // SockJS info với parameters
+        "/ws/{server}/{session}/{transport}", // SockJS transport endpoints
+        "/ws/{server}/{session}/websocket", // SockJS WebSocket transport
+        "/ws/{server}/{session}/xhr", // SockJS XHR transport
+        "/ws/{server}/{session}/xhr_send", // SockJS XHR send
+        "/ws/{server}/{session}/xhr_streaming" // SockJS XHR streaming
     };
 
     private final CustomJwtDecoder customJwtDecoder;

@@ -10,6 +10,11 @@ spring:
     authentication:
       username: neo4j
       password: 12345678
+logging:
+  level:
+    org.springframework.data.neo4j.cypher.deprecation: ERROR
+    org.springframework.data.neo4j.cypher.unrecognized: ERROR
 app:
   services:
     file: http://localhost:8084
+    identity: http://localhost:8080/identity

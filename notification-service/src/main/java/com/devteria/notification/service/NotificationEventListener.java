@@ -1,10 +1,12 @@
 package com.devteria.notification.service;
 
-import com.devteria.event.dto.NotificationEvent;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+
+import com.devteria.event.dto.NotificationEvent;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
@@ -35,7 +37,8 @@ public class NotificationEventListener {
             log.info("Received WebSocket notification event for: {}", event.getRecipient());
 
             if ("WEBSOCKET".equals(event.getChannel())) {
-                String scope = event.getParam() != null ? (String) event.getParam().get("scope") : null;
+                String scope =
+                        event.getParam() != null ? (String) event.getParam().get("scope") : null;
 
                 if ("ALL_COMPANY".equals(scope)) {
                     // Send to all connected users
