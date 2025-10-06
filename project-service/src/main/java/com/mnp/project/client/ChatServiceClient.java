@@ -8,8 +8,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import com.mnp.project.dto.request.ApiResponse;
 import com.mnp.project.dto.response.ConversationResponse;
 import com.mnp.project.dto.request.CreateProjectGroupRequest;
+import com.mnp.project.configuration.FeignConfiguration;
 
-@FeignClient(name = "chat-service", url = "${app.services.chat}")
+@FeignClient(name = "chat-service", url = "${app.services.chat}", configuration = FeignConfiguration.class)
 public interface ChatServiceClient {
 
     @PostMapping("/conversations/project-group")

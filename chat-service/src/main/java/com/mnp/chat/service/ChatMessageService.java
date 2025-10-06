@@ -153,9 +153,9 @@ public class ChatMessageService {
         // Initialize readers list with sender (who has implicitly read their own message)
         ParticipantInfo senderInfo = ParticipantInfo.builder()
                 .userId(userInfo.getUserId())
-                .username(userInfo.getUsername())
-                .firstName(userInfo.getFirstName())
-                .lastName(userInfo.getLastName())
+                .username(userInfo.getUser().getUsername())
+                .firstName(userInfo.getUser().getFirstName())
+                .lastName(userInfo.getUser().getLastName())
                 .avatar(userInfo.getAvatar())
                 .build();
 
@@ -168,9 +168,9 @@ public class ChatMessageService {
                 .createdDate(Instant.now())
                 .sender(ParticipantInfo.builder()
                         .userId(userInfo.getUserId())
-                        .username(userInfo.getUsername())
-                        .firstName(userInfo.getFirstName())
-                        .lastName(userInfo.getLastName())
+                        .username(userInfo.getUser().getUsername())
+                        .firstName(userInfo.getUser().getFirstName())
+                        .lastName(userInfo.getUser().getLastName())
                         .avatar(userInfo.getAvatar())
                         .build())
                 .build();
@@ -205,9 +205,9 @@ public class ChatMessageService {
                     var receiverInfo = receiverResponse.getResult();
                     ParticipantInfo readerInfo = ParticipantInfo.builder()
                             .userId(receiverInfo.getUserId())
-                            .username(receiverInfo.getUsername())
-                            .firstName(receiverInfo.getFirstName())
-                            .lastName(receiverInfo.getLastName())
+                            .username(receiverInfo.getUser().getUsername())
+                            .firstName(receiverInfo.getUser().getFirstName())
+                            .lastName(receiverInfo.getUser().getLastName())
                             .avatar(receiverInfo.getAvatar())
                             .build();
 
@@ -247,7 +247,8 @@ public class ChatMessageService {
         final String adderName;
         if (adderResponse != null && adderResponse.getResult() != null) {
             var adderInfo = adderResponse.getResult();
-            adderName = adderInfo.getFirstName() + " " + adderInfo.getLastName();
+            adderName = adderInfo.getUser().getFirstName() + " "
+                    + adderInfo.getUser().getLastName();
         } else {
             adderName = "Someone";
         }
@@ -274,9 +275,9 @@ public class ChatMessageService {
             var adderInfo = adderResponse.getResult();
             adderReaderInfo = ParticipantInfo.builder()
                     .userId(adderInfo.getUserId())
-                    .username(adderInfo.getUsername())
-                    .firstName(adderInfo.getFirstName())
-                    .lastName(adderInfo.getLastName())
+                    .username(adderInfo.getUser().getUsername())
+                    .firstName(adderInfo.getUser().getFirstName())
+                    .lastName(adderInfo.getUser().getLastName())
                     .avatar(adderInfo.getAvatar())
                     .build();
         }
@@ -418,7 +419,8 @@ public class ChatMessageService {
         final String removerName;
         if (removerResponse != null && removerResponse.getResult() != null) {
             var removerInfo = removerResponse.getResult();
-            removerName = removerInfo.getFirstName() + " " + removerInfo.getLastName();
+            removerName = removerInfo.getUser().getFirstName() + " "
+                    + removerInfo.getUser().getLastName();
         } else {
             removerName = "Someone";
         }
@@ -445,9 +447,9 @@ public class ChatMessageService {
             var removerInfo = removerResponse.getResult();
             removerReaderInfo = ParticipantInfo.builder()
                     .userId(removerInfo.getUserId())
-                    .username(removerInfo.getUsername())
-                    .firstName(removerInfo.getFirstName())
-                    .lastName(removerInfo.getLastName())
+                    .username(removerInfo.getUser().getUsername())
+                    .firstName(removerInfo.getUser().getFirstName())
+                    .lastName(removerInfo.getUser().getLastName())
                     .avatar(removerInfo.getAvatar())
                     .build();
         }
@@ -965,9 +967,9 @@ public class ChatMessageService {
 
         ParticipantInfo readerInfo = ParticipantInfo.builder()
                 .userId(userInfo.getUserId())
-                .username(userInfo.getUsername())
-                .firstName(userInfo.getFirstName())
-                .lastName(userInfo.getLastName())
+                .username(userInfo.getUser().getUsername())
+                .firstName(userInfo.getUser().getFirstName())
+                .lastName(userInfo.getUser().getLastName())
                 .avatar(userInfo.getAvatar())
                 .build();
 
@@ -1323,15 +1325,16 @@ public class ChatMessageService {
         // Create system message for pin action
         ChatMessage systemMessage = ChatMessage.builder()
                 .conversationId(message.getConversationId())
-                .message(userInfo.getFirstName() + " " + userInfo.getLastName() + " pinned a message")
+                .message(userInfo.getUser().getFirstName() + " "
+                        + userInfo.getUser().getLastName() + " pinned a message")
                 .type("SYSTEM")
                 .status("SENT")
                 .createdDate(Instant.now())
                 .sender(ParticipantInfo.builder()
                         .userId(userInfo.getUserId())
-                        .username(userInfo.getUsername())
-                        .firstName(userInfo.getFirstName())
-                        .lastName(userInfo.getLastName())
+                        .username(userInfo.getUser().getUsername())
+                        .firstName(userInfo.getUser().getFirstName())
+                        .lastName(userInfo.getUser().getLastName())
                         .avatar(userInfo.getAvatar())
                         .build())
                 .build();
@@ -1394,15 +1397,16 @@ public class ChatMessageService {
         // Create system message for unpin action
         ChatMessage systemMessage = ChatMessage.builder()
                 .conversationId(message.getConversationId())
-                .message(userInfo.getFirstName() + " " + userInfo.getLastName() + " unpinned a message")
+                .message(userInfo.getUser().getFirstName() + " "
+                        + userInfo.getUser().getLastName() + " unpinned a message")
                 .type("SYSTEM")
                 .status("SENT")
                 .createdDate(Instant.now())
                 .sender(ParticipantInfo.builder()
                         .userId(userInfo.getUserId())
-                        .username(userInfo.getUsername())
-                        .firstName(userInfo.getFirstName())
-                        .lastName(userInfo.getLastName())
+                        .username(userInfo.getUser().getUsername())
+                        .firstName(userInfo.getUser().getFirstName())
+                        .lastName(userInfo.getUser().getLastName())
                         .avatar(userInfo.getAvatar())
                         .build())
                 .build();
@@ -1516,9 +1520,9 @@ public class ChatMessageService {
                     .createdDate(Instant.now())
                     .sender(ParticipantInfo.builder()
                             .userId(userInfo.getUserId())
-                            .username(userInfo.getUsername())
-                            .firstName(userInfo.getFirstName())
-                            .lastName(userInfo.getLastName())
+                            .username(userInfo.getUser().getUsername())
+                            .firstName(userInfo.getUser().getFirstName())
+                            .lastName(userInfo.getUser().getLastName())
                             .avatar(userInfo.getAvatar())
                             .build())
                     // Media fields
@@ -1541,9 +1545,11 @@ public class ChatMessageService {
                             || request.getFileType().equals("image/jpg")
                             || request.getFileType().equals("image/gif")
                             || request.getFileType().equals("image/webp"))) {
-                systemMessageText = userInfo.getFirstName() + " " + userInfo.getLastName() + " uploaded an image";
+                systemMessageText = userInfo.getUser().getFirstName() + " "
+                        + userInfo.getUser().getLastName() + " uploaded an image";
             } else {
-                systemMessageText = userInfo.getFirstName() + " " + userInfo.getLastName() + " sent a file";
+                systemMessageText = userInfo.getUser().getFirstName() + " "
+                        + userInfo.getUser().getLastName() + " sent a file";
             }
 
             ChatMessage systemMessage = ChatMessage.builder()
@@ -1554,9 +1560,9 @@ public class ChatMessageService {
                     .createdDate(Instant.now())
                     .sender(ParticipantInfo.builder()
                             .userId(userInfo.getUserId())
-                            .username(userInfo.getUsername())
-                            .firstName(userInfo.getFirstName())
-                            .lastName(userInfo.getLastName())
+                            .username(userInfo.getUser().getUsername())
+                            .firstName(userInfo.getUser().getFirstName())
+                            .lastName(userInfo.getUser().getLastName())
                             .avatar(userInfo.getAvatar())
                             .build())
                     .build();
@@ -1625,9 +1631,9 @@ public class ChatMessageService {
                     .replyToMessageId(request.getReplyToMessageId())
                     .sender(ParticipantInfo.builder()
                             .userId(userInfo.getUserId())
-                            .username(userInfo.getUsername())
-                            .firstName(userInfo.getFirstName())
-                            .lastName(userInfo.getLastName())
+                            .username(userInfo.getUser().getUsername())
+                            .firstName(userInfo.getUser().getFirstName())
+                            .lastName(userInfo.getUser().getLastName())
                             .avatar(userInfo.getAvatar())
                             .build())
                     // Media fields
@@ -1642,7 +1648,8 @@ public class ChatMessageService {
             log.info("📁 Socket media reply saved with ID: {}", chatMessage.getId());
 
             // Create system message for file reply notification
-            String systemMessageText = userInfo.getFirstName() + " " + userInfo.getLastName() + " sent a file";
+            String systemMessageText =
+                    userInfo.getUser().getFirstName() + " " + userInfo.getUser().getLastName() + " sent a file";
             ChatMessage systemMessage = ChatMessage.builder()
                     .conversationId(request.getConversationId())
                     .message(systemMessageText)
@@ -1651,9 +1658,9 @@ public class ChatMessageService {
                     .createdDate(Instant.now())
                     .sender(ParticipantInfo.builder()
                             .userId(userInfo.getUserId())
-                            .username(userInfo.getUsername())
-                            .firstName(userInfo.getFirstName())
-                            .lastName(userInfo.getLastName())
+                            .username(userInfo.getUser().getUsername())
+                            .firstName(userInfo.getUser().getFirstName())
+                            .lastName(userInfo.getUser().getLastName())
                             .avatar(userInfo.getAvatar())
                             .build())
                     .build();
@@ -1854,9 +1861,9 @@ public class ChatMessageService {
                 var userInfo = profileResponse.getResult();
                 participants.add(ParticipantInfo.builder()
                         .userId(userInfo.getUserId())
-                        .username(userInfo.getUsername())
-                        .firstName(userInfo.getFirstName())
-                        .lastName(userInfo.getLastName())
+                        .username(userInfo.getUser().getUsername())
+                        .firstName(userInfo.getUser().getFirstName())
+                        .lastName(userInfo.getUser().getLastName())
                         .avatar(userInfo.getAvatar())
                         .build());
             }
@@ -1870,9 +1877,9 @@ public class ChatMessageService {
             var creatorInfo = creatorProfileResponse.getResult();
             ParticipantInfo creatorReaderInfo = ParticipantInfo.builder()
                     .userId(creatorInfo.getUserId())
-                    .username(creatorInfo.getUsername())
-                    .firstName(creatorInfo.getFirstName())
-                    .lastName(creatorInfo.getLastName())
+                    .username(creatorInfo.getUser().getUsername())
+                    .firstName(creatorInfo.getUser().getFirstName())
+                    .lastName(creatorInfo.getUser().getLastName())
                     .avatar(creatorInfo.getAvatar())
                     .build();
 
@@ -2199,9 +2206,9 @@ public class ChatMessageService {
                 .createdDate(Instant.now())
                 .sender(ParticipantInfo.builder()
                         .userId(userInfo.getUserId())
-                        .username(userInfo.getUsername())
-                        .firstName(userInfo.getFirstName())
-                        .lastName(userInfo.getLastName())
+                        .username(userInfo.getUser().getUsername())
+                        .firstName(userInfo.getUser().getFirstName())
+                        .lastName(userInfo.getUser().getLastName())
                         .avatar(userInfo.getAvatar())
                         .build())
                 .build();

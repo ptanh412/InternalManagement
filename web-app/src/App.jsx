@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { CssBaseline, ThemeProvider } from "@mui/material";
 import { createTheme } from '@mui/material/styles';
+import { AuthProvider } from "./context/AuthContext";
 import AppRoutes from "./routes/AppRoutes";
 
 function App() {
@@ -129,10 +130,12 @@ function App() {
   }), [darkMode]);
 
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AppRoutes darkMode={darkMode} onToggleDarkMode={handleToggleDarkMode} />
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AppRoutes darkMode={darkMode} onToggleDarkMode={handleToggleDarkMode} />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
 

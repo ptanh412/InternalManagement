@@ -76,7 +76,7 @@ export default function Login() {
       if (response.data.result.admin){
         navigate("/admin");
       }else{
-        navigate("/");
+        navigate("/project-manager");
       }
     } catch (error) {
       const errorResponse = error.response?.data;
@@ -211,7 +211,7 @@ export default function Login() {
                     fontSize: "1.1rem",
                   }}
                 >
-                  Sign in to your Bookteria account
+                  Sign in to your Project Management account
                 </Typography>
               </Box>
 

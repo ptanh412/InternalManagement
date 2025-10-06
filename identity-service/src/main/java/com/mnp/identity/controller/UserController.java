@@ -100,24 +100,10 @@ public class UserController {
                 .build();
     }
 
-    @GetMapping("/online")
-    ApiResponse<List<UserResponse>> getOnlineUsers() {
+    @GetMapping("/role/{roleName}")
+    ApiResponse<List<UserResponse>> getUsersByRole(@PathVariable String roleName) {
         return ApiResponse.<List<UserResponse>>builder()
-                .result(userService.getOnlineUsers())
-                .build();
-    }
-
-    @PutMapping("/{userId}/activate")
-    ApiResponse<UserResponse> activateUser(@PathVariable String userId) {
-        return ApiResponse.<UserResponse>builder()
-                .result(userService.activateUser(userId))
-                .build();
-    }
-
-    @PutMapping("/{userId}/deactivate")
-    ApiResponse<UserResponse> deactivateUser(@PathVariable String userId) {
-        return ApiResponse.<UserResponse>builder()
-                .result(userService.deactivateUser(userId))
+                .result(userService.getUsersByRole(roleName))
                 .build();
     }
 }

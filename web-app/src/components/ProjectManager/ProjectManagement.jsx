@@ -80,7 +80,305 @@ import {
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import projectService from '../../services/projectService';
-import { getMyInfo } from '../../services/userService';
+import { getMyInfo, getUsersByRole } from '../../services/userService';
+import UserSelector from '../common/UserSelector';
+import { formatDate, formatDateWithFallback, toISOString, toISODateString, isOverdue } from '../../utils/dateUtils';
+
+// Extract ProjectDialog component outside to prevent re-renders
+const ProjectDialog = React.memo(({ 
+  open, 
+  onClose, 
+  title, 
+  onSave, 
+  formData, 
+  setFormData, 
+  statusOptions, 
+  priorityOptions, 
+  skillOptions, 
+  teamMemberOptions, 
+  currentUser, 
+  submitting, 
+  selectedProject 
+}) => (
+  <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <DialogTitle>{title}</DialogTitle>
+    <DialogContent>
+      <Grid container spacing={3} sx={{ mt: 1 }}>
+        <Grid item xs={12} md={6}>
+          <TextField
+            label="Project Name"
+            fullWidth
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            required
+          />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <TextField
+            label="Client"
+            fullWidth
+            value={formData.client || ''}
+            onChange={(e) => setFormData({ ...formData, client: e.target.value })}
+          />
+        </Grid>
+        <Grid item xs={12}>
+          <TextField
+            label="Description"
+            fullWidth
+            multiline
+            rows={3}
+            value={formData.description}
+            onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <FormControl fullWidth>
+            <InputLabel>Status</InputLabel>
+            <Select
+              value={formData.status}
+              label="Status"
+              onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            >
+              {statusOptions.filter(s => s !== 'All').map(status => (
+                <MenuItem key={status} value={status}>{status}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <FormControl fullWidth>
+            <InputLabel>Priority</InputLabel>
+            <Select
+              value={formData.priority}
+              label="Priority"
+              onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+            >
+              {priorityOptions.filter(p => p !== 'All').map(priority => (
+                <MenuItem key={priority} value={priority}>{priority}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <UserSelector
+            label="Project Leader"
+            value={formData.projectLeader}
+            onChange={(newValue) => setFormData({ ...formData, projectLeader: newValue, projectLeaderId: newValue?.id || '' })}
+            roleName="PROJECT_MANAGER"
+            placeholder="Select a project leader..."
+            helperText="Select from available project managers"
+            required
+          />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <UserSelector
+            label="Team Lead"
+            value={formData.teamLead}
+            onChange={(newValue) => setFormData({ ...formData, teamLead: newValue, teamLeadId: newValue?.id || '' })}
+            roleName="TEAM_LEAD"
+            placeholder="Select a team lead (optional)..."
+            helperText="Select from available team leads"
+          />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <TextField
+            label="Budget"
+            fullWidth
+            type="number"
+            value={formData.budget}
+            onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
+            InputProps={{
+              startAdornment: <InputAdornment position="start">$</InputAdornment>,
+            }}
+          />
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DatePicker
+              label="Start Date"
+              value={formData.startDate}
+              onChange={(newValue) => setFormData({ ...formData, startDate: newValue })}
+              renderInput={(params) => <TextField {...params} fullWidth />}
+            />
+          </LocalizationProvider>
+        </Grid>
+        <Grid item xs={12} md={6}>
+          <LocalizationProvider dateAdapter={AdapterDayjs}>
+            <DatePicker
+              label="End Date"
+              value={formData.endDate}
+              onChange={(newValue) => setFormData({ ...formData, endDate: newValue })}
+              renderInput={(params) => <TextField {...params} fullWidth />}
+            />
+          </LocalizationProvider>
+        </Grid>
+        <Grid item xs={12}>
+          <Autocomplete
+            multiple
+            options={teamMemberOptions}
+            value={formData.teamMembers || []}
+            onChange={(event, newValue) => setFormData({ ...formData, teamMembers: newValue })}
+            renderInput={(params) => (
+              <TextField {...params} label="Team Members" placeholder="Select team members" />
+            )
+            }
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip variant="outlined" label={option} {...getTagProps({ index })} />
+              ))
+            }
+          />
+        </Grid>
+        <Grid item xs={12}>
+          <Autocomplete
+            multiple
+            freeSolo
+            options={skillOptions}
+            value={formData.requiredSkills}
+            onChange={(event, newValue) => setFormData({ ...formData, requiredSkills: newValue })}
+            renderInput={(params) => (
+              <TextField {...params} label="Required Skills" placeholder="Add required skills" />
+            )}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip variant="outlined" label={option} {...getTagProps({ index })} />
+              ))
+            }
+          />
+        </Grid>
+      </Grid>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose} disabled={submitting}>
+        Cancel
+      </Button>
+      <Button 
+        onClick={onSave} 
+        variant="contained"
+        disabled={submitting}
+        startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
+      >
+        {submitting ? 'Saving...' : (selectedProject ? 'Update' : 'Create')} Project
+      </Button>
+    </DialogActions>
+  </Dialog>
+));
+
+// Extract ProjectViewDialog component outside to prevent re-renders
+const ProjectViewDialog = React.memo(({ 
+  open, 
+  onClose, 
+  project, 
+  getStatusColor, 
+  getPriorityColor, 
+  handleEditProject 
+}) => (
+  <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <DialogTitle>
+      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="h6">{project?.name}</Typography>
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <Chip label={project?.status} color={getStatusColor(project?.status)} />
+          <Chip label={project?.priority} color={getPriorityColor(project?.priority)} />
+        </Box>
+      </Box>
+    </DialogTitle>
+    <DialogContent>
+      {project && (
+        <Grid container spacing={3}>
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" color="text.secondary">Description</Typography>
+            <Typography variant="body1" sx={{ mb: 2 }}>{project.description}</Typography>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Typography variant="subtitle2" color="text.secondary">Project Details</Typography>
+            <List dense>
+              <ListItem>
+                <ListItemText primary="Client" secondary={project.client} />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="Department" secondary={project.department} />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="Budget" secondary={`$${project.budget?.toLocaleString()}`} />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="Start Date" secondary={formatDate(project.startDate)} />
+              </ListItem>
+              <ListItem>
+                <ListItemText primary="End Date" secondary={formatDate(project.endDate)} />
+              </ListItem>
+            </List>
+          </Grid>
+
+          <Grid item xs={12} md={6}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>Progress</Typography>
+            <Box sx={{ mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                <Typography variant="body2">Overall Progress</Typography>
+                <Typography variant="body2">{project?.completionPercentage?.toFixed(1) || 0}%</Typography>
+              </Box>
+              <LinearProgress variant="determinate" value={project?.completionPercentage || 0} sx={{ height: 8, borderRadius: 4 }} />
+            </Box>
+            <Typography variant="body2" color="text.secondary">
+              {project?.completedTasks || 0} of {project?.totalTasks || 0} tasks completed
+            </Typography>
+          </Grid>
+
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>Project Leaders</Typography>
+            <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+              <Chip 
+                label={`Project Leader: ${project?.projectLeaderId || 'Not assigned'}`}
+                color="primary"
+                variant="outlined"
+              />
+              {project?.teamLeadId && (
+                <Chip 
+                  label={`Team Lead: ${project.teamLeadId}`}
+                  color="secondary"
+                  variant="outlined"
+                />
+              )}
+            </Box>
+          </Grid>
+
+          <Grid item xs={12}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Required Skills</Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {project?.requiredSkills?.length > 0 ? (
+                project.requiredSkills.map((skill, index) => (
+                  <Chip key={index} label={skill} variant="outlined" size="small" />
+                ))
+              ) : (
+                <Typography variant="body2" color="text.secondary">No specific skills required</Typography>
+              )}
+            </Box>
+          </Grid>
+
+          {project?.budget && (
+            <Grid item xs={12}>
+              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Budget Information</Typography>
+              <Box sx={{ display: 'flex', gap: 2 }}>
+                <Chip label={`Budget: $${project.budget.toLocaleString()}`} color="success" variant="outlined" />
+                {project.actualCost && (
+                  <Chip label={`Actual Cost: $${project.actualCost.toLocaleString()}`} color="warning" variant="outlined" />
+                )}
+              </Box>
+            </Grid>
+          )}
+        </Grid>
+      )}
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onClose}>Close</Button>
+      <Button onClick={() => handleEditProject(project)} variant="contained" startIcon={<EditIcon />}>
+        Edit Project
+      </Button>
+    </DialogActions>
+  </Dialog>
+));
 
 const ProjectManagement = ({ showNotification }) => {
   const theme = useTheme();
@@ -115,6 +413,8 @@ const ProjectManagement = ({ showNotification }) => {
     budget: '',
     projectLeaderId: '',
     teamLeadId: '',
+    projectLeader: null,
+    teamLead: null,
     requiredSkills: [],
   });
 
@@ -143,29 +443,42 @@ const ProjectManagement = ({ showNotification }) => {
   }, [projects, searchTerm, statusFilter, priorityFilter]);
 
   const loadInitialData = async () => {
-    await Promise.all([
-      loadProjects(),
-      loadCurrentUser()
-    ]);
+    // Load current user first, then load projects that depend on user info
+    const userId = await loadCurrentUser();
+    if (userId) {
+      await loadProjects(userId);
+    }
   };
 
   const loadCurrentUser = async () => {
     try {
       const response = await getMyInfo();
-      console.log("Current user info:", response.data);
+      console.log("Current user info:", response.data.result.userId);
       setCurrentUser(response.data.result);
+      return response.data.result.userId; // Return the userId for immediate use
     } catch (error) {
       console.error('Error loading current user:', error);
+      return null;
     }
   };
 
-  const loadProjects = async () => {
+  const loadProjects = async (userId = null) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await projectService.getProjectsByLeader(currentUser?.id);
+      // Use provided userId or wait for currentUser to be available
+      const userIdToUse = userId || currentUser?.userId;
+      if (!userIdToUse) {
+        console.log("No userId available yet");
+        setLoading(false);
+        return;
+      }
+      
+      console.log("userId", userIdToUse);
+      const response = await projectService.getProjectsByLeader(userIdToUse);
       if (response.result) {
         setProjects(response.result);
+        console.log("Projects loaded:", projects);
       } else {
         setProjects([]);
       }
@@ -191,13 +504,13 @@ const ProjectManagement = ({ showNotification }) => {
       const projectData = {
         name: formData.name,
         description: formData.description,
-        projectLeaderId: currentUser?.id || formData.projectLeaderId,
+        projectLeaderId: formData.projectLeaderId,
         teamLeadId: formData.teamLeadId,
         status: formData.status,
         priority: formData.priority,
         budget: formData.budget ? parseFloat(formData.budget) : null,
-        startDate: formData.startDate.toISOString(),
-        endDate: formData.endDate.toISOString(),
+        startDate: toISOString(formData.startDate),
+        endDate: toISOString(formData.endDate),
       };
 
       const response = await projectService.createProject(projectData);
@@ -237,8 +550,8 @@ const ProjectManagement = ({ showNotification }) => {
         status: formData.status,
         priority: formData.priority,
         budget: formData.budget ? parseFloat(formData.budget) : null,
-        startDate: formData.startDate.toISOString(),
-        endDate: formData.endDate.toISOString(),
+        startDate: toISOString(formData.startDate),
+        endDate: toISOString(formData.endDate),
       };
 
       const response = await projectService.updateProject(selectedProject.id, projectData);
@@ -297,6 +610,8 @@ const ProjectManagement = ({ showNotification }) => {
       budget: '',
       projectLeaderId: '',
       teamLeadId: '',
+      projectLeader: null,
+      teamLead: null,
       requiredSkills: [],
     });
     setSelectedProject(null);
@@ -313,6 +628,8 @@ const ProjectManagement = ({ showNotification }) => {
       budget: project.budget ? project.budget.toString() : '',
       projectLeaderId: project.projectLeaderId || '',
       teamLeadId: project.teamLeadId || '',
+      projectLeader: project.projectLeader || null,
+      teamLead: project.teamLead || null,
       requiredSkills: project.requiredSkills || [],
     });
     setSelectedProject(project);
@@ -388,7 +705,7 @@ const ProjectManagement = ({ showNotification }) => {
           progress: 0,
           tasksTotal: 0,
           tasksCompleted: 0,
-          createdAt: new Date().toISOString().split('T')[0],
+          createdAt: toISODateString(new Date()),
           createdBy: 'Current User',
         };
         setProjects([...projects, newProject]);
@@ -449,276 +766,6 @@ const ProjectManagement = ({ showNotification }) => {
   const formatPriority = (priority) => {
     return priority?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) || 'Unknown';
   };
-
-  const ProjectDialog = ({ open, onClose, title, onSave }) => (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>{title}</DialogTitle>
-      <DialogContent>
-        <Grid container spacing={3} sx={{ mt: 1 }}>
-          <Grid item xs={12} md={6}>
-            <TextField
-              label="Project Name"
-              fullWidth
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              required
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              label="Client"
-              fullWidth
-              value={formData.client}
-              onChange={(e) => setFormData({ ...formData, client: e.target.value })}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              label="Description"
-              fullWidth
-              multiline
-              rows={3}
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FormControl fullWidth>
-              <InputLabel>Status</InputLabel>
-              <Select
-                value={formData.status}
-                label="Status"
-                onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-              >
-                {statusOptions.filter(s => s !== 'All').map(status => (
-                  <MenuItem key={status} value={status}>{status}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <FormControl fullWidth>
-              <InputLabel>Priority</InputLabel>
-              <Select
-                value={formData.priority}
-                label="Priority"
-                onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-              >
-                {priorityOptions.filter(p => p !== 'All').map(priority => (
-                  <MenuItem key={priority} value={priority}>{priority}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              label="Project Leader ID"
-              fullWidth
-              value={formData.projectLeaderId}
-              onChange={(e) => setFormData({ ...formData, projectLeaderId: e.target.value })}
-              placeholder={currentUser?.id || "Enter project leader ID"}
-              helperText="Leave empty to use current user as project leader"
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              label="Team Lead ID"
-              fullWidth
-              value={formData.teamLeadId}
-              onChange={(e) => setFormData({ ...formData, teamLeadId: e.target.value })}
-              placeholder="Enter team lead ID (optional)"
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <TextField
-              label="Budget"
-              fullWidth
-              type="number"
-              value={formData.budget}
-              onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-              InputProps={{
-                startAdornment: <InputAdornment position="start">$</InputAdornment>,
-              }}
-            />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <DatePicker
-                label="Start Date"
-                value={formData.startDate}
-                onChange={(newValue) => setFormData({ ...formData, startDate: newValue })}
-                renderInput={(params) => <TextField {...params} fullWidth />}
-              />
-            </LocalizationProvider>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <LocalizationProvider dateAdapter={AdapterDayjs}>
-              <DatePicker
-                label="End Date"
-                value={formData.endDate}
-                onChange={(newValue) => setFormData({ ...formData, endDate: newValue })}
-                renderInput={(params) => <TextField {...params} fullWidth />}
-              />
-            </LocalizationProvider>
-          </Grid>
-          <Grid item xs={12}>
-            <Autocomplete
-              multiple
-              options={teamMemberOptions}
-              value={formData.teamMembers}
-              onChange={(event, newValue) => setFormData({ ...formData, teamMembers: newValue })}
-              renderInput={(params) => (
-                <TextField {...params} label="Team Members" placeholder="Select team members" />
-              )}
-              renderTags={(value, getTagProps) =>
-                value.map((option, index) => (
-                  <Chip variant="outlined" label={option} {...getTagProps({ index })} />
-                ))
-              }
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <Autocomplete
-              multiple
-              freeSolo
-              options={skillOptions}
-              value={formData.requiredSkills}
-              onChange={(event, newValue) => setFormData({ ...formData, requiredSkills: newValue })}
-              renderInput={(params) => (
-                <TextField {...params} label="Required Skills" placeholder="Add required skills" />
-              )}
-              renderTags={(value, getTagProps) =>
-                value.map((option, index) => (
-                  <Chip variant="outlined" label={option} {...getTagProps({ index })} />
-                ))
-              }
-            />
-          </Grid>
-        </Grid>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose} disabled={submitting}>
-          Cancel
-        </Button>
-        <Button 
-          onClick={onSave} 
-          variant="contained"
-          disabled={submitting}
-          startIcon={submitting ? <CircularProgress size={20} /> : <SaveIcon />}
-        >
-          {submitting ? 'Saving...' : (selectedProject ? 'Update' : 'Create')} Project
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
-
-  const ProjectViewDialog = ({ open, onClose, project }) => (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
-      <DialogTitle>
-        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <Typography variant="h6">{project?.name}</Typography>
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Chip label={project?.status} color={getStatusColor(project?.status)} />
-            <Chip label={project?.priority} color={getPriorityColor(project?.priority)} />
-          </Box>
-        </Box>
-      </DialogTitle>
-      <DialogContent>
-        {project && (
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" color="text.secondary">Description</Typography>
-              <Typography variant="body1" sx={{ mb: 2 }}>{project.description}</Typography>
-            </Grid>
-            
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" color="text.secondary">Project Details</Typography>
-              <List dense>
-                <ListItem>
-                  <ListItemText primary="Client" secondary={project.client} />
-                </ListItem>
-                <ListItem>
-                  <ListItemText primary="Department" secondary={project.department} />
-                </ListItem>
-                <ListItem>
-                  <ListItemText primary="Budget" secondary={`$${project.budget?.toLocaleString()}`} />
-                </ListItem>
-                <ListItem>
-                  <ListItemText primary="Start Date" secondary={new Date(project.startDate).toLocaleDateString()} />
-                </ListItem>
-                <ListItem>
-                  <ListItemText primary="End Date" secondary={new Date(project.endDate).toLocaleDateString()} />
-                </ListItem>
-              </List>
-            </Grid>
-
-            <Grid item xs={12} md={6}>
-              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>Progress</Typography>
-              <Box sx={{ mb: 2 }}>
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                  <Typography variant="body2">Overall Progress</Typography>
-                  <Typography variant="body2">{project?.completionPercentage?.toFixed(1) || 0}%</Typography>
-                </Box>
-                <LinearProgress variant="determinate" value={project?.completionPercentage || 0} sx={{ height: 8, borderRadius: 4 }} />
-              </Box>
-              <Typography variant="body2" color="text.secondary">
-                {project?.completedTasks || 0} of {project?.totalTasks || 0} tasks completed
-              </Typography>
-            </Grid>
-
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 2 }}>Project Leaders</Typography>
-              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Chip 
-                  label={`Project Leader: ${project?.projectLeaderId || 'Not assigned'}`}
-                  color="primary"
-                  variant="outlined"
-                />
-                {project?.teamLeadId && (
-                  <Chip 
-                    label={`Team Lead: ${project.teamLeadId}`}
-                    color="secondary"
-                    variant="outlined"
-                  />
-                )}
-              </Box>
-            </Grid>
-
-            <Grid item xs={12}>
-              <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Required Skills</Typography>
-              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                {project?.requiredSkills?.length > 0 ? (
-                  project.requiredSkills.map((skill, index) => (
-                    <Chip key={index} label={skill} variant="outlined" size="small" />
-                  ))
-                ) : (
-                  <Typography variant="body2" color="text.secondary">No specific skills required</Typography>
-                )}
-              </Box>
-            </Grid>
-
-            {project?.budget && (
-              <Grid item xs={12}>
-                <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>Budget Information</Typography>
-                <Box sx={{ display: 'flex', gap: 2 }}>
-                  <Chip label={`Budget: $${project.budget.toLocaleString()}`} color="success" variant="outlined" />
-                  {project.actualCost && (
-                    <Chip label={`Actual Cost: $${project.actualCost.toLocaleString()}`} color="warning" variant="outlined" />
-                  )}
-                </Box>
-              </Grid>
-            )}
-          </Grid>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Close</Button>
-        <Button onClick={() => handleEditProject(project)} variant="contained" startIcon={<EditIcon />}>
-          Edit Project
-        </Button>
-      </DialogActions>
-    </Dialog>
-  );
 
   return (
     <Container maxWidth="xl">
@@ -900,7 +947,7 @@ const ProjectManagement = ({ showNotification }) => {
 
                 <Box sx={{ mb: 2 }}>
                   <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">Progress</Typography>
+                    <Typography variant="body2" color="text.secondary">Overall Progress</Typography>
                     <Typography variant="body2" color="text.secondary">{project.completionPercentage?.toFixed(1) || 0}%</Typography>
                   </Box>
                   <LinearProgress
@@ -912,7 +959,7 @@ const ProjectManagement = ({ showNotification }) => {
 
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
                   <Typography variant="body2" color="text.secondary">
-                    Due: {project.endDate ? new Date(project.endDate).toLocaleDateString() : 'Not set'}
+                    Due: {formatDateWithFallback(project.endDate, 'Not set')}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     {project.budget ? `$${project.budget.toLocaleString()}` : 'No budget'}
@@ -966,6 +1013,15 @@ const ProjectManagement = ({ showNotification }) => {
         onClose={() => setOpenCreateDialog(false)}
         title="Create New Project"
         onSave={handleCreateProject}
+        formData={formData}
+        setFormData={setFormData}
+        statusOptions={statusOptions}
+        priorityOptions={priorityOptions}
+        skillOptions={skillOptions}
+        teamMemberOptions={teamMemberOptions}
+        currentUser={currentUser}
+        submitting={submitting}
+        selectedProject={selectedProject}
       />
 
       <ProjectDialog
@@ -973,12 +1029,24 @@ const ProjectManagement = ({ showNotification }) => {
         onClose={() => setOpenEditDialog(false)}
         title="Edit Project"
         onSave={handleUpdateProject}
+        formData={formData}
+        setFormData={setFormData}
+        statusOptions={statusOptions}
+        priorityOptions={priorityOptions}
+        skillOptions={skillOptions}
+        teamMemberOptions={teamMemberOptions}
+        currentUser={currentUser}
+        submitting={submitting}
+        selectedProject={selectedProject}
       />
 
       <ProjectViewDialog
         open={openViewDialog}
         onClose={() => setOpenViewDialog(false)}
         project={selectedProject}
+        getStatusColor={getStatusColor}
+        getPriorityColor={getPriorityColor}
+        handleEditProject={handleEditProject}
       />
     </Container>
   );

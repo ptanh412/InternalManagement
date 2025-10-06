@@ -33,76 +33,71 @@ import {
   Person as EmployeeIcon,
 } from "@mui/icons-material";
 import { Link, useLocation as useRouterLocation } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 function SideMenu({ collapsed, onToggleCollapse }) {
   const location = useRouterLocation();
   const theme = useTheme();
   const [hoveredItem, setHoveredItem] = useState(null);
+  const { getUserRole, hasRole, isAuthenticated } = useAuth();
 
-  const menuItems = [
-    { 
+  const allMenuItems = [
+    {
       key: "home", 
       label: "Home", 
       icon: <HomeIcon />, 
       path: "/", 
-      badge: null 
+      badge: null,
+      roles: ["project-manager", "team-lead", "employee"] // Available to all roles
     },
     { 
       key: "chat", 
       label: "Chat", 
       icon: <ChatIcon />, 
       path: "/chat", 
-      badge: 3 
+      badge: 3,
+      roles: ["project-manager", "team-lead", "employee"] // Available to all roles
     },
     { 
       key: "friends", 
       label: "Friends", 
       icon: <PeopleIcon />, 
       path: "/friends", 
-      badge: null 
+      badge: null,
+      roles: ["project-manager", "team-lead", "employee"] // Available to all roles
     },
     { 
       key: "groups", 
       label: "Groups", 
       icon: <GroupsIcon />, 
       path: "/groups", 
-      badge: null 
+      badge: null,
+      roles: ["project-manager", "team-lead", "employee"] // Available to all roles
     },
     { 
       key: "project-manager", 
       label: "Projects", 
       icon: <ProjectManagerIcon />, 
       path: "/project-manager", 
-      badge: null 
+      badge: null,
+      roles: ["project-manager"] // Only for project managers
     },
     { 
       key: "team-lead", 
       label: "Team Lead", 
       icon: <TeamLeadIcon />, 
       path: "/team-lead", 
-      badge: null 
+      badge: null,
+      roles: ["team-lead"] // Only for team leads
     },
     { 
       key: "employee", 
       label: "Employee", 
       icon: <EmployeeIcon />, 
       path: "/employee", 
-      badge: null 
+      badge: null,
+      roles: ["employee"] // Only for employees
     },
-    // { 
-    //   key: "trending", 
-    //   label: "Trending", 
-    //   icon: <TrendingUpIcon />, 
-    //   path: "/trending", 
-    //   badge: null 
-    // },
-    // { 
-    //   key: "bookmarks", 
-    //   label: "Bookmarks", 
-    //   icon: <BookmarkIcon />, 
-    //   path: "/bookmarks", 
-    //   badge: null 
-    // },
   ];
 
   const bottomMenuItems = [
@@ -111,16 +106,36 @@ function SideMenu({ collapsed, onToggleCollapse }) {
       label: "Notifications", 
       icon: <NotificationsIcon />, 
       path: "/notifications", 
-      badge: 5 
+      badge: 5,
+      roles: ["project-manager", "team-lead", "employee"] // Available to all roles
     },
     { 
       key: "settings", 
       label: "Settings", 
       icon: <SettingsIcon />, 
       path: "/settings", 
-      badge: null 
+      badge: null,
+      roles: ["project-manager", "team-lead", "employee"] // Available to all roles
     },
   ];
+
+  // Filter menu items based on user role
+  const getFilteredMenuItems = (items) => {
+    if (!isAuthenticated) {
+      // If not authenticated, show only basic items
+      return items.filter(item => ["home", "chat"].includes(item.key));
+    }
+
+    const userRole = getUserRole();
+    if (!userRole) {
+      return items.filter(item => ["home", "chat"].includes(item.key));
+    }
+
+    return items.filter(item => item.roles.includes(userRole));
+  };
+
+  const menuItems = getFilteredMenuItems(allMenuItems);
+  const filteredBottomMenuItems = getFilteredMenuItems(bottomMenuItems);
 
   const renderMenuItem = (item, isBottom = false) => {
     const isActive = location.pathname === item.path;
@@ -288,7 +303,7 @@ function SideMenu({ collapsed, onToggleCollapse }) {
       {/* Bottom Menu Items */}
       <Box sx={{ pb: 2 }}>
         <List disablePadding>
-          {bottomMenuItems.map((item) => renderMenuItem(item, true))}
+          {filteredBottomMenuItems.map((item) => renderMenuItem(item, true))}
         </List>
       </Box>
     </Box>

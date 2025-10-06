@@ -84,17 +84,25 @@ public class ConversationService {
                     List<ParticipantInfo> participantInfos = List.of(
                             ParticipantInfo.builder()
                                     .userId(userInfo.getUserId())
-                                    .username(userInfo.getUsername())
-                                    .firstName(userInfo.getFirstName())
-                                    .lastName(userInfo.getLastName())
+                                    .username(userInfo.getUser().getUsername())
+                                    .firstName(userInfo.getUser().getFirstName())
+                                    .lastName(userInfo.getUser().getLastName())
                                     .avatar(userInfo.getAvatar())
+                                    .departmentName(userInfo.getUser().getDepartmentName())
+                                    .positionTitle(userInfo.getUser().getPositionTitle())
+                                    .seniorityLevel(userInfo.getUser().getSeniorityLevel())
+                                    .roleName(userInfo.getUser().getRoleName())
                                     .build(),
                             ParticipantInfo.builder()
                                     .userId(participantInfo.getUserId())
-                                    .username(participantInfo.getUsername())
-                                    .firstName(participantInfo.getFirstName())
-                                    .lastName(participantInfo.getLastName())
+                                    .username(participantInfo.getUser().getUsername())
+                                    .firstName(participantInfo.getUser().getFirstName())
+                                    .lastName(participantInfo.getUser().getLastName())
                                     .avatar(participantInfo.getAvatar())
+                                    .departmentName(participantInfo.getUser().getDepartmentName())
+                                    .positionTitle(participantInfo.getUser().getPositionTitle())
+                                    .seniorityLevel(participantInfo.getUser().getSeniorityLevel())
+                                    .roleName(participantInfo.getUser().getRoleName())
                                     .build());
 
                     // Build conversation info
@@ -388,13 +396,18 @@ public class ConversationService {
                     if (profileResponse == null || profileResponse.getResult() == null) {
                         throw new AppException(ErrorCode.USER_NOT_EXISTED);
                     }
-                    var userInfo = profileResponse.getResult();
+                    var userProfile = profileResponse.getResult();
+                    var userInfo = userProfile.getUser(); // Access nested user data
                     return ParticipantInfo.builder()
-                            .userId(userInfo.getUserId())
+                            .userId(userProfile.getUserId())
                             .username(userInfo.getUsername())
                             .firstName(userInfo.getFirstName())
                             .lastName(userInfo.getLastName())
-                            .avatar(userInfo.getAvatar())
+                            .avatar(userProfile.getAvatar()) // Avatar at profile level
+                            .departmentName(userInfo.getDepartmentName())
+                            .positionTitle(userInfo.getPositionTitle())
+                            .seniorityLevel(userInfo.getSeniorityLevel())
+                            .roleName(userInfo.getRoleName())
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -585,7 +598,8 @@ public class ConversationService {
             throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
         }
         var userInfo = userInfoResponse.getResult();
-        String editorName = userInfo.getFirstName() + " " + userInfo.getLastName();
+        String editorName =
+                userInfo.getUser().getFirstName() + " " + userInfo.getUser().getLastName();
 
         // Track what changed
         boolean nameChanged = false;
@@ -661,10 +675,14 @@ public class ConversationService {
                     var userInfo = profileResponse.getResult();
                     return ParticipantInfo.builder()
                             .userId(userInfo.getUserId())
-                            .username(userInfo.getUsername())
-                            .firstName(userInfo.getFirstName())
-                            .lastName(userInfo.getLastName())
+                            .username(userInfo.getUser().getUsername())
+                            .firstName(userInfo.getUser().getFirstName())
+                            .lastName(userInfo.getUser().getLastName())
                             .avatar(userInfo.getAvatar())
+                            .departmentName(userInfo.getUser().getDepartmentName())
+                            .positionTitle(userInfo.getUser().getPositionTitle())
+                            .seniorityLevel(userInfo.getUser().getSeniorityLevel())
+                            .roleName(userInfo.getUser().getRoleName())
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -743,9 +761,9 @@ public class ConversationService {
         var userInfo = profileResponse.getResult();
         ParticipantInfo newParticipant = ParticipantInfo.builder()
                 .userId(userInfo.getUserId())
-                .username(userInfo.getUsername())
-                .firstName(userInfo.getFirstName())
-                .lastName(userInfo.getLastName())
+                .username(userInfo.getUser().getUsername())
+                .firstName(userInfo.getUser().getFirstName())
+                .lastName(userInfo.getUser().getLastName())
                 .avatar(userInfo.getAvatar())
                 .build();
 
@@ -758,8 +776,8 @@ public class ConversationService {
         // Send system message about the new member
         ChatMessage addMemberMessage = ChatMessage.builder()
                 .conversationId(updatedGroup.getId())
-                .message(userInfo.getFirstName() + " " + userInfo.getLastName()
-                        + " has been added to the project group.")
+                .message(userInfo.getUser().getFirstName() + " "
+                        + userInfo.getUser().getLastName() + " has been added to the project group.")
                 .type("SYSTEM_ADD_MEMBERS")
                 .sender(null)
                 .createdDate(Instant.now())

@@ -32,9 +32,19 @@ public class ProjectController {
     ProjectService projectService;
 
     @GetMapping
-    public ApiResponse<List<ProjectResponse>> getAllProjects() {
+    public ApiResponse<List<ProjectResponse>> getAllProjects(
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String userRole) {
+
+        List<ProjectResponse> projects;
+        if (userId != null && userRole != null) {
+            projects = projectService.getProjectsForUser(userId, userRole);
+        } else {
+            projects = projectService.getAllProjects();
+        }
+
         return ApiResponse.<List<ProjectResponse>>builder()
-                .result(projectService.getAllProjects())
+                .result(projects)
                 .build();
     }
 
@@ -152,6 +162,13 @@ public class ProjectController {
         projectService.updateProjectSkills(projectId, request.getSkillsToAdd());
         return ApiResponse.<Void>builder()
                 .message("Project skills updated successfully")
+                .build();
+    }
+
+    @GetMapping("/team-lead/{teamLeadId}")
+    public ApiResponse<List<ProjectResponse>> getProjectsByTeamLead(@PathVariable String teamLeadId) {
+        return ApiResponse.<List<ProjectResponse>>builder()
+                .result(projectService.getProjectsByTeamLead(teamLeadId))
                 .build();
     }
 }

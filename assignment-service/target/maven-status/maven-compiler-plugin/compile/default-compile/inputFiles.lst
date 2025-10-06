@@ -1,10 +1,13 @@
+D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\controller\NotificationTestController.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\dto\request\CreateAssignmentRequest.java
+D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\service\TaskAssignmentNotificationService.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\repository\TaskAssignmentRepository.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\client\ChatServiceClient.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\configuration\AuthenticationRequestInterceptor.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\configuration\RestTemplateConfig.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\dto\response\UserResponse.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\configuration\CustomJwtDecoder.java
+D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\client\NotificationServiceClient.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\dto\response\AssignmentHistoryResponse.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\client\AIServiceClient.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\configuration\SecurityConfig.java
@@ -13,6 +16,7 @@ D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\entity
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\entity\TaskAssignment.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\ReassignmentReason.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\configuration\FeignClientConfiguration.java
+D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\dto\request\TaskAssignmentNotificationRequest.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\exception\GlobalExceptionHandler.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\client\IdentityServiceClient.java
 D:\InternalManagement\assignment-service\src\main\java\com\mnp\assignment\dto\request\ApiResponse.java

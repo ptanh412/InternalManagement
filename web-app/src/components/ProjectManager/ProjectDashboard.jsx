@@ -47,19 +47,21 @@ import {
   ArrowUpward as ArrowUpIcon,
   ArrowDownward as ArrowDownIcon,
 } from '@mui/icons-material';
+import { getCurrentUser, getProjectsForUser, getTasksForUser, isTeamLead } from '../../services/userService';
+import { formatDate, isOverdue } from '../../utils/dateUtils';
 
 const ProjectDashboard = ({ showNotification }) => {
   const theme = useTheme();
   const [dashboardData, setDashboardData] = useState({
     stats: {
-      totalProjects: 24,
-      activeProjects: 18,
-      completedProjects: 6,
-      totalTasks: 156,
-      completedTasks: 89,
-      pendingTasks: 45,
-      overdueTasksCount: 22,
-      teamMembers: 32,
+      totalProjects: 0,
+      activeProjects: 0,
+      completedProjects: 0,
+      totalTasks: 0,
+      completedTasks: 0,
+      pendingTasks: 0,
+      overdueTasksCount: 0,
+      teamMembers: 0,
     },
     recentProjects: [],
     urgentTasks: [],
@@ -67,169 +69,180 @@ const ProjectDashboard = ({ showNotification }) => {
     aiRecommendations: [],
   });
   const [loading, setLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [userRole, setUserRole] = useState(null);
 
   useEffect(() => {
-    loadDashboardData();
+    loadUserInfo();
   }, []);
 
+  useEffect(() => {
+    if (currentUser && userRole) {
+      loadDashboardData();
+    }
+  }, [currentUser, userRole]);
+
+  const loadUserInfo = async () => {
+    try {
+      console.log('Loading user info...');
+      const user = await getCurrentUser();
+      console.log('User loaded:', user);
+      setCurrentUser(user);
+      setUserRole(user.roleName);
+      console.log('User role set:', user.roleName);
+    } catch (error) {
+      console.error('Failed to load user info:', error);
+      if (showNotification) {
+        showNotification('Failed to load user information', 'error');
+      }
+    }
+  };
+
   const loadDashboardData = async () => {
+    console.log('loadDashboardData called with:', { currentUser: currentUser?.id, userRole });
+
+    if (!currentUser || !userRole) {
+      console.log('Skipping dashboard data load - missing user or role');
+      return;
+    }
+
     setLoading(true);
     try {
-      // Mock data - replace with actual API calls
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      console.log('Loading projects and tasks...');
+      // Load projects based on user role
+      const projects = await getProjectsForUser(currentUser.id, userRole);
+      console.log('Projects loaded:', projects);
+
+      // Load tasks based on user role
+      // const tasks = await getTasksForUser(currentUser.id, userRole);
+      // console.log('Tasks loaded:', tasks);
+
+      // Calculate stats based on filtered data
+      // const stats = calculateStats(projects, tasks);
+
+      // Map projects to the expected format for Recent Projects display
+      const mappedRecentProjects = projects.slice(0, 5).map(project => ({
+        id: project.id,
+        name: project.name,
+        status: project.status,
+        priority: project.priority,
+        dueDate: project.endDate || project.dueDate,
+        progress: project.completionPercentage || 0,
+        totalTasks: project.totalTasks || 0,
+        tasksCompleted: project.completedTasks || 0,
+        team: project.teamMembers || [], // This might need to be fetched separately
+        description: project.description,
+        budget: project.budget,
+        createdAt: project.createdAt
+      }));
+
+      // // Map tasks to the expected format for Urgent Tasks display
+      // const mappedUrgentTasks = tasks
+      //   .filter(task => task.priority === 'HIGH' || task.priority === 'URGENT' || task.priority === 'CRITICAL')
+      //   .slice(0, 10)
+      //   .map(task => ({
+      //     id: task.id,
+      //     title: task.title,
+      //     priority: task.priority,
+      //     dueDate: task.dueDate,
+      //     project: task.projectName || 'Unknown Project',
+      //     assignee: task.assigneeName || task.assigneeId || 'Unassigned',
+      //     overdue: task.dueDate ? new Date(task.dueDate) < new Date() && task.status !== 'DONE' : false,
+      //     status: task.status
+      //   }));
+
       setDashboardData({
-        stats: {
-          totalProjects: 24,
-          activeProjects: 18,
-          completedProjects: 6,
-          totalTasks: 156,
-          completedTasks: 89,
-          pendingTasks: 45,
-          overdueTasksCount: 22,
-          teamMembers: 32,
-        },
-        recentProjects: [
-          {
-            id: 1,
-            name: 'E-commerce Platform',
-            progress: 75,
-            status: 'In Progress',
-            priority: 'High',
-            dueDate: '2024-02-15',
-            team: ['Alice Johnson', 'Bob Smith', 'Carol Davis'],
-            tasksCompleted: 28,
-            totalTasks: 35,
-          },
-          {
-            id: 2,
-            name: 'Mobile App Redesign',
-            progress: 45,
-            status: 'In Progress',
-            priority: 'Medium',
-            dueDate: '2024-03-01',
-            team: ['David Wilson', 'Eva Brown'],
-            tasksCompleted: 15,
-            totalTasks: 30,
-          },
-          {
-            id: 3,
-            name: 'AI Integration',
-            progress: 90,
-            status: 'Review',
-            priority: 'High',
-            dueDate: '2024-01-30',
-            team: ['Frank Miller', 'Grace Lee', 'Henry Taylor'],
-            tasksCompleted: 22,
-            totalTasks: 25,
-          },
-        ],
-        urgentTasks: [
-          {
-            id: 1,
-            title: 'Fix payment gateway bug',
-            project: 'E-commerce Platform',
-            assignee: 'Alice Johnson',
-            dueDate: '2024-01-25',
-            priority: 'Critical',
-            overdue: true,
-          },
-          {
-            id: 2,
-            title: 'Update API documentation',
-            project: 'Mobile App Redesign',
-            assignee: 'David Wilson',
-            dueDate: '2024-01-26',
-            priority: 'High',
-            overdue: false,
-          },
-          {
-            id: 3,
-            title: 'Code review for AI module',
-            project: 'AI Integration',
-            assignee: 'Frank Miller',
-            dueDate: '2024-01-27',
-            priority: 'High',
-            overdue: false,
-          },
-        ],
-        teamPerformance: [
-          {
-            id: 1,
-            name: 'Alice Johnson',
-            avatar: '/avatars/alice.jpg',
-            role: 'Frontend Developer',
-            tasksCompleted: 12,
-            tasksInProgress: 3,
-            efficiency: 95,
-            workload: 'High',
-          },
-          {
-            id: 2,
-            name: 'Bob Smith',
-            avatar: '/avatars/bob.jpg',
-            role: 'Backend Developer',
-            tasksCompleted: 8,
-            tasksInProgress: 5,
-            efficiency: 87,
-            workload: 'Medium',
-          },
-          {
-            id: 3,
-            name: 'Carol Davis',
-            avatar: '/avatars/carol.jpg',
-            role: 'UI/UX Designer',
-            tasksCompleted: 15,
-            tasksInProgress: 2,
-            efficiency: 92,
-            workload: 'Low',
-          },
-        ],
-        aiRecommendations: [
-          {
-            id: 1,
-            type: 'Resource Allocation',
-            title: 'Reassign overloaded team members',
-            description: 'Alice Johnson has high workload. Consider redistributing tasks to Carol Davis.',
-            priority: 'Medium',
-            impact: 'High',
-          },
-          {
-            id: 2,
-            type: 'Schedule Optimization',
-            title: 'Adjust project timeline',
-            description: 'E-commerce Platform may miss deadline. Consider extending by 1 week.',
-            priority: 'High',
-            impact: 'Medium',
-          },
-          {
-            id: 3,
-            type: 'Skill Development',
-            title: 'Training recommendation',
-            description: 'Team could benefit from React advanced patterns training.',
-            priority: 'Low',
-            impact: 'High',
-          },
-        ],
+        // stats,
+        recentProjects: mappedRecentProjects,
+        // urgentTasks: mappedUrgentTasks,
+        teamPerformance: [],
+        aiRecommendations: generateMockAIRecommendations(), // Add mock AI recommendations
       });
-      showNotification('Dashboard data loaded successfully', 'success');
+
+      console.log('Dashboard data updated successfully');
+
+      if (isTeamLead(userRole)) {
+        if (showNotification) {
+          showNotification(`Showing projects and tasks for Team Lead: ${currentUser.firstName} ${currentUser.lastName}`, 'info');
+        }
+      } else if (userRole === 'PROJECT_MANAGER') {
+        if (showNotification) {
+          showNotification(`Showing projects for Project Manager: ${currentUser.firstName} ${currentUser.lastName}`, 'info');
+        }
+      }
     } catch (error) {
-      showNotification('Failed to load dashboard data', 'error');
+      console.error('Failed to load dashboard data:', error);
+      if (showNotification) {
+        showNotification('Failed to load dashboard data', 'error');
+      }
     } finally {
       setLoading(false);
     }
   };
 
+  // Generate mock AI recommendations for now
+  const generateMockAIRecommendations = () => [
+    {
+      id: 1,
+      title: "Resource Optimization",
+      type: "Performance",
+      priority: "High",
+      description: "Consider redistributing tasks to balance workload across team members.",
+      impact: "15% efficiency increase"
+    },
+    {
+      id: 2,
+      title: "Deadline Risk",
+      type: "Schedule",
+      priority: "Medium",
+      description: "Project Alpha may miss deadline. Suggest adding 2 more developers.",
+      impact: "On-time delivery"
+    },
+    {
+      id: 3,
+      title: "Budget Alert",
+      type: "Financial",
+      priority: "Low",
+      description: "Current spending is 10% under budget. Consider investing in automation tools.",
+      impact: "Cost optimization"
+    }
+  ];
+
+  const calculateStats = (projects, tasks) => {
+    const activeProjects = projects.filter(p => p.status === 'ACTIVE').length;
+    const completedProjects = projects.filter(p => p.status === 'COMPLETED').length;
+    const completedTasks = tasks.filter(t => t.status === 'DONE').length;
+    const pendingTasks = tasks.filter(t => t.status === 'TODO' || t.status === 'IN_PROGRESS').length;
+    const overdueTasks = tasks.filter(t => isOverdue(t.dueDate) && t.status !== 'DONE').length;
+
+    return {
+      totalProjects: projects.length,
+      activeProjects,
+      completedProjects,
+      totalTasks: tasks.length,
+      completedTasks,
+      pendingTasks,
+      overdueTasksCount: overdueTasks,
+      teamMembers: 0, // This would need to be calculated from project members
+    };
+  };
+
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Completed':
+      case 'COMPLETED':
+      case 'DONE':
         return 'success';
-      case 'In Progress':
+      case 'ACTIVE':
+      case 'IN_PROGRESS':
         return 'primary';
-      case 'Review':
+      case 'PLANNING':
+      case 'TODO':
+        return 'info';
+      case 'ON_HOLD':
+      case 'PAUSED':
         return 'warning';
-      case 'On Hold':
-        return 'default';
+      case 'CANCELLED':
+        return 'error';
       default:
         return 'default';
     }
@@ -237,13 +250,14 @@ const ProjectDashboard = ({ showNotification }) => {
 
   const getPriorityColor = (priority) => {
     switch (priority) {
-      case 'Critical':
+      case 'CRITICAL':
+      case 'URGENT':
         return 'error';
-      case 'High':
+      case 'HIGH':
         return 'warning';
-      case 'Medium':
+      case 'MEDIUM':
         return 'info';
-      case 'Low':
+      case 'LOW':
         return 'success';
       default:
         return 'default';
@@ -321,14 +335,22 @@ const ProjectDashboard = ({ showNotification }) => {
 
   return (
     <Box>
+      {loading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
+          <Typography variant="body2" color="text.secondary">
+            Loading dashboard data...
+          </Typography>
+        </Box>
+      )}
+
       {/* Stats Cards */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
             icon={<ProjectIcon />}
             title="Total Projects"
-            value={dashboardData.stats.totalProjects}
-            subtitle={`${dashboardData.stats.activeProjects} active`}
+            value={dashboardData?.stats?.totalProjects}
+            subtitle={`${dashboardData?.stats?.activeProjects} active`}
             trend={{ direction: 'up', value: 12 }}
             color="primary"
           />
@@ -337,8 +359,8 @@ const ProjectDashboard = ({ showNotification }) => {
           <StatCard
             icon={<TaskIcon />}
             title="Total Tasks"
-            value={dashboardData.stats.totalTasks}
-            subtitle={`${dashboardData.stats.completedTasks} completed`}
+            value={dashboardData?.stats?.totalTasks}
+            subtitle={`${dashboardData?.stats?.completedTasks} completed`}
             trend={{ direction: 'up', value: 8 }}
             color="success"
           />
@@ -347,7 +369,7 @@ const ProjectDashboard = ({ showNotification }) => {
           <StatCard
             icon={<WarningIcon />}
             title="Overdue Tasks"
-            value={dashboardData.stats.overdueTasksCount}
+            value={dashboardData?.stats?.overdueTasksCount}
             subtitle="Need attention"
             trend={{ direction: 'down', value: 15 }}
             color="error"
@@ -357,7 +379,7 @@ const ProjectDashboard = ({ showNotification }) => {
           <StatCard
             icon={<TeamIcon />}
             title="Team Members"
-            value={dashboardData.stats.teamMembers}
+            value={dashboardData?.stats?.teamMembers}
             subtitle="Active members"
             trend={{ direction: 'up', value: 5 }}
             color="info"
@@ -375,89 +397,109 @@ const ProjectDashboard = ({ showNotification }) => {
                   <ProjectIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
                   Recent Projects
                 </Typography>
-                <IconButton onClick={loadDashboardData}>
+                <IconButton onClick={loadDashboardData} disabled={loading}>
                   <RefreshIcon />
                 </IconButton>
               </Box>
-              <List>
-                {dashboardData.recentProjects.map((project, index) => (
-                  <React.Fragment key={project.id}>
-                    <ListItem sx={{ px: 0, py: 2 }}>
-                      <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
-                          <ProjectIcon />
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                            <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
-                              {project.name}
-                            </Typography>
-                            <Chip
-                              label={project.status}
-                              size="small"
-                              color={getStatusColor(project.status)}
-                              variant="outlined"
-                            />
-                            <Chip
-                              label={project.priority}
-                              size="small"
-                              color={getPriorityColor(project.priority)}
-                              variant="filled"
-                            />
-                          </Box>
-                        }
-                        secondary={
-                          <Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
-                              <Typography variant="body2" color="text.secondary">
-                                Due: {new Date(project.dueDate).toLocaleDateString()}
+
+              {dashboardData.recentProjects.length === 0 ? (
+                <Box sx={{ textAlign: 'center', py: 4 }}>
+                  <ProjectIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 2 }} />
+                  <Typography variant="body1" color="text.secondary">
+                    No projects found
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {userRole === 'PROJECT_MANAGER'
+                      ? 'You are not leading any projects yet.'
+                      : 'No projects available to display.'
+                    }
+                  </Typography>
+                </Box>
+              ) : (
+                <List>
+                  {dashboardData.recentProjects.map((project, index) => (
+                    <React.Fragment key={project.id}>
+                      <ListItem sx={{ px: 0, py: 2 }}>
+                        <ListItemAvatar>
+                          <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
+                            <ProjectIcon />
+                          </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                              <Typography variant="subtitle1" sx={{ fontWeight: 'bold' }}>
+                                {project.name}
                               </Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {project.tasksCompleted}/{project.totalTasks} tasks
-                              </Typography>
-                            </Box>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                              <Box sx={{ flexGrow: 1 }}>
-                                <LinearProgress
-                                  variant="determinate"
-                                  value={project.progress}
-                                  sx={{
-                                    height: 8,
-                                    borderRadius: 4,
-                                    bgcolor: alpha(theme.palette.primary.main, 0.1),
-                                  }}
+                              <Chip
+                                label={project.status}
+                                size="small"
+                                color={getStatusColor(project.status)}
+                                variant="outlined"
+                              />
+                              {project.priority && (
+                                <Chip
+                                  label={project.priority}
+                                  size="small"
+                                  color={getPriorityColor(project.priority)}
+                                  variant="filled"
                                 />
+                              )}
+                            </Box>
+                          }
+                          secondary={
+                            <Box>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 1 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  Due: {formatDate(project.dueDate)}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {project.tasksCompleted}/{project.totalTasks} tasks
+                                </Typography>
                               </Box>
-                              <Typography variant="body2" color="text.secondary" sx={{ minWidth: 35 }}>
-                                {project.progress}%
-                              </Typography>
+                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box sx={{ flexGrow: 1 }}>
+                                  <LinearProgress
+                                    variant="determinate"
+                                    value={Math.round(project.progress)}
+                                    sx={{
+                                      height: 8,
+                                      borderRadius: 4,
+                                      bgcolor: alpha(theme.palette.primary.main, 0.1),
+                                    }}
+                                  />
+                                </Box>
+                                <Typography variant="body2" color="text.secondary" sx={{ minWidth: 35 }}>
+                                  {Math.round(project.progress)}%
+                                </Typography>
+                              </Box>
+                              {project.team && project.team.length > 0 && (
+                                <Box sx={{ mt: 1 }}>
+                                  <AvatarGroup max={3} sx={{ '& .MuiAvatar-root': { width: 24, height: 24 } }}>
+                                    {project.team.map((member, idx) => (
+                                      <Tooltip key={idx} title={member}>
+                                        <Avatar sx={{ fontSize: '0.75rem' }}>
+                                          {member.split(' ').map(n => n[0]).join('')}
+                                        </Avatar>
+                                      </Tooltip>
+                                    ))}
+                                  </AvatarGroup>
+                                </Box>
+                              )}
                             </Box>
-                            <Box sx={{ mt: 1 }}>
-                              <AvatarGroup max={3} sx={{ '& .MuiAvatar-root': { width: 24, height: 24 } }}>
-                                {project.team.map((member, idx) => (
-                                  <Tooltip key={idx} title={member}>
-                                    <Avatar sx={{ fontSize: '0.75rem' }}>
-                                      {member.split(' ').map(n => n[0]).join('')}
-                                    </Avatar>
-                                  </Tooltip>
-                                ))}
-                              </AvatarGroup>
-                            </Box>
-                          </Box>
-                        }
-                      />
-                      <ListItemSecondaryAction>
-                        <IconButton>
-                          <MoreVertIcon />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                    {index < dashboardData.recentProjects.length - 1 && <Divider />}
-                  </React.Fragment>
-                ))}
-              </List>
+                          }
+                        />
+                        <ListItemSecondaryAction>
+                          <IconButton>
+                            <MoreVertIcon />
+                          </IconButton>
+                        </ListItemSecondaryAction>
+                      </ListItem>
+                      {index < dashboardData.recentProjects.length - 1 && <Divider />}
+                    </React.Fragment>
+                  ))}
+                </List>
+              )}
             </CardContent>
           </Card>
         </Grid>
@@ -473,44 +515,54 @@ const ProjectDashboard = ({ showNotification }) => {
                     <WarningIcon sx={{ mr: 1, color: theme.palette.error.main }} />
                     Urgent Tasks
                   </Typography>
-                  <List dense>
-                    {dashboardData.urgentTasks.map((task, index) => (
-                      <React.Fragment key={task.id}>
-                        <ListItem sx={{ px: 0 }}>
-                          <ListItemAvatar>
-                            <Avatar
-                              sx={{
-                                bgcolor: task.overdue ? theme.palette.error.main : theme.palette.warning.main,
-                                width: 32,
-                                height: 32,
-                              }}
-                            >
-                              {task.overdue ? <BugIcon sx={{ fontSize: 16 }} /> : <ClockIcon sx={{ fontSize: 16 }} />}
-                            </Avatar>
-                          </ListItemAvatar>
-                          <ListItemText
-                            primary={
-                              <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
-                                {task.title}
-                              </Typography>
-                            }
-                            secondary={
-                              <Box>
-                                <Typography variant="caption" color="text.secondary">
-                                  {task.project} • {task.assignee}
+
+                  {dashboardData?.urgentTasks?.length === 0 ? (
+                    <Box sx={{ textAlign: 'center', py: 3 }}>
+                      <CheckCircleIcon sx={{ fontSize: 36, color: 'success.main', mb: 1 }} />
+                      <Typography variant="body2" color="text.secondary">
+                        No urgent tasks
+                      </Typography>
+                    </Box>
+                  ) : (
+                    <List dense>
+                      {dashboardData?.urgentTasks?.map((task, index) => (
+                        <React.Fragment key={task.id}>
+                          <ListItem sx={{ px: 0 }}>
+                            <ListItemAvatar>
+                              <Avatar
+                                sx={{
+                                  bgcolor: task.overdue ? theme.palette.error.main : theme.palette.warning.main,
+                                  width: 32,
+                                  height: 32,
+                                }}
+                              >
+                                {task.overdue ? <BugIcon sx={{ fontSize: 16 }} /> : <ClockIcon sx={{ fontSize: 16 }} />}
+                              </Avatar>
+                            </ListItemAvatar>
+                            <ListItemText
+                              primary={
+                                <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                                  {task.title}
                                 </Typography>
-                                <br />
-                                <Typography variant="caption" color={task.overdue ? 'error' : 'text.secondary'}>
-                                  Due: {new Date(task.dueDate).toLocaleDateString()}
-                                </Typography>
-                              </Box>
-                            }
-                          />
-                        </ListItem>
-                        {index < dashboardData.urgentTasks.length - 1 && <Divider />}
-                      </React.Fragment>
-                    ))}
-                  </List>
+                              }
+                              secondary={
+                                <Box>
+                                  <Typography variant="caption" color="text.secondary">
+                                    {task.project} • {task.assignee}
+                                  </Typography>
+                                  <br />
+                                  <Typography variant="caption" color={task.overdue ? 'error' : 'text.secondary'}>
+                                    Due: {formatDate(task.dueDate)}
+                                  </Typography>
+                                </Box>
+                              }
+                            />
+                          </ListItem>
+                          {index < dashboardData.urgentTasks.length - 1 && <Divider />}
+                        </React.Fragment>
+                      ))}
+                    </List>
+                  )}
                 </CardContent>
               </Card>
             </Grid>

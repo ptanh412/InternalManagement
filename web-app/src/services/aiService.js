@@ -1,6 +1,22 @@
 import httpClient from '../configurations/httpClient';
+import { getToken } from "./localStorageService";
 
 const AI_SERVICE_BASE_URL = 'http://localhost:8888/api/v1/ai';
+
+// Helper function to get authorization headers
+const getAuthHeaders = () => ({
+  headers: {
+    Authorization: `Bearer ${getToken()}`,
+  },
+});
+
+// Helper function to get authorization headers for multipart form data
+const getAuthHeadersForFormData = () => ({
+  headers: {
+    'Content-Type': 'multipart/form-data',
+    Authorization: `Bearer ${getToken()}`,
+  },
+});
 
 class AIService {
   // Import requirements from file and generate AI task recommendations
@@ -9,11 +25,7 @@ class AIService {
       const response = await httpClient.post(
         `${AI_SERVICE_BASE_URL}/requirements/import`,
         formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-        }
+        getAuthHeadersForFormData()
       );
       return response.data;
     } catch (error) {
@@ -27,11 +39,142 @@ class AIService {
     try {
       const response = await httpClient.post(
         `${AI_SERVICE_BASE_URL}/requirements/import/text`,
-        requestData
+        requestData,
+        getAuthHeaders()
       );
       return response.data;
     } catch (error) {
       console.error('Error importing requirements from text:', error);
+      throw error;
+    }
+  }
+
+  // Get AI task recommendations for a project
+  async getTaskRecommendations(projectId) {
+    try {
+      const response = await httpClient.get(
+        `${AI_SERVICE_BASE_URL}/recommendations/tasks/${projectId}`,
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching AI task recommendations:', error);
+      throw error;
+    }
+  }
+
+  // Get AI skill recommendations for a task
+  async getSkillRecommendations(taskData) {
+    try {
+      const response = await httpClient.post(
+        `${AI_SERVICE_BASE_URL}/recommendations/skills`,
+        taskData,
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error getting AI skill recommendations:', error);
+      throw error;
+    }
+  }
+
+  // Get AI user recommendations for task assignment
+  async getUserRecommendations(taskData) {
+    try {
+      const response = await httpClient.post(
+        `${AI_SERVICE_BASE_URL}/recommendations/users`,
+        taskData,
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error getting AI user recommendations:', error);
+      throw error;
+    }
+  }
+
+  // Analyze project requirements
+  async analyzeRequirements(projectId) {
+    try {
+      const response = await httpClient.get(
+        `${AI_SERVICE_BASE_URL}/analysis/requirements/${projectId}`,
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error analyzing project requirements:', error);
+      throw error;
+    }
+  }
+
+  // Detect conflicts in project requirements
+  async detectConflicts(projectId) {
+    try {
+      const response = await httpClient.get(
+        `${AI_SERVICE_BASE_URL}/analysis/conflicts/${projectId}`,
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error detecting requirement conflicts:', error);
+      throw error;
+    }
+  }
+
+  // Get AI insights for project management
+  async getProjectInsights(projectId) {
+    try {
+      const response = await httpClient.get(
+        `${AI_SERVICE_BASE_URL}/insights/project/${projectId}`,
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching AI project insights:', error);
+      throw error;
+    }
+  }
+
+  // Get AI performance analytics
+  async getPerformanceAnalytics(userId) {
+    try {
+      const response = await httpClient.get(
+        `${AI_SERVICE_BASE_URL}/analytics/performance/${userId}`,
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching AI performance analytics:', error);
+      throw error;
+    }
+  }
+
+  // Generate AI-powered project timeline
+  async generateProjectTimeline(projectData) {
+    try {
+      const response = await httpClient.post(
+        `${AI_SERVICE_BASE_URL}/generate/timeline`,
+        projectData,
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error generating AI project timeline:', error);
+      throw error;
+    }
+  }
+
+  // Get AI chatbot response
+  async getChatbotResponse(messageData) {
+    try {
+      const response = await httpClient.post(
+        `${AI_SERVICE_BASE_URL}/chatbot/message`,
+        messageData,
+        getAuthHeaders()
+      );
+      return response.data;
+    } catch (error) {
+      console.error('Error getting AI chatbot response:', error);
       throw error;
     }
   }
@@ -324,7 +467,8 @@ class AIService {
   async generateTaskRecommendations(taskId) {
     try {
       const response = await httpClient.post(
-        `${AI_SERVICE_BASE_URL}/recommendations/task/${taskId}`
+        `${AI_SERVICE_BASE_URL}/recommendations/task/${taskId}`,
+        getAuthHeaders()
       );
       return response.data;
     } catch (error) {
@@ -337,7 +481,8 @@ class AIService {
   async generateEmergencyRecommendations(taskId) {
     try {
       const response = await httpClient.post(
-        `${AI_SERVICE_BASE_URL}/recommendations/task/${taskId}/emergency`
+        `${AI_SERVICE_BASE_URL}/recommendations/task/${taskId}/emergency`,
+        getAuthHeaders()
       );
       return response.data;
     } catch (error) {
@@ -350,7 +495,8 @@ class AIService {
   async generateTeamRecommendations(taskId, teamId) {
     try {
       const response = await httpClient.post(
-        `${AI_SERVICE_BASE_URL}/recommendations/task/${taskId}/team/${teamId}`
+        `${AI_SERVICE_BASE_URL}/recommendations/task/${taskId}/team/${teamId}`,
+        getAuthHeaders()
       );
       return response.data;
     } catch (error) {
@@ -363,7 +509,8 @@ class AIService {
   async checkRecommendationServiceHealth() {
     try {
       const response = await httpClient.get(
-        `${AI_SERVICE_BASE_URL}/recommendations/health`
+        `${AI_SERVICE_BASE_URL}/recommendations/health`,
+        getAuthHeaders()
       );
       return response.data;
     } catch (error) {
@@ -974,3 +1121,4 @@ class AIService {
 
 const aiService = new AIService();
 export default aiService;
+

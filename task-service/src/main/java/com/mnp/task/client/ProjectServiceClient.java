@@ -17,4 +17,10 @@ public interface ProjectServiceClient {
 
     @PostMapping("/internal/projects/members")
     void addMemberToProject(@RequestBody AddProjectMemberRequest request);
+
+    @GetMapping("/projects/team-lead/{teamLeadId}")
+    java.util.List<com.mnp.task.dto.response.ProjectResponse> getProjectsByTeamLead(@PathVariable("teamLeadId") String teamLeadId);
+
+    @GetMapping("/projects/{projectId}")
+    com.mnp.task.dto.response.ProjectResponse getProjectById(@PathVariable("projectId") String projectId);
 }
