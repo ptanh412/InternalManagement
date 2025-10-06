@@ -200,7 +200,7 @@ const TeamLeadTaskManagement = ({ showNotification }) => {
           }
         ] : [],
       }));
-
+      console.log("Loaded tasks:", transformedTasks);
       setTasks(transformedTasks);
     } catch (error) {
       console.error('Failed to load tasks:', error);

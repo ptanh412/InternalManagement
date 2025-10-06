@@ -83,12 +83,16 @@ import {
   CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
+import projectService from '../../services/projectService';
+import { getMyInfo } from '../../services/userService';
+import { formatDate, formatDateWithFallback, toISODateString, isOverdue } from '../../utils/dateUtils';
 
 const TaskManagement = ({ showNotification }) => {
   const theme = useTheme();
   const [tasks, setTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [projects, setProjects] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -137,159 +141,135 @@ const TaskManagement = ({ showNotification }) => {
   ];
 
   useEffect(() => {
-    loadTasks();
-    loadProjects();
-    loadAIRecommendations();
+    loadInitialData();
   }, []);
 
   useEffect(() => {
     filterTasks();
   }, [tasks, searchTerm, statusFilter, priorityFilter, projectFilter, assigneeFilter]);
 
-  const loadTasks = async () => {
-    setLoading(true);
+  const loadInitialData = async () => {
+    // Load current user first, then load projects that depend on user info
+    const userId = await loadCurrentUser();
+    if (userId) {
+      await loadProjects(userId);
+    }
+    loadAIRecommendations();
+  };
+
+  const loadCurrentUser = async () => {
     try {
-      // Mock data - replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const mockTasks = [
-        {
-          id: 1,
-          title: 'Implement user authentication',
-          description: 'Create login and registration functionality with JWT tokens',
-          status: 'In Progress',
-          priority: 'High',
-          assignee: 'Alice Johnson',
-          project: 'E-commerce Platform',
-          projectId: 1,
-          dueDate: '2024-01-30',
-          estimatedHours: 16,
-          actualHours: 8,
-          taskType: 'Feature',
-          tags: ['Authentication', 'Security', 'Backend'],
-          createdAt: '2024-01-15',
-          createdBy: 'John Manager',
-          comments: 3,
-          attachments: 2,
-        },
-        {
-          id: 2,
-          title: 'Fix payment gateway integration',
-          description: 'Resolve issues with Stripe payment processing',
-          status: 'Blocked',
-          priority: 'Critical',
-          assignee: 'Bob Smith',
-          project: 'E-commerce Platform',
-          projectId: 1,
-          dueDate: '2024-01-25',
-          estimatedHours: 8,
-          actualHours: 12,
-          taskType: 'Bug',
-          tags: ['Payment', 'Integration', 'Bug Fix'],
-          createdAt: '2024-01-20',
-          createdBy: 'Jane Lead',
-          comments: 7,
-          attachments: 1,
-          overdue: true,
-        },
-        {
-          id: 3,
-          title: 'Design mobile wireframes',
-          description: 'Create wireframes for mobile app redesign',
-          status: 'Review',
-          priority: 'Medium',
-          assignee: 'Carol Davis',
-          project: 'Mobile App Redesign',
-          projectId: 2,
-          dueDate: '2024-02-05',
-          estimatedHours: 12,
-          actualHours: 10,
-          taskType: 'Design',
-          tags: ['Design', 'Wireframes', 'Mobile'],
-          createdAt: '2024-01-18',
-          createdBy: 'Design Lead',
-          comments: 2,
-          attachments: 5,
-        },
-        {
-          id: 4,
-          title: 'AI model training',
-          description: 'Train machine learning model for recommendation system',
-          status: 'In Progress',
-          priority: 'High',
-          assignee: 'Frank Miller',
-          project: 'AI Integration',
-          projectId: 3,
-          dueDate: '2024-02-10',
-          estimatedHours: 40,
-          actualHours: 25,
-          taskType: 'Research',
-          tags: ['AI', 'Machine Learning', 'Training'],
-          createdAt: '2024-01-10',
-          createdBy: 'Tech Lead',
-          comments: 5,
-          attachments: 3,
-        },
-        {
-          id: 5,
-          title: 'Update API documentation',
-          description: 'Document new API endpoints and update existing docs',
-          status: 'To Do',
-          priority: 'Low',
-          assignee: 'David Wilson',
-          project: 'Mobile App Redesign',
-          projectId: 2,
-          dueDate: '2024-02-15',
-          estimatedHours: 6,
-          actualHours: 0,
-          taskType: 'Documentation',
-          tags: ['Documentation', 'API'],
-          createdAt: '2024-01-22',
-          createdBy: 'Product Owner',
-          comments: 1,
-          attachments: 0,
-        },
-        {
-          id: 6,
-          title: 'Unit tests for user service',
-          description: 'Write comprehensive unit tests for user management service',
-          status: 'Done',
-          priority: 'Medium',
-          assignee: 'Eva Brown',
-          project: 'E-commerce Platform',
-          projectId: 1,
-          dueDate: '2024-01-20',
-          estimatedHours: 8,
-          actualHours: 6,
-          taskType: 'Testing',
-          tags: ['Testing', 'Unit Tests', 'Backend'],
-          createdAt: '2024-01-12',
-          createdBy: 'QA Lead',
-          comments: 4,
-          attachments: 1,
-        },
-      ];
-      
-      setTasks(mockTasks);
-      showNotification('Tasks loaded successfully', 'success');
+      const response = await getMyInfo();
+      console.log("Current user info:", response.data.result.userId);
+      setCurrentUser(response.data.result);
+      return response.data.result.userId; // Return the userId for immediate use
     } catch (error) {
-      showNotification('Failed to load tasks', 'error');
-    } finally {
-      setLoading(false);
+      console.error('Error loading current user:', error);
+      return null;
     }
   };
 
-  const loadProjects = async () => {
+  const loadTasks = async () => {
+    // Tasks are now loaded from projects in loadProjects function
+    // This function can be used for additional task-specific API calls if needed
     try {
-      // Mock projects data
-      setProjects([
-        { id: 1, name: 'E-commerce Platform' },
-        { id: 2, name: 'Mobile App Redesign' },
-        { id: 3, name: 'AI Integration' },
-        { id: 4, name: 'Marketing Campaign' },
-      ]);
+      console.log("Tasks loading handled by loadProjects function");
+    } catch (error) {
+      console.error('Error in loadTasks:', error);
+      showNotification('Failed to load tasks', 'error');
+    }
+  };
+
+  // Status mapping function to convert API status to UI status
+  const mapApiStatusToUIStatus = (apiStatus) => {
+    const statusMap = {
+      'TO_DO': 'To Do',
+      'IN_PROGRESS': 'In Progress',
+      'REVIEW': 'Review',
+      'TESTING': 'Testing',
+      'DONE': 'Done',
+      'COMPLETED': 'Done',
+      'BLOCKED': 'Blocked',
+      'CANCELLED': 'Blocked'
+    };
+    return statusMap[apiStatus] || 'To Do';
+  };
+
+  // Priority mapping function to convert API priority to UI priority
+  const mapApiPriorityToUIPriority = (apiPriority) => {
+    const priorityMap = {
+      'LOW': 'Low',
+      'MEDIUM': 'Medium',
+      'HIGH': 'High',
+      'CRITICAL': 'Critical'
+    };
+    return priorityMap[apiPriority] || 'Medium';
+  };
+
+  const loadProjects = async (userId = null) => {
+    // Use provided userId or wait for currentUser to be available
+    const userIdToUse = userId || currentUser?.userId;
+    if (!userIdToUse) {
+      console.log("No userId available yet");
+      return;
+    }
+    
+    try {
+      console.log("Loading projects for userId:", userIdToUse);
+      const response = await projectService.getProjectsByLeader(userIdToUse);
+      
+      if (response.result) {
+        const projectsData = response.result;
+        console.log("Projects loaded:", projectsData);
+        
+        // Set projects for filter dropdown
+        setProjects(projectsData.map(project => ({
+          id: project.id,
+          name: project.name
+        })));
+        
+        // Extract all tasks from all projects
+        const allTasks = [];
+        projectsData.forEach(project => {
+          if (project.tasks && project.tasks.length > 0) {
+            project.tasks.forEach(task => {
+              allTasks.push({
+                id: task.id,
+                title: task.title,
+                description: task.description,
+                status: mapApiStatusToUIStatus(task.status),
+                priority: mapApiPriorityToUIPriority(task.priority),
+                assignee: task.assignedTo || 'Unassigned',
+                project: project.name,
+                projectId: project.id,
+                dueDate: task.dueDate || project.endDate,
+                estimatedHours: task.estimatedHours || 0,
+                actualHours: task.actualHours || 0,
+                taskType: task.taskType || 'Task',
+                tags: task.tags || [],
+                createdAt: task.createdAt || project.createdAt,
+                createdBy: task.reporterId || project.projectLeaderId,
+                comments: task.comments || 0,
+                attachments: task.attachments || 0,
+                overdue: isOverdue(task.dueDate),
+              });
+            });
+          }
+        });
+        
+        console.log("Tasks extracted from projects:", allTasks);
+        setTasks(allTasks);
+        showNotification(`Loaded ${allTasks.length} tasks from ${projectsData.length} projects`, 'success');
+      } else {
+        setProjects([]);
+        setTasks([]);
+        showNotification('No projects or tasks found', 'info');
+      }
     } catch (error) {
       console.error('Failed to load projects', error);
+      showNotification('Failed to load projects and tasks', 'error');
+      setProjects([]);
+      setTasks([]);
     }
   };
 
@@ -425,7 +405,7 @@ const TaskManagement = ({ showNotification }) => {
           id: Date.now(),
           ...taskData,
           actualHours: 0,
-          createdAt: new Date().toISOString().split('T')[0],
+          createdAt: toISODateString(new Date()),
           createdBy: 'Current User',
           comments: 0,
           attachments: 0,
@@ -685,7 +665,7 @@ const TaskManagement = ({ showNotification }) => {
                   <ListItemText primary="Task Type" secondary={task.taskType} />
                 </ListItem>
                 <ListItem>
-                  <ListItemText primary="Due Date" secondary={new Date(task.dueDate).toLocaleDateString()} />
+                  <ListItemText primary="Due Date" secondary={formatDate(task.dueDate)} />
                 </ListItem>
                 <ListItem>
                   <ListItemText 
@@ -980,7 +960,7 @@ const TaskManagement = ({ showNotification }) => {
                         color={task.overdue ? 'error' : 'text.primary'}
                         sx={{ fontWeight: task.overdue ? 'bold' : 'normal' }}
                       >
-                        {new Date(task.dueDate).toLocaleDateString()}
+                        {formatDate(task.dueDate)}
                         {task.overdue && (
                           <WarningIcon sx={{ ml: 0.5, fontSize: 16, color: 'error.main' }} />
                         )}
@@ -990,11 +970,14 @@ const TaskManagement = ({ showNotification }) => {
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 100 }}>
                         <LinearProgress
                           variant="determinate"
-                          value={Math.min((task.actualHours / task.estimatedHours) * 100, 100)}
+                          value={
+                            task.estimatedHours === 0 ? 0 :
+                            Math.min((task.actualHours / task.estimatedHours) * 100, 100)
+                          }
                           sx={{ flexGrow: 1, height: 6, borderRadius: 3 }}
                         />
                         <Typography variant="caption">
-                          {Math.round((task.actualHours / task.estimatedHours) * 100)}%
+                          {task.estimatedHours === 0 ? '0' : Math.round((task.actualHours / task.estimatedHours) * 100)}%
                         </Typography>
                       </Box>
                     </TableCell>

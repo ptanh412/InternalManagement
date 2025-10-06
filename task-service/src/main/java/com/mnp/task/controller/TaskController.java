@@ -50,12 +50,27 @@ public class TaskController {
         return ResponseEntity.ok(taskService.getTask(taskId));
     }
 
+    // Task listing with role-based filtering
     @GetMapping
     public ResponseEntity<List<TaskResponse>> getAllTasks(
             @RequestParam(required = false) String projectId,
             @RequestParam(required = false) TaskStatus status,
-            @RequestParam(required = false) String assigneeId) {
-        return ResponseEntity.ok(taskService.getAllTasks(projectId, status, assigneeId));
+            @RequestParam(required = false) String assigneeId,
+            @RequestParam(required = false) String userId,
+            @RequestParam(required = false) String userRole) {
+
+        if (userId != null && userRole != null) {
+            return ResponseEntity.ok(taskService.getTasksForUser(userId, userRole));
+        } else if (projectId != null || status != null || assigneeId != null) {
+            return ResponseEntity.ok(taskService.getAllTasks(projectId, status, assigneeId));
+        } else {
+            return ResponseEntity.ok(taskService.getAllTasks());
+        }
+    }
+
+    @GetMapping("/team-lead/{teamLeadId}")
+    public ResponseEntity<List<TaskResponse>> getTasksByTeamLead(@PathVariable String teamLeadId) {
+        return ResponseEntity.ok(taskService.getTasksForTeamLead(teamLeadId));
     }
 
     // Task workflow endpoints
@@ -134,6 +149,14 @@ public class TaskController {
     public ResponseEntity<List<TaskSubmissionResponse>> getTaskSubmissions(@PathVariable String taskId) {
         return ResponseEntity.ok(taskService.getTaskSubmissions(taskId));
     }
+
+    @GetMapping("/assigned/{userId}")
+    public ResponseEntity<List<TaskResponse>> getTasksAssignedToUser(@PathVariable String userId) {
+        return ResponseEntity.ok(taskService.getTasksByAssignee(userId));
+    }
+
+    @GetMapping("/my-tasks")
+    public ResponseEntity<List<TaskResponse>> getMyAssignedTasks() {
+        return ResponseEntity.ok(taskService.getMyTasks());
+    }
 }
-
-

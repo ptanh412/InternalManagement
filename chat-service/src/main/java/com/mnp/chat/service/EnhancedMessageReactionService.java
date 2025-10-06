@@ -101,10 +101,11 @@ public class EnhancedMessageReactionService {
             // Create system message text
             String systemMessageText;
             if (isAdded) {
-                systemMessageText = userInfo.getFirstName() + " " + userInfo.getLastName() + " reacted " + icon;
+                systemMessageText = userInfo.getUser().getFirstName() + " "
+                        + userInfo.getUser().getLastName() + " reacted " + icon;
             } else {
-                systemMessageText =
-                        userInfo.getFirstName() + " " + userInfo.getLastName() + " removed reaction " + icon;
+                systemMessageText = userInfo.getUser().getFirstName() + " "
+                        + userInfo.getUser().getLastName() + " removed reaction " + icon;
             }
 
             // Create system message
@@ -116,9 +117,9 @@ public class EnhancedMessageReactionService {
                     .createdDate(Instant.now())
                     .sender(ParticipantInfo.builder()
                             .userId(userInfo.getUserId())
-                            .username(userInfo.getUsername())
-                            .firstName(userInfo.getFirstName())
-                            .lastName(userInfo.getLastName())
+                            .username(userInfo.getUser().getUsername())
+                            .firstName(userInfo.getUser().getFirstName())
+                            .lastName(userInfo.getUser().getLastName())
                             .avatar(userInfo.getAvatar())
                             .build())
                     .build();

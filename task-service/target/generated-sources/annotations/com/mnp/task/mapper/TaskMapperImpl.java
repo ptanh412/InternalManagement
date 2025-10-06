@@ -11,8 +11,8 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-10-02T15:57:41+0700",
-    comments = "version: 1.5.5.Final, compiler: Eclipse JDT (IDE) 3.43.0.v20250819-1513, environment: Java 21.0.8 (Eclipse Adoptium)"
+    date = "2025-10-06T15:35:39+0700",
+    comments = "version: 1.5.5.Final, compiler: javac, environment: Java 21.0.8 (Oracle Corporation)"
 )
 @Component
 public class TaskMapperImpl implements TaskMapper {
@@ -27,20 +27,20 @@ public class TaskMapperImpl implements TaskMapper {
 
         task.assignedTo( request.getAssigneeId() );
         task.reporterId( request.getReporterId() );
-        task.comments( request.getComments() );
-        task.description( request.getDescription() );
-        task.dueDate( request.getDueDate() );
-        task.estimatedHours( request.getEstimatedHours() );
-        task.parentTaskId( request.getParentTaskId() );
-        task.priority( request.getPriority() );
         task.projectId( request.getProjectId() );
+        task.parentTaskId( request.getParentTaskId() );
+        task.title( request.getTitle() );
+        task.description( request.getDescription() );
+        task.type( request.getType() );
+        task.priority( request.getPriority() );
         task.status( request.getStatus() );
+        task.estimatedHours( request.getEstimatedHours() );
+        task.dueDate( request.getDueDate() );
         List<String> list = request.getTags();
         if ( list != null ) {
             task.tags( new ArrayList<String>( list ) );
         }
-        task.title( request.getTitle() );
-        task.type( request.getType() );
+        task.comments( request.getComments() );
 
         task.progressPercentage( (double) 0.0 );
 
@@ -56,27 +56,27 @@ public class TaskMapperImpl implements TaskMapper {
         TaskResponse.TaskResponseBuilder taskResponse = TaskResponse.builder();
 
         taskResponse.assigneeId( task.getAssignedTo() );
-        taskResponse.actualHours( task.getActualHours() );
-        taskResponse.assignedTo( task.getAssignedTo() );
-        taskResponse.createdAt( task.getCreatedAt() );
-        taskResponse.createdBy( task.getCreatedBy() );
-        taskResponse.description( task.getDescription() );
-        taskResponse.dueDate( task.getDueDate() );
-        taskResponse.estimatedHours( task.getEstimatedHours() );
         taskResponse.id( task.getId() );
-        taskResponse.priority( task.getPriority() );
-        taskResponse.progressPercentage( task.getProgressPercentage() );
+        taskResponse.title( task.getTitle() );
         taskResponse.projectId( task.getProjectId() );
         taskResponse.reporterId( task.getReporterId() );
+        if ( task.getType() != null ) {
+            taskResponse.type( task.getType().name() );
+        }
+        taskResponse.assignedTo( task.getAssignedTo() );
+        taskResponse.description( task.getDescription() );
         taskResponse.status( task.getStatus() );
+        taskResponse.priority( task.getPriority() );
+        taskResponse.estimatedHours( task.getEstimatedHours() );
+        taskResponse.actualHours( task.getActualHours() );
+        taskResponse.progressPercentage( task.getProgressPercentage() );
         List<String> list = task.getTags();
         if ( list != null ) {
             taskResponse.tags( new ArrayList<String>( list ) );
         }
-        taskResponse.title( task.getTitle() );
-        if ( task.getType() != null ) {
-            taskResponse.type( task.getType().name() );
-        }
+        taskResponse.createdBy( task.getCreatedBy() );
+        taskResponse.dueDate( task.getDueDate() );
+        taskResponse.createdAt( task.getCreatedAt() );
         taskResponse.updatedAt( task.getUpdatedAt() );
 
         return taskResponse.build();
@@ -88,11 +88,11 @@ public class TaskMapperImpl implements TaskMapper {
             return;
         }
 
+        if ( request.getTitle() != null ) {
+            task.setTitle( request.getTitle() );
+        }
         if ( request.getDescription() != null ) {
             task.setDescription( request.getDescription() );
-        }
-        if ( request.getDueDate() != null ) {
-            task.setDueDate( request.getDueDate() );
         }
         if ( request.getPriority() != null ) {
             task.setPriority( request.getPriority() );
@@ -100,8 +100,8 @@ public class TaskMapperImpl implements TaskMapper {
         if ( request.getStatus() != null ) {
             task.setStatus( request.getStatus() );
         }
-        if ( request.getTitle() != null ) {
-            task.setTitle( request.getTitle() );
+        if ( request.getDueDate() != null ) {
+            task.setDueDate( request.getDueDate() );
         }
     }
 }

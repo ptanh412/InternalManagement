@@ -185,7 +185,7 @@ public class UserService {
             NotificationEvent notificationEvent = NotificationEvent.builder()
                     .channel("EMAIL")
                     .recipient(user.getEmail())
-                    .subject("Welcome to Bookteria - Your Account Has Been Created")
+                    .subject("Welcome to Project Management - Your Account Has Been Created")
                     .body(emailContent)
                     .build();
 
@@ -289,9 +289,11 @@ public class UserService {
                 .toList();
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<UserResponse> getOnlineUsers() {
-        return userRepository.findOnlineUsers().stream()
+    @PreAuthorize("hasRole('ADMIN') or hasRole('PROJECT_MANAGER')")
+    public List<UserResponse> getUsersByRole(String roleName) {
+        Role role = roleRepository.findByName(roleName).orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXISTED));
+
+        return userRepository.findByRoleAndIsActiveTrue(role).stream()
                 .map(userMapper::toUserResponse)
                 .toList();
     }
@@ -322,11 +324,11 @@ public class UserService {
 			<head>
 				<meta charset="UTF-8">
 				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<title>Welcome to Bookteria</title>
+				<title>Welcome to Project Management</title>
 			</head>
 			<body>
 				<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-					<h1 style="color: #333;">Welcome to Bookteria!</h1>
+					<h1 style="color: #333;">Welcome to Project Management!</h1>
 					<p>Hello <strong>%s</strong>,</p>
 					<p>Your account has been successfully created with the following details:</p>
 					<ul>
@@ -335,7 +337,7 @@ public class UserService {
 						<li><strong>Employee ID:</strong> %s</li>
 					</ul>
 					<p>You can now access the Internal Management System.</p>
-					<p>Best regards,<br>The Bookteria Team</p>
+					<p>Best regards,<br>The Project Management Team</p>
 				</div>
 			</body>
 			</html>

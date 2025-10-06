@@ -2,12 +2,15 @@ com\mnp\task\dto\request\TaskSubmissionRequest.class
 com\mnp\task\exception\ErrorCode.class
 com\mnp\task\exception\GlobalExceptionHandler.class
 com\mnp\task\entity\TaskSubmission$TaskSubmissionBuilder.class
+com\mnp\task\service\TaskReminderService.class
 com\mnp\task\TaskServiceApplication.class
 com\mnp\task\dto\response\TaskSkillResponse.class
 com\mnp\task\mapper\TaskMapperImpl.class
 com\mnp\task\dto\response\TaskResponse.class
 com\mnp\task\configuration\AuthenticationRequestInterceptor.class
+com\mnp\task\service\TaskNotificationProducerService.class
 com\mnp\task\configuration\FeignConfiguration.class
+com\mnp\task\configuration\KafkaConfig.class
 com\mnp\task\entity\Task$TaskBuilder.class
 com\mnp\task\mapper\TaskMapper.class
 com\mnp\task\dto\request\TaskCreationRequest$TaskCreationRequestBuilder.class
@@ -36,6 +39,7 @@ com\mnp\task\dto\request\TaskProgressUpdateRequest.class
 com\mnp\task\controller\InternalTaskController.class
 com\mnp\task\dto\request\TaskCreationRequest.class
 com\mnp\task\enums\SubmissionStatus.class
+com\mnp\task\dto\response\ProjectResponse$ProjectResponseBuilder.class
 com\mnp\task\controller\TaskController.class
 com\mnp\task\dto\request\TaskStatusUpdateRequest.class
 com\mnp\task\dto\request\AddProjectMemberRequest.class
@@ -53,9 +57,11 @@ com\mnp\task\entity\TaskRequiredSkill$TaskRequiredSkillBuilder.class
 com\mnp\task\enums\ProficiencyLevel.class
 com\mnp\task\client\ProjectServiceClient.class
 com\mnp\task\entity\Task.class
+com\mnp\event\dto\NotificationEvent$NotificationEventBuilder.class
 com\mnp\task\dto\request\SubmissionReviewRequest$SubmissionReviewRequestBuilder.class
 com\mnp\task\dto\request\TaskDependencyCreationRequest.class
 com\mnp\task\enums\TaskPriority.class
+com\mnp\event\dto\NotificationEvent.class
 com\mnp\task\dto\response\TaskDependencyResponse.class
 com\mnp\task\dto\request\TaskSkillRequest$TaskSkillRequestBuilder.class
 com\mnp\task\dto\request\TaskUpdateRequest$TaskUpdateRequestBuilder.class
@@ -64,6 +70,7 @@ com\mnp\task\configuration\CustomJwtDecoder.class
 com\mnp\task\controller\SubmissionController.class
 com\mnp\task\dto\request\TaskDependencyRequest$TaskDependencyRequestBuilder.class
 com\mnp\task\repository\TaskRequiredSkillRepository.class
+com\mnp\task\dto\response\ProjectResponse.class
 com\mnp\task\dto\request\SubmissionReviewRequest.class
 com\mnp\task\dto\request\TaskDependencyCreationRequest$TaskDependencyCreationRequestBuilder.class
 com\mnp\task\repository\TaskSubmissionRepository.class

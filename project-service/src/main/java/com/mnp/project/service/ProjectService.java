@@ -15,6 +15,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,6 +34,7 @@ public class ProjectService {
     ProjectRepository projectRepository;
     TaskServiceClient taskServiceClient;
     ChatServiceClient chatServiceClient;
+    NotificationProducerService notificationProducerService;
 
     public List<ProjectResponse> getAllProjects() {
         return projectRepository.findAll()
@@ -66,6 +68,22 @@ public class ProjectService {
                 .build();
 
         Project savedProject = projectRepository.save(project);
+
+        // Send notification to team lead if assigned
+        if (savedProject.getTeamLeadId() != null) {
+            try {
+                String projectManagerName = getCurrentUserName(); // You'll need to implement this method
+                notificationProducerService.sendTeamLeadProjectNotification(
+                    savedProject.getTeamLeadId(),
+                    savedProject.getId(),
+                    savedProject.getName(),
+                    projectManagerName
+                );
+                log.info("Sent team lead notification for project: {}", savedProject.getId());
+            } catch (Exception e) {
+                log.error("Failed to send team lead notification for project: {}", savedProject.getId(), e);
+            }
+        }
 
         // Automatically create chat group for the project
         try {
@@ -475,5 +493,25 @@ public class ProjectService {
             log.error("Failed to create chat group for project {}: {}", projectId, e.getMessage(), e);
             throw new AppException(ErrorCode.CHAT_GROUP_CREATION_FAILED);
         }
+    }
+
+    public List<ProjectResponse> getProjectsByTeamLead(String teamLeadId) {
+        return projectRepository.findByTeamLeadId(teamLeadId)
+                .stream()
+                .map(this::mapToProjectResponse)
+                .collect(Collectors.toList());
+    }
+
+    public List<ProjectResponse> getProjectsForUser(String userId, String userRole) {
+        if ("TEAM_LEAD".equals(userRole)) {
+            return getProjectsByTeamLead(userId);
+        } else {
+            return getAllProjects();
+        }
+    }
+
+    private String getCurrentUserName() {
+        // Get current user name from security context or implement user service call
+        return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 }

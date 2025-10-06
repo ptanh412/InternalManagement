@@ -29,8 +29,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
-import java.util.stream.Collectors;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -42,9 +43,10 @@ public class TaskService {
     TaskRepository taskRepository;
     TaskDependencyRepository taskDependencyRepository;
     TaskRequiredSkillRepository taskRequiredSkillRepository;
-    ProjectServiceClient projectServiceClient; // Assuming this is the client to communicate with the project service
+    ProjectServiceClient projectServiceClient;
     TaskSubmissionRepository taskSubmissionRepository;
     TaskMapper taskMapper;
+    TaskNotificationProducerService taskNotificationProducerService;
 
     @Transactional
     public TaskResponse createTask(TaskCreationRequest request) {
@@ -58,6 +60,28 @@ public class TaskService {
 
         Task savedTask = taskRepository.save(task);
         log.info("Task created with ID: {}", savedTask.getId());
+
+        // Send notification to assigned employee
+        if (savedTask.getAssignedTo() != null) {
+            try {
+                String assignedByName = getCurrentUserName();
+                String dueDate = savedTask.getDueDate() != null ?
+                        savedTask.getDueDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "Not specified";
+                String projectName = getProjectNameById(savedTask.getProjectId());
+
+                taskNotificationProducerService.sendTaskAssignmentNotification(
+                        savedTask.getAssignedTo(),
+                        savedTask.getId(),
+                        savedTask.getTitle(),
+                        projectName,
+                        assignedByName,
+                        dueDate
+                );
+                log.info("Sent task assignment notification for task: {}", savedTask.getId());
+            } catch (Exception e) {
+                log.error("Failed to send task assignment notification for task: {}", savedTask.getId(), e);
+            }
+        }
 
         // Create task dependencies if provided
         if (request.getDependencies() != null && !request.getDependencies().isEmpty()) {
@@ -99,8 +123,32 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
 
+        String oldAssignee = task.getAssignedTo();
         taskMapper.updateTask(task, request);
         Task updatedTask = taskRepository.save(task);
+
+        // Send notification if task is newly assigned or reassigned
+        if (updatedTask.getAssignedTo() != null &&
+                !updatedTask.getAssignedTo().equals(oldAssignee)) {
+            try {
+                String assignedByName = getCurrentUserName();
+                String dueDate = updatedTask.getDueDate() != null ?
+                        updatedTask.getDueDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "Not specified";
+                String projectName = getProjectNameById(updatedTask.getProjectId());
+
+                taskNotificationProducerService.sendTaskAssignmentNotification(
+                        updatedTask.getAssignedTo(),
+                        updatedTask.getId(),
+                        updatedTask.getTitle(),
+                        projectName,
+                        assignedByName,
+                        dueDate
+                );
+                log.info("Sent task reassignment notification for task: {}", updatedTask.getId());
+            } catch (Exception e) {
+                log.error("Failed to send task reassignment notification for task: {}", updatedTask.getId(), e);
+            }
+        }
 
         log.info("Task updated with ID: {}", updatedTask.getId());
 
@@ -152,15 +200,15 @@ public class TaskService {
 
         // Check for frontend indicators
         if (type.contains("frontend") || title.contains("frontend") || description.contains("frontend") ||
-            title.contains("ui") || title.contains("react") || description.contains("react") ||
-            title.contains("javascript") || description.contains("javascript")) {
+                title.contains("ui") || title.contains("react") || description.contains("react") ||
+                title.contains("javascript") || description.contains("javascript")) {
             return "FRONTEND_DEVELOPMENT";
         }
 
         // Check for backend indicators
         if (type.contains("backend") || title.contains("backend") || description.contains("backend") ||
-            title.contains("api") || title.contains("database") || description.contains("database") ||
-            title.contains("spring") || description.contains("spring")) {
+                title.contains("api") || title.contains("database") || description.contains("database") ||
+                title.contains("spring") || description.contains("spring")) {
             return "BACKEND_DEVELOPMENT";
         }
 
@@ -182,16 +230,16 @@ public class TaskService {
                 .anyMatch(skill -> {
                     String skillName = skill.getSkillName().toLowerCase();
                     return skillName.contains("react") || skillName.contains("javascript") ||
-                           skillName.contains("html") || skillName.contains("css") ||
-                           skillName.contains("ui") || skillName.contains("ux");
+                            skillName.contains("html") || skillName.contains("css") ||
+                            skillName.contains("ui") || skillName.contains("ux");
                 });
 
         boolean hasBackendSkills = requiredSkills.stream()
                 .anyMatch(skill -> {
                     String skillName = skill.getSkillName().toLowerCase();
                     return skillName.contains("java") || skillName.contains("spring") ||
-                           skillName.contains("python") || skillName.contains("node") ||
-                           skillName.contains("database") || skillName.contains("sql");
+                            skillName.contains("python") || skillName.contains("node") ||
+                            skillName.contains("database") || skillName.contains("sql");
                 });
 
         if (hasFrontendSkills && !hasBackendSkills) {
@@ -229,7 +277,7 @@ public class TaskService {
         // Factor in advanced skill requirements
         long advancedSkills = requiredSkills.stream()
                 .filter(skill -> skill.getRequiredLevel() != null &&
-                               skill.getRequiredLevel().toString().contains("ADVANCED"))
+                        skill.getRequiredLevel().toString().contains("ADVANCED"))
                 .count();
         difficultyScore += (int) Math.min(advancedSkills, 2);
 
@@ -282,6 +330,36 @@ public class TaskService {
         return taskRepository.findByCreatedBy(currentUserId).stream()
                 .map(taskMapper::toTaskResponse)
                 .toList();
+    }
+
+    public List<TaskResponse> getTasksForTeamLead(String teamLeadId) {
+        try {
+            // Get projects where this user is a team lead
+            List<String> projectIds = projectServiceClient.getProjectsByTeamLead(teamLeadId)
+                    .stream()
+                    .map(project -> project.getId())
+                    .collect(Collectors.toList());
+
+            if (projectIds.isEmpty()) {
+                return List.of(); // Return empty list if no projects found
+            }
+
+            // Get all tasks from these projects
+            return taskRepository.findByProjectIdIn(projectIds).stream()
+                    .map(taskMapper::toTaskResponse)
+                    .toList();
+        } catch (Exception e) {
+            log.error("Failed to fetch tasks for team lead {}: {}", teamLeadId, e.getMessage());
+            return List.of(); // Return empty list on error
+        }
+    }
+
+    public List<TaskResponse> getTasksForUser(String userId, String userRole) {
+        if ("TEAM_LEAD".equals(userRole)) {
+            return getTasksForTeamLead(userId);
+        } else {
+            return getAllTasks();
+        }
     }
 
     // Enhanced getAllTasks with filters
@@ -677,6 +755,51 @@ public class TaskService {
                 .build();
     }
 
+    /**
+     * Send task reminder notifications to employees
+     */
+    public void sendTaskReminders() {
+        try {
+            // Find tasks that are due within 24 hours and not completed
+            var upcomingTasks = taskRepository.findTasksDueWithin24Hours();
+
+            for (Task task : upcomingTasks) {
+                if (task.getAssignedTo() != null) {
+                    String dueDate = task.getDueDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                    String projectName = getProjectNameById(task.getProjectId());
+
+                    taskNotificationProducerService.sendTaskReminderNotification(
+                            task.getAssignedTo(),
+                            task.getId(),
+                            task.getTitle(),
+                            projectName,
+                            dueDate
+                    );
+                }
+            }
+            log.info("Sent {} task reminder notifications", upcomingTasks.size());
+        } catch (Exception e) {
+            log.error("Failed to send task reminder notifications", e);
+        }
+    }
+
+    /**
+     * Get project name by project ID using project service client
+     */
+    private String getProjectNameById(String projectId) {
+        try {
+            if (projectId != null) {
+                // Call project service to get project details
+                var project = projectServiceClient.getProjectById(projectId);
+                return project != null ? project.getName() : "Unknown Project";
+            }
+            return "Unknown Project";
+        } catch (Exception e) {
+            log.warn("Failed to fetch project name for ID: {}", projectId);
+            return "Unknown Project";
+        }
+    }
+
     private String getCurrentUserId() {
         var context = SecurityContextHolder.getContext();
         var authentication = context.getAuthentication();
@@ -687,6 +810,10 @@ public class TaskService {
         }
 
         return authentication.getName();
+    }
+
+    private String getCurrentUserName() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 
     /**

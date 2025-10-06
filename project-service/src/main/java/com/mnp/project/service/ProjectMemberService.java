@@ -13,6 +13,7 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,13 +29,13 @@ public class ProjectMemberService {
 
     ProjectMemberRepository projectMemberRepository;
     ProjectRepository projectRepository;
+    NotificationProducerService notificationProducerService;
 
     @Transactional
     public ProjectMemberResponse addMemberToProject(AddProjectMemberRequest request) {
         // Verify project exists
-        if (!projectRepository.existsById(request.getProjectId())) {
-            throw new AppException(ErrorCode.PROJECT_NOT_EXISTED);
-        }
+        var project = projectRepository.findById(request.getProjectId())
+                .orElseThrow(() -> new AppException(ErrorCode.PROJECT_NOT_EXISTED));
 
         // Check if user is already a member of the project
         if (projectMemberRepository.existsByProjectIdAndUserIdAndIsActive(
@@ -50,6 +51,25 @@ public class ProjectMemberService {
                 .build();
 
         ProjectMember savedMember = projectMemberRepository.save(projectMember);
+
+        // Send notification if the member is being added as TEAM_LEAD
+        if (ProjectRole.TEAM_LEAD.equals(savedMember.getRole())) {
+            try {
+                String currentUserName = getCurrentUserName();
+                notificationProducerService.sendTeamLeadProjectNotification(
+                    savedMember.getUserId(),
+                    project.getId(),
+                    project.getName(),
+                    currentUserName
+                );
+                log.info("Sent team lead notification for user {} added to project {}",
+                    savedMember.getUserId(), project.getId());
+            } catch (Exception e) {
+                log.error("Failed to send team lead notification for user {} on project {}",
+                    savedMember.getUserId(), project.getId(), e);
+            }
+        }
+
         return mapToProjectMemberResponse(savedMember);
     }
 
@@ -70,12 +90,40 @@ public class ProjectMemberService {
                 .findByProjectIdAndUserIdAndIsActive(projectId, userId, true)
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
+        ProjectRole oldRole = projectMember.getRole();
+
         if (request.getRole() != null) {
             projectMember.setRole(request.getRole());
         }
 
         ProjectMember updatedMember = projectMemberRepository.save(projectMember);
+
+        // Send notification if the user is being promoted to TEAM_LEAD
+        if (!ProjectRole.TEAM_LEAD.equals(oldRole) && ProjectRole.TEAM_LEAD.equals(updatedMember.getRole())) {
+            try {
+                var project = projectRepository.findById(projectId)
+                        .orElseThrow(() -> new AppException(ErrorCode.PROJECT_NOT_EXISTED));
+
+                String currentUserName = getCurrentUserName();
+                notificationProducerService.sendTeamLeadProjectNotification(
+                    updatedMember.getUserId(),
+                    project.getId(),
+                    project.getName(),
+                    currentUserName
+                );
+                log.info("Sent team lead promotion notification for user {} on project {}",
+                    updatedMember.getUserId(), project.getId());
+            } catch (Exception e) {
+                log.error("Failed to send team lead promotion notification for user {} on project {}",
+                    updatedMember.getUserId(), projectId, e);
+            }
+        }
+
         return mapToProjectMemberResponse(updatedMember);
+    }
+
+    private String getCurrentUserName() {
+        return SecurityContextHolder.getContext().getAuthentication().getName();
     }
 
     public List<ProjectMemberResponse> getProjectMembers(String projectId) {

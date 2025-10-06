@@ -17,6 +17,8 @@ public interface ProjectRepository extends JpaRepository<Project, String> {
 
     List<Project> findByProjectLeaderId(String projectLeaderId);
 
+    List<Project> findByTeamLeadId(String teamLeadId);
+
 
     @Query("SELECT p FROM Project p WHERE p.createdAt BETWEEN :startDate AND :endDate")
     List<Project> findByDateRange(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);

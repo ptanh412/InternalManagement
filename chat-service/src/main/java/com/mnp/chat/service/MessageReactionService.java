@@ -156,9 +156,9 @@ public class MessageReactionService {
                                 if (!userExists) {
                                     users.add(UserReactionInfo.builder()
                                             .userId(reaction.getUserId())
-                                            .username(userProfile.getUsername())
-                                            .firstName(userProfile.getFirstName())
-                                            .lastName(userProfile.getLastName())
+                                            .username(userProfile.getUser().getUsername())
+                                            .firstName(userProfile.getUser().getFirstName())
+                                            .lastName(userProfile.getUser().getLastName())
                                             .avatar(userProfile.getAvatar())
                                             .reactionCount(reaction.getCount())
                                             .build());

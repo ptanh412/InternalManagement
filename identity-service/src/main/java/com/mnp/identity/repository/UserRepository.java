@@ -8,6 +8,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import com.mnp.identity.entity.Department;
+import com.mnp.identity.entity.Role;
 import com.mnp.identity.entity.User;
 
 @Repository
@@ -32,6 +33,8 @@ public interface UserRepository extends JpaRepository<User, String> {
     List<User> findByIsActiveTrue();
 
     List<User> findByIsActiveFalse();
+
+    List<User> findByRoleAndIsActiveTrue(Role role);
 
     @Query("SELECT u FROM User u WHERE u.online = true")
     List<User> findOnlineUsers();
