@@ -37,3 +37,12 @@ app:
     profile: http://localhost:8081/profile
     identity: http://localhost:8080/identity
     project: http://localhost:8090/project
+    chat: http://localhost:8085/chat
+    notification: http://localhost:8082/notification
+    file: http://localhost:8084/file
+
+# Socket.IO Configuration for Task Service
+socketio:
+  server:
+    host: localhost
+    port: 9093

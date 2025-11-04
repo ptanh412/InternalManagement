@@ -17,7 +17,7 @@ import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
 import org.springframework.kafka.support.serializer.JsonSerializer;
 
-import com.devteria.event.dto.NotificationEvent;
+import com.mnp.event.dto.NotificationEvent;
 
 @Configuration
 @EnableKafka

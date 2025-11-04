@@ -1,0 +1,100 @@
+# Database Configuration
+database:
+  postgres:
+    host: localhost
+    port: 5432
+    database: ml_training_db
+    username: ml_user
+    password: ml_password
+    
+  neo4j:
+    uri: bolt://localhost:7687
+    username: neo4j
+    password: neo4j_password
+    
+  mongodb:
+    uri: mongodb://localhost:27017
+    database: internal_management
+    username: mongo_user
+    password: mongo_password
+    
+  mysql:
+    host: localhost
+    port: 3306
+    database: internal_management
+    username: mysql_user
+    password: mysql_password
+
+# Kafka Configuration
+kafka:
+  bootstrap_servers:
+    - localhost:9092
+  topics:
+    ml_events: "ml-events"
+    task_completed: "task-completed-events"
+    task_assigned: "task-assigned-events"
+    user_activity: "user-activity-events"
+  
+  consumer_group: "ml-data-collector"
+  
+# Model Configuration
+model:
+  recommendation:
+    algorithm: "hybrid"
+    content_weight: 0.6
+    collaborative_weight: 0.4
+    min_training_samples: 100
+    retrain_frequency_days: 7
+    
+  performance_prediction:
+    algorithm: "random_forest"
+    n_estimators: 200
+    max_depth: 15
+    min_samples_split: 5
+    
+  skill_matching:
+    similarity_threshold: 0.7
+    experience_weight: 0.3
+    skill_weight: 0.7
+
+# Training Configuration
+training:
+  test_size: 0.2
+  validation_size: 0.2
+  random_state: 42
+  cross_validation_folds: 5
+  
+  hyperparameter_tuning:
+    enabled: true
+    method: "grid_search"  # or "random_search"
+    scoring_metric: "f1_weighted"
+    
+# Data Collection
+data_collection:
+  batch_size: 1000
+  max_records_per_collection: 10000
+  collection_frequency_hours: 24
+  
+  synthetic_data:
+    enabled: true
+    num_users: 300
+    num_tasks: 1500
+    num_interactions: 3000
+    
+# Continuous Learning
+continuous_learning:
+  enabled: true
+  min_accuracy_improvement: 0.01
+  min_data_size: 500
+  performance_degradation_threshold: 0.05
+  
+# Logging
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false

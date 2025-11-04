@@ -1,7 +1,7 @@
 package com.mnp.workload.controller;
 
-import com.devteria.workload.dto.request.*;
-import com.devteria.workload.dto.response.*;
+import com.mnp.workload.dto.request.*;
+import com.mnp.workload.dto.response.*;
 import com.mnp.workload.dto.request.AddTaskToWorkloadRequest;
 import com.mnp.workload.dto.request.UpdateCapacityRequest;
 import com.mnp.workload.dto.request.UpdateTaskWorkloadRequest;

@@ -40,6 +40,11 @@ public class ChatMessage {
 
     ParticipantInfo sender;
 
+    // Additional fields for system messages
+    String senderId; // For system messages, this will be "SYSTEM"
+    String senderName; // For system messages, this will be "System"
+    String systemType; // Type of system message (e.g., "GROUP_MEMBER_ADDED")
+
     String replyToMessageId; // ID of the message being replied to
 
     @Indexed

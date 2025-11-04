@@ -21,13 +21,12 @@ public interface TaskMapper {
     @Mapping(target = "actualHours", ignore = true)
     @Mapping(target = "startedAt", ignore = true)
     @Mapping(target = "completedAt", ignore = true)
-    @Mapping(target = "qualityRating", ignore = true)
-    @Mapping(target = "qualityComments", ignore = true)
     @Mapping(target = "progressPercentage", constant = "0.0")
     Task toTask(TaskCreationRequest request);
 
     @Mapping(source = "assignedTo", target = "assigneeId")
     TaskResponse toTaskResponse(Task task);
 
+    @Mapping(source = "assigneeId", target = "assignedTo")
     void updateTask(@MappingTarget Task task, TaskUpdateRequest request);
 }

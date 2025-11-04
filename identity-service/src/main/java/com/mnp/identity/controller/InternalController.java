@@ -23,7 +23,7 @@ public class InternalController {
     ApiResponse<UserResponse> getUser(@PathVariable("userId") String userId) {
         log.info("Internal call: Getting user with ID: {}", userId);
         return ApiResponse.<UserResponse>builder()
-                .result(userService.getUser(userId))
+                .result(userService.getUserForInternalService(userId))
                 .build();
     }
 

@@ -43,6 +43,9 @@ public enum ErrorCode {
     DOCUMENT_NOT_FOUND(1029, "Requirement document not found", HttpStatus.NOT_FOUND),
     TASK_GENERATION_FAILED(1030, "Task generation failed", HttpStatus.INTERNAL_SERVER_ERROR),
     URL_DOWNLOAD_FAILED(1031, "Failed to download content from URL", HttpStatus.BAD_REQUEST),
+
+    HISTORY_NOT_FOUND(1032, "History not found", HttpStatus.NOT_FOUND),
+
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

@@ -1,0 +1,30 @@
+version: '3.8'
+name: projectmanagement-dev
+
+services:
+  website-service-dev:
+    build:
+      context: ./website-service
+      dockerfile: Dockerfile.dev
+    container_name: website-service-dev
+    hostname: website-service-dev
+    restart: unless-stopped
+    ports:
+      - '3000:3000'
+    environment:
+      - REACT_APP_API_URL=http://localhost:8080/api
+      - REACT_APP_ENVIRONMENT=development
+      - WATCHPACK_POLLING=true
+    volumes:
+      - ./website-service/src:/app/src:ro
+      - ./website-service/public:/app/public:ro
+      - ./website-service/package.json:/app/package.json:ro
+      - ./website-service/tailwind.config.js:/app/tailwind.config.js:ro
+      - ./website-service/postcss.config.js:/app/postcss.config.js:ro
+      - /app/node_modules
+    networks:
+      - dev-network
+
+networks:
+  dev-network:
+    driver: bridge

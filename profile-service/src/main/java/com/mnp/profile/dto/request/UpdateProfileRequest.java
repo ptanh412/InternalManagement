@@ -14,6 +14,7 @@ import lombok.experimental.FieldDefaults;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class UpdateProfileRequest {
+    String avatar;
     LocalDate dob;
     String city;
     List<UserSkillRequest> skills;

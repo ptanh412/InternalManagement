@@ -3,7 +3,7 @@ package com.devteria.notification.service;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
-import com.devteria.event.dto.NotificationEvent;
+import com.mnp.event.dto.NotificationEvent;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

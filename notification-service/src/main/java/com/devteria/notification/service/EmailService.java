@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import com.devteria.event.dto.NotificationEvent;
+import com.mnp.event.dto.NotificationEvent;
 import com.devteria.notification.dto.request.*;
 import com.devteria.notification.dto.response.EmailResponse;
 import com.devteria.notification.exception.AppException;

@@ -7,6 +7,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import com.mnp.identity.dto.request.ApiResponse;
+import com.mnp.identity.dto.request.ChangePasswordRequest;
 import com.mnp.identity.dto.request.UserCreationRequest;
 import com.mnp.identity.dto.request.UserStatusUpdateRequest;
 import com.mnp.identity.dto.request.UserUpdateRequest;
@@ -105,5 +106,11 @@ public class UserController {
         return ApiResponse.<List<UserResponse>>builder()
                 .result(userService.getUsersByRole(roleName))
                 .build();
+    }
+
+    @PostMapping("/change-password")
+    ApiResponse<Void> changePassword(@RequestBody @Valid ChangePasswordRequest request) {
+        userService.changePassword(request);
+        return ApiResponse.<Void>builder().result(null).build();
     }
 }

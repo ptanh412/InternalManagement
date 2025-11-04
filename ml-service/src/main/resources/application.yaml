@@ -1,0 +1,261 @@
+# ML Service Configuration
+
+server:
+  port: 8090
+  servlet:
+    context-path: /ml-service
+
+spring:
+  application:
+    name: ml-service
+  
+  profiles:
+    active: dev
+    
+  # Database Configuration
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ml_training_db
+    username: ml_user
+    password: ml_password
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      leak-detection-threshold: 60000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+        use_sql_comments: true
+        jdbc:
+          batch_size: 25
+        order_inserts: true
+        order_updates: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: ml-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      enable-auto-commit: false
+      properties:
+        spring.json.trusted.packages: "com.internalmanagement.mlservice.messaging.events"
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+      properties:
+        enable.idempotence: true
+    listener:
+      ack-mode: manual_immediate
+      concurrency: 3
+
+  # Redis Configuration (for caching)
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 2000ms
+      lettuce:
+        pool:
+          max-active: 8
+          max-idle: 8
+          min-idle: 0
+
+  # Security Configuration
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8080/auth/realms/internal-management
+
+# Eureka Configuration
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+    fetch-registry: true
+    register-with-eureka: true
+  instance:
+    prefer-ip-address: true
+    lease-renewal-interval-in-seconds: 30
+    lease-expiration-duration-in-seconds: 90
+
+# Application-specific Configuration
+app:
+  kafka:
+    topics:
+      task-completed: "task-completed-events"
+      task-assigned: "task-assigned-events" 
+      user-profile-updated: "user-profile-updated-events"
+      ml-events: "ml-events"
+      ml-model-updated: "ml-model-updated"
+      ml-prediction: "ml-prediction-events"
+      ml-training-status: "ml-training-status"
+    consumer:
+      group-id: "ml-service-group"
+
+  ml:
+    # Python API Configuration
+    python-api:
+      base-url: "http://localhost:8000"
+      connection-timeout: 30000
+      read-timeout: 120000
+      
+    # Model Configuration
+    model:
+      storage-path: "/app/models"
+      backup-path: "/app/model-backups"
+      max-model-versions: 5
+      
+    # Training Configuration  
+    training:
+      min-data-size: 500
+      max-training-time-minutes: 120
+      auto-retrain-enabled: true
+      retrain-frequency-hours: 24
+      
+    # Prediction Configuration
+    prediction:
+      cache-ttl-minutes: 60
+      batch-size: 100
+      timeout-seconds: 30
+      
+    # Performance Monitoring
+    monitoring:
+      enable-metrics: true
+      performance-threshold: 0.7
+      degradation-threshold: 0.05
+
+# Logging Configuration
+logging:
+  level:
+    com.internalmanagement.mlservice: INFO
+    org.springframework.kafka: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/ml-service.log
+    max-size: 10MB
+    max-history: 30
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    export:
+      prometheus:
+        enabled: true
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    config-url: /v3/api-docs/swagger-config
+    urls[0]:
+      name: ML Service API
+      url: /v3/api-docs
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/ml_training_db_dev
+  kafka:
+    bootstrap-servers: localhost:9092
+  data:
+    redis:
+      host: localhost
+
+app:
+  ml:
+    python-api:
+      base-url: "http://localhost:8000"
+    training:
+      auto-retrain-enabled: false
+
+logging:
+  level:
+    com.internalmanagement.mlservice: DEBUG
+
+---
+# Production Profile  
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: jdbc:postgresql://ml-postgres:5432/ml_training_db
+    username: ${DB_USERNAME:ml_user}
+    password: ${DB_PASSWORD:ml_password}
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:kafka:9092}
+  data:
+    redis:
+      host: ${REDIS_HOST:redis}
+
+app:
+  ml:
+    python-api:
+      base-url: ${PYTHON_API_URL:http://ml-python-api:8000}
+    model:
+      storage-path: "/app/models"
+    training:
+      auto-retrain-enabled: true
+
+logging:
+  level:
+    com.internalmanagement.mlservice: INFO
+  file:
+    name: /var/log/ml-service/ml-service.log
+
+---
+# Test Profile
+spring:
+  config:
+    activate:
+      on-profile: test
+  datasource:
+    url: jdbc:h2:mem:testdb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+
+app:
+  ml:
+    training:
+      auto-retrain-enabled: false
+    prediction:
+      cache-ttl-minutes: 1

@@ -32,34 +32,35 @@ public class MessageReactionService {
 
     @Transactional
     public int addReaction(String messageId, String userId, String icon) {
-        var existingReaction = messageReactionRepository.findByMessageIdAndUserIdAndIcon(messageId, userId, icon);
+        var existingReaction = messageReactionRepository
+                .findByMessageIdAndUserIdAndIcon(messageId, userId, icon);
 
         if (existingReaction.isPresent()) {
-            // Increment existing reaction count
-            MessageReaction reaction = existingReaction.get();
-            reaction.setCount(reaction.getCount() + 1);
-            reaction.setModifiedDate(Instant.now());
-            messageReactionRepository.save(reaction);
-            log.info(
-                    "Incremented reaction {} count to {} for message {} by user {}",
-                    icon,
-                    reaction.getCount(),
-                    messageId,
-                    userId);
-            return reaction.getCount();
+            // User đã react rồi, không làm gì cả
+            log.info("User {} already reacted with {} to message {}",
+                    userId, icon, messageId);
+            return existingReaction.get().getCount();
         } else {
-            // Add new reaction with count 1
+            // Tìm tất cả reactions với icon này cho message
+            var allReactionsWithIcon = messageReactionRepository
+                    .findByMessageIdAndIcon(messageId, icon);
+
+            int totalCount = allReactionsWithIcon.size() + 1; // +1 cho user hiện tại
+
+            // Thêm reaction mới cho user này
             MessageReaction reaction = MessageReaction.builder()
                     .messageId(messageId)
                     .userId(userId)
                     .icon(icon)
-                    .count(1)
+                    .count(totalCount) // Tổng số users đã react
                     .createdDate(Instant.now())
                     .modifiedDate(Instant.now())
                     .build();
             messageReactionRepository.save(reaction);
-            log.info("Added new reaction {} to message {} by user {}", icon, messageId, userId);
-            return 1;
+
+            log.info("Added new reaction {} to message {} by user {}",
+                    icon, messageId, userId);
+            return totalCount;
         }
     }
 

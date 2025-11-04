@@ -124,7 +124,20 @@ public class DataIntegrationService {
     private List<UserProfile> applySmartFiltering(List<UserProfile> candidates, TaskProfile task) {
         log.info("Applying smart filtering to {} candidates", candidates.size());
 
-        List<UserProfile> filteredCandidates = candidates.stream()
+        // First, remove duplicates based on userId
+        List<UserProfile> uniqueCandidates = candidates.stream()
+                .collect(Collectors.toMap(
+                        UserProfile::getUserId,
+                        candidate -> candidate,
+                        (existing, replacement) -> existing)) // Keep first occurrence
+                .values()
+                .stream()
+                .collect(Collectors.toList());
+
+        log.info("Removed duplicates: {} unique candidates from {} total",
+                uniqueCandidates.size(), candidates.size());
+
+        List<UserProfile> filteredCandidates = uniqueCandidates.stream()
                 .filter(candidate -> {
                     // Debug log candidate info
                     log.debug(
@@ -133,6 +146,12 @@ public class DataIntegrationService {
                             candidate.getUserId(),
                             candidate.getAvailabilityStatus(),
                             candidate.getSkills());
+
+                    // Filter out system administrators and service accounts
+                    if (isSystemAdministratorOrServiceAccount(candidate)) {
+                        log.debug("Filtering out system administrator/service account: {}", candidate.getName());
+                        return false;
+                    }
 
                     // More lenient availability check - accept AVAILABLE, BUSY, or null status
                     if (candidate.getAvailabilityStatus() != null
@@ -167,6 +186,39 @@ public class DataIntegrationService {
     }
 
     /**
+     * Check if a candidate is a system administrator or service account that should be excluded from task assignments
+     */
+    private boolean isSystemAdministratorOrServiceAccount(UserProfile candidate) {
+        if (candidate.getName() != null) {
+            String nameLower = candidate.getName().toLowerCase();
+            if (nameLower.contains("system administrator") ||
+                nameLower.contains("admin") ||
+                nameLower.contains("service account") ||
+                nameLower.equals("system") ||
+                nameLower.equals("administrator")) {
+                return true;
+            }
+        }
+
+        if (candidate.getRole() != null) {
+            String roleLower = candidate.getRole().toLowerCase();
+            if (roleLower.contains("system administrator") ||
+                roleLower.contains("system admin") ||
+                roleLower.contains("service account")) {
+                return true;
+            }
+        }
+
+        // Check if it's a technical system account based on username patterns
+        if (candidate.getUserId() != null) {
+            String userId = candidate.getUserId().toLowerCase();
+            return userId.contains("system") || userId.contains("admin") || userId.contains("service");
+        }
+
+        return false;
+    }
+
+    /**
      * Calculate basic skill match for filtering
      */
     private double calculateBasicSkillMatch(TaskProfile task, UserProfile candidate) {
@@ -189,7 +241,6 @@ public class DataIntegrationService {
 
         double matchRatio = (double) matchedSkills / requiredSkills.size();
 
-        // Add debug logging to help troubleshoot
         log.debug(
                 "Skill match calculation for candidate {}: required={}, candidate={}, matched={}/{}, ratio={}",
                 candidate.getName(),
@@ -297,11 +348,27 @@ public class DataIntegrationService {
     }
 
     private Map<String, Double> getSkillSuccessRatesForTaskType(String taskType) {
-        // This could be enhanced with actual historical data
-        return Map.of(
+        // Enhanced to use taskType parameter for different success rates by task type
+        Map<String, Double> baseRates = Map.of(
                 "Java", 0.85,
                 "Spring Boot", 0.90,
                 "React", 0.80,
                 "Database", 0.75);
+
+        // Adjust rates based on task type
+        if ("DEVELOPMENT".equalsIgnoreCase(taskType)) {
+            return Map.of(
+                "Java", 0.90,
+                "Spring Boot", 0.95,
+                "React", 0.85,
+                "Database", 0.80);
+        } else if ("TESTING".equalsIgnoreCase(taskType)) {
+            return Map.of(
+                "Selenium", 0.85,
+                "Test Automation", 0.88,
+                "Manual Testing", 0.75);
+        }
+
+        return baseRates;
     }
 }

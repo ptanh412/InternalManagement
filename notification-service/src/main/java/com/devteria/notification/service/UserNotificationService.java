@@ -35,6 +35,24 @@ public class UserNotificationService {
             Map<String, Object> data,
             String channel,
             String templateCode) {
+
+        // Check for duplicates for project-related notifications
+        if (data != null && data.containsKey("projectId")) {
+            String projectId = data.get("projectId").toString();
+
+            // Check for recent notifications (within last 5 minutes) for the same user, type, and project
+            LocalDateTime recentThreshold = LocalDateTime.now().minusMinutes(5);
+            List<UserNotification> recentNotifications = notificationRepository
+                    .findRecentNotificationsByUserTypeAndProject(userId, type, projectId, recentThreshold);
+
+            if (!recentNotifications.isEmpty()) {
+                log.warn("Duplicate notification prevented for user: {}, type: {}, project: {} - found {} recent similar notifications",
+                        userId, type, projectId, recentNotifications.size());
+                // Return the most recent existing notification instead of creating a duplicate
+                return recentNotifications.get(0);
+            }
+        }
+
         // Convert data map to string map for JPA storage
         Map<String, String> stringData = new HashMap<>();
         if (data != null) {

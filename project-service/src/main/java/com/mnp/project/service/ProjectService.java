@@ -1,12 +1,15 @@
 package com.mnp.project.service;
 
 import com.mnp.project.client.ChatServiceClient;
+import com.mnp.project.client.IdentityServiceClient;
 import com.mnp.project.client.TaskServiceClient;
 import com.mnp.project.dto.response.*;
+import com.mnp.project.dto.request.AddProjectMemberRequest;
 import com.mnp.project.dto.request.CreateProjectRequest;
 import com.mnp.project.dto.request.CreateProjectGroupRequest;
 import com.mnp.project.dto.request.UpdateProjectRequest;
 import com.mnp.project.entity.Project;
+import com.mnp.project.enums.ProjectRole;
 import com.mnp.project.enums.ProjectStatus;
 import com.mnp.project.exception.AppException;
 import com.mnp.project.exception.ErrorCode;
@@ -35,6 +38,9 @@ public class ProjectService {
     TaskServiceClient taskServiceClient;
     ChatServiceClient chatServiceClient;
     NotificationProducerService notificationProducerService;
+    IdentityServiceClient identityServiceClient;
+    ProjectMemberService projectMemberService;
+    SocketIOService socketIOService; // Add Socket.IO service
 
     public List<ProjectResponse> getAllProjects() {
         return projectRepository.findAll()
@@ -69,21 +75,26 @@ public class ProjectService {
 
         Project savedProject = projectRepository.save(project);
 
-        // Send notification to team lead if assigned
+        // Automatically add team lead as project member
         if (savedProject.getTeamLeadId() != null) {
             try {
-                String projectManagerName = getCurrentUserName(); // You'll need to implement this method
-                notificationProducerService.sendTeamLeadProjectNotification(
-                    savedProject.getTeamLeadId(),
-                    savedProject.getId(),
-                    savedProject.getName(),
-                    projectManagerName
-                );
-                log.info("Sent team lead notification for project: {}", savedProject.getId());
+                log.info("Adding team lead as project member: {}", savedProject.getTeamLeadId());
+
+                AddProjectMemberRequest memberRequest = AddProjectMemberRequest.builder()
+                        .projectId(savedProject.getId())
+                        .userId(savedProject.getTeamLeadId())
+                        .role(ProjectRole.TEAM_LEAD)
+                        .build();
+
+                projectMemberService.addMemberToProject(memberRequest);
+                log.info("Successfully added team lead as project member: {}", savedProject.getTeamLeadId());
             } catch (Exception e) {
-                log.error("Failed to send team lead notification for project: {}", savedProject.getId(), e);
+                log.error("Failed to add team lead as project member {}: {}", savedProject.getTeamLeadId(), e.getMessage());
             }
         }
+
+        // Note: Team lead notification is handled by ProjectMemberService when adding members
+        // No duplicate notification needed here
 
         // Automatically create chat group for the project
         try {
@@ -115,7 +126,18 @@ public class ProjectService {
             // Don't fail project creation if chat group creation fails
         }
 
-        return mapToProjectResponse(savedProject);
+        ProjectResponse projectResponse = mapToProjectResponse(savedProject);
+
+        // Send real-time notification to team leads via Socket.IO
+        try {
+            socketIOService.notifyProjectCreated(projectResponse);
+            log.info("Real-time notification sent for new project: {}", savedProject.getName());
+        } catch (Exception e) {
+            log.error("Failed to send real-time notification for project {}: {}", savedProject.getId(), e.getMessage());
+            // Don't fail project creation if notification fails
+        }
+
+        return projectResponse;
     }
 
     public ProjectResponse updateProject(String id, UpdateProjectRequest request) {
@@ -298,7 +320,7 @@ public class ProjectService {
                 .totalTasks(project.getTotalTasks())
                 .completedTasks(project.getCompletedTasks())
                 .completionPercentage(project.getCompletionPercentage())
-                .requiredSkills(project.getRequiredSkills())
+                .requiredSkills(null) // Removed field - will be handled by ProjectRequiredSkill entity
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
                 .tasks(tasks) // Include tasks in the response
@@ -377,33 +399,6 @@ public class ProjectService {
         log.info("Incremented total tasks for project {}: new count = {}", projectId, project.getTotalTasks());
     }
 
-    @Transactional
-    public void updateProjectSkills(String projectId, List<String> skillsToAdd) {
-        if (skillsToAdd == null || skillsToAdd.isEmpty()) {
-            return;
-        }
-
-        Project project = projectRepository.findById(projectId)
-                .orElseThrow(() -> new AppException(ErrorCode.PROJECT_NOT_EXISTED));
-
-        List<String> currentSkills = project.getRequiredSkills();
-        if (currentSkills == null) {
-            currentSkills = new ArrayList<>();
-        }
-
-        // Add new skills that are not already in the list
-        for (String skill : skillsToAdd) {
-            if (!currentSkills.contains(skill)) {
-                currentSkills.add(skill);
-            }
-        }
-
-        project.setRequiredSkills(currentSkills);
-        project.setUpdatedAt(LocalDateTime.now());
-        projectRepository.save(project);
-
-        log.info("Updated required skills for project {}: added skills = {}", projectId, skillsToAdd);
-    }
 
     @Transactional
     public void decrementTotalTasks(String projectId) {
@@ -450,6 +445,21 @@ public class ProjectService {
 
         log.info("Incremented completed tasks for project {}: new count = {}, completion = {}%",
                 projectId, project.getCompletedTasks(), project.getCompletionPercentage());
+    }
+
+    @Transactional
+    public void decrementCompletedTasks(String projectId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new AppException(ErrorCode.PROJECT_NOT_EXISTED));
+
+        if (project.getCompletedTasks() > 0) {
+            project.setCompletedTasks(project.getCompletedTasks() - 1);
+            project.setUpdatedAt(LocalDateTime.now());
+            projectRepository.save(project);
+
+            log.info("Decremented completedTasks for project {}: {}/{}",
+                    projectId, project.getCompletedTasks(), project.getTotalTasks());
+        }
     }
 
     @Transactional
@@ -511,7 +521,17 @@ public class ProjectService {
     }
 
     private String getCurrentUserName() {
-        // Get current user name from security context or implement user service call
-        return SecurityContextHolder.getContext().getAuthentication().getName();
+        try {
+            String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+            ApiResponse<UserResponse> response = identityServiceClient.getUser(userId);
+            if (response != null && response.getResult() != null) {
+                return response.getResult().getFullName();
+            }
+            return "Unknown User";
+        } catch (Exception e) {
+            log.error("Failed to fetch current user name for user {}: {}",
+                SecurityContextHolder.getContext().getAuthentication().getName(), e.getMessage());
+            return "Unknown User";
+        }
     }
 }

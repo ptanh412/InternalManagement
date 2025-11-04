@@ -1,44 +1,131 @@
-name: bookteria
+name: projectmanagement
 services:
   kafka:
-    image: 'bitnami/kafka:3.8.0'
+    image: 'apache/kafka:latest'
     container_name: kafka
     hostname: kafka
     restart: always
     ports:
+      - '9092:9092'
       - '9094:9094'
     environment:
-      - KAFKA_CFG_NODE_ID=0
-      - KAFKA_CFG_PROCESS_ROLES=controller,broker
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092,EXTERNAL://localhost:9094
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-  mongodb:
-    image: mongo:8.0.1-noble
-    container_name: mongodb
-    hostname: mongodb
+      - KAFKA_NODE_ID=0
+      - KAFKA_PROCESS_ROLES=controller,broker
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=0@kafka:9093
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093,EXTERNAL://:9094
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092,EXTERNAL://localhost:9094
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,EXTERNAL:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+
+  website-service:
+    build:
+      context: ./website-service
+      dockerfile: Dockerfile
+    container_name: website-service
+    hostname: website-service
     restart: always
     ports:
-      - '27017:27017'
+      - '3000:80'
     environment:
-      MONGO_INITDB_ROOT_USERNAME: root
-      MONGO_INITDB_ROOT_PASSWORD: root
-  mysql:
-    image: mysql:8.0.40-debian
-    container_name: mysql
-    hostname: mysql
+      - REACT_APP_API_URL=http://localhost:8080/api
+      - REACT_APP_ENVIRONMENT=production
+    volumes:
+      - ./website-service/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - kafka
+    networks:
+      - internal-network
+
+  # ML Service (Spring Boot + Python)
+  ml-service:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile
+    container_name: ml-service
+    hostname: ml-service
     restart: always
     ports:
-      - '3306:3306'
+      - '8090:8090'
     environment:
-      MYSQL_ROOT_PASSWORD: root
-  neo4j:
-    image: neo4j:5.24.2
-    container_name: neo4j
-    hostname: neo4j
+      - SPRING_PROFILES_ACTIVE=prod
+      - DB_HOST=ml-postgres
+      - DB_USERNAME=ml_user
+      - DB_PASSWORD=ml_password
+      - KAFKA_SERVERS=kafka:9092
+      - REDIS_HOST=ml-redis
+      - PYTHON_API_URL=http://ml-python-api:8000
+      - EUREKA_CLIENT_SERVICE_URL_DEFAULTZONE=http://eureka-server:8761/eureka/
+    depends_on:
+      - kafka
+      - ml-postgres
+      - ml-redis
+      - ml-python-api
+    volumes:
+      - ml-models:/app/models
+      - ml-logs:/var/log/ml-service
+    networks:
+      - internal-network
+
+  # Python ML API Service
+  ml-python-api:
+    build:
+      context: ./ml-service
+      dockerfile: Dockerfile.python
+    container_name: ml-python-api
+    hostname: ml-python-api
     restart: always
     ports:
-      - '7474:7474'
-      - '7687:7687'
+      - '8000:8000'
+    environment:
+      - POSTGRES_HOST=ml-postgres
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=ml_password
+      - POSTGRES_DB=ml_training_db
+    depends_on:
+      - ml-postgres
+    volumes:
+      - ml-models:/app/models
+      - ml-training-data:/app/data
+    networks:
+      - internal-network
+
+  # PostgreSQL Database for ML Service
+  ml-postgres:
+    image: postgres:15-alpine
+    container_name: ml-postgres
+    hostname: ml-postgres
+    restart: always
+    environment:
+      - POSTGRES_DB=ml_training_db
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=ml_password
+    ports:
+      - '5433:5432'
+    volumes:
+      - ml-postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal-network
+
+  # Redis for ML caching
+  ml-redis:
+    image: redis:7-alpine
+    container_name: ml-redis
+    hostname: ml-redis
+    restart: always
+    ports:
+      - '6380:6379'
+    volumes:
+      - ml-redis-data:/data
+    networks:
+      - internal-network
+
+volumes:
+  ml-postgres-data:
+  ml-redis-data:
+  ml-models:
+  ml-logs:
+  ml-training-data:
+
+networks:
+  internal-network:
+    driver: bridge

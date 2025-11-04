@@ -107,19 +107,40 @@ public class RequirementsAnalysisEngine {
     private List<String> extractIndividualRequirements(String text) {
         List<String> requirements = new ArrayList<>();
 
-        // Split by common requirement delimiters
-        String[] sections =
-                text.split("(?i)(?=\\b(?:requirement|req|feature|story|epic|task)\\b)|(?=\\d+\\.)|(?=•)|(?=\\*)");
+        // Clean up the text first
+        text = text.replaceAll("===.*?===", "").trim(); // Remove file headers like "=== Car Booking App.docx ==="
+
+        // Split by major sections (##, ###, numbered sections)
+        String[] sections = text.split("(?=##\\s+)|(?=###\\s+)|(?=\\d+\\.\\d+\\s+)");
 
         for (String section : sections) {
             section = section.trim();
-            if (section.length() > 20) { // Minimum requirement length
-                // Further split by sentences for detailed requirements
-                String[] sentences = section.split("(?<=[.!?])\\s+");
-                for (String sentence : sentences) {
-                    if (sentence.trim().length() > 20 && containsRequirementKeywords(sentence)) {
-                        requirements.add(sentence.trim());
-                    }
+
+            // Skip empty sections, just headers, or very short content
+            if (section.length() < 30 || section.matches("^#+\\s*$") || section.matches("^\\d+\\.?\\s*$")) {
+                continue;
+            }
+
+            // Check if this is a functional requirement section
+            if (isFunctionalRequirementSection(section)) {
+                // For sections with bullet points, extract each as a separate requirement
+                if (section.contains("-") && section.contains("\n")) {
+                    List<String> bulletPoints = extractBulletPointRequirements(section);
+                    requirements.addAll(bulletPoints);
+                } else {
+                    // Add the entire section as one requirement
+                    requirements.add(cleanupRequirementText(section));
+                }
+            }
+        }
+
+        // If no structured requirements found, try to extract from paragraphs
+        if (requirements.isEmpty()) {
+            String[] paragraphs = text.split("\n\n+");
+            for (String paragraph : paragraphs) {
+                paragraph = paragraph.trim();
+                if (paragraph.length() > 50 && containsMeaningfulContent(paragraph)) {
+                    requirements.add(cleanupRequirementText(paragraph));
                 }
             }
         }
@@ -127,11 +148,81 @@ public class RequirementsAnalysisEngine {
         return requirements;
     }
 
-    private boolean containsRequirementKeywords(String text) {
-        return FUNCTIONAL_KEYWORDS.matcher(text).find()
-                || text.toLowerCase().contains("requirement")
-                || text.toLowerCase().contains("feature")
-                || text.toLowerCase().contains("function");
+    private boolean isFunctionalRequirementSection(String section) {
+        String lowerSection = section.toLowerCase();
+
+        // Check for functional requirement indicators
+        return lowerSection.contains("user")
+            || lowerSection.contains("system")
+            || lowerSection.contains("application")
+            || lowerSection.contains("booking")
+            || lowerSection.contains("payment")
+            || lowerSection.contains("search")
+            || lowerSection.contains("management")
+            || lowerSection.contains("registration")
+            || lowerSection.contains("login")
+            || lowerSection.contains("profile")
+            || lowerSection.contains("notification")
+            || lowerSection.contains("location")
+            || lowerSection.contains("communication")
+            || lowerSection.contains("feature")
+            || lowerSection.contains("functionality")
+            || section.contains("-") // bullet points likely contain requirements
+            || FUNCTIONAL_KEYWORDS.matcher(section).find();
+    }
+
+    private List<String> extractBulletPointRequirements(String section) {
+        List<String> bulletRequirements = new ArrayList<>();
+
+        // Extract the section title
+        String[] lines = section.split("\n");
+        String sectionTitle = "";
+        List<String> bulletPoints = new ArrayList<>();
+
+        for (String line : lines) {
+            line = line.trim();
+            if (line.startsWith("-") || line.startsWith("•") || line.startsWith("*")) {
+                // This is a bullet point
+                String bulletText = line.replaceFirst("^[-•*]\\s*", "").trim();
+                if (bulletText.length() > 10) {
+                    bulletPoints.add(bulletText);
+                }
+            } else if (line.length() > 5 && !line.startsWith("#") && sectionTitle.isEmpty()) {
+                // This might be the section title
+                sectionTitle = line;
+            }
+        }
+
+        // Combine section title with bullet points to create meaningful requirements
+        for (String bullet : bulletPoints) {
+            String fullRequirement = sectionTitle.isEmpty() ? bullet : sectionTitle + ": " + bullet;
+            bulletRequirements.add(cleanupRequirementText(fullRequirement));
+        }
+
+        return bulletRequirements;
+    }
+
+    private boolean containsMeaningfulContent(String text) {
+        String lowerText = text.toLowerCase();
+
+        // Check if the text contains actual requirement content, not just formatting
+        return !text.matches("^#+\\s*.*") // Not just a header
+            && !text.matches("^\\d+\\.\\s*$") // Not just a number
+            && (lowerText.contains("user")
+                || lowerText.contains("system")
+                || lowerText.contains("application")
+                || lowerText.contains("shall")
+                || lowerText.contains("must")
+                || lowerText.contains("should")
+                || lowerText.contains("will")
+                || lowerText.contains("can")
+                || FUNCTIONAL_KEYWORDS.matcher(text).find());
+    }
+
+    private String cleanupRequirementText(String text) {
+        return text.replaceAll("#+\\s*", "") // Remove markdown headers
+                  .replaceAll("\\s+", " ") // Normalize whitespace
+                  .trim();
     }
 
     private AnalyzedRequirement analyzeIndividualRequirement(String requirementText) {
@@ -388,7 +479,7 @@ public class RequirementsAnalysisEngine {
         if (reqPriority == null) return TaskPriority.MEDIUM;
 
         return switch (reqPriority) {
-            case CRITICAL -> TaskPriority.URGENT;
+            case CRITICAL -> TaskPriority.CRITICAL;
             case HIGH -> TaskPriority.HIGH;
             case MEDIUM -> TaskPriority.MEDIUM;
             case LOW -> TaskPriority.LOW;
@@ -409,7 +500,7 @@ public class RequirementsAnalysisEngine {
 
     private int comparePriority(TaskPriority p1, TaskPriority p2) {
         Map<TaskPriority, Integer> priorityOrder = Map.of(
-                TaskPriority.URGENT, 1,
+                TaskPriority.CRITICAL, 1,
                 TaskPriority.HIGH, 2,
                 TaskPriority.MEDIUM, 3,
                 TaskPriority.LOW, 4);

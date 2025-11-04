@@ -29,6 +29,7 @@ public interface UserProfileMapper {
     @Mapping(target = "createdAt", ignore = true)
     @Mapping(target = "updatedAt", ignore = true)
     @Mapping(target = "averageTaskCompletionRate", ignore = true)
+    @Mapping(source = "avatar", target = "avatar") // Thêm dòng này
     @Mapping(target = "totalTasksCompleted", ignore = true)
     void update(@MappingTarget UserProfile entity, UpdateProfileRequest request);
 }

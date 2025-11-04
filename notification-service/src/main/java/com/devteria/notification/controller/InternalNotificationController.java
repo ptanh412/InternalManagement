@@ -8,7 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import com.devteria.event.dto.NotificationEvent;
+import com.mnp.event.dto.NotificationEvent;
 import com.devteria.notification.dto.ApiResponse;
 import com.devteria.notification.dto.request.InternalNotificationRequest;
 import com.devteria.notification.dto.response.NotificationResponse;

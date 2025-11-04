@@ -1,5 +1,6 @@
 package com.mnp.identity.dto.response;
 
+import java.time.LocalDateTime;
 import java.util.Set;
 
 import com.mnp.identity.enums.Permission;
@@ -18,4 +19,5 @@ public class RoleResponse {
     String description;
     Set<Permission> permissions;
     boolean active;
+    LocalDateTime createdAt;
 }

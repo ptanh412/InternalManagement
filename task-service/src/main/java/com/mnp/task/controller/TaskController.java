@@ -4,7 +4,6 @@ import com.mnp.task.dto.request.*;
 import com.mnp.task.dto.response.TaskDependencyResponse;
 import com.mnp.task.dto.response.TaskResponse;
 import com.mnp.task.dto.response.TaskSkillResponse;
-import com.mnp.task.dto.response.TaskSubmissionResponse;
 import com.mnp.task.enums.TaskStatus;
 import com.mnp.task.service.TaskService;
 import lombok.AccessLevel;
@@ -137,18 +136,8 @@ public class TaskController {
         return ResponseEntity.noContent().build();
     }
 
-    // Task submission endpoints
-    @PostMapping("/{taskId}/submit")
-    public ResponseEntity<TaskSubmissionResponse> submitTask(
-            @PathVariable String taskId,
-            @Valid @RequestBody TaskSubmissionRequest request) {
-        return ResponseEntity.ok(taskService.submitTask(taskId, request));
-    }
-
-    @GetMapping("/{taskId}/submissions")
-    public ResponseEntity<List<TaskSubmissionResponse>> getTaskSubmissions(@PathVariable String taskId) {
-        return ResponseEntity.ok(taskService.getTaskSubmissions(taskId));
-    }
+    // Task submission endpoints moved to TaskSubmissionController
+    // Removed duplicate methods to avoid mapping conflicts
 
     @GetMapping("/assigned/{userId}")
     public ResponseEntity<List<TaskResponse>> getTasksAssignedToUser(@PathVariable String userId) {

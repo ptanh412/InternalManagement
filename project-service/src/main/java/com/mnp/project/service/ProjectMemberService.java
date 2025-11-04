@@ -1,6 +1,9 @@
 package com.mnp.project.service;
 
+import com.mnp.project.client.IdentityServiceClient;
+import com.mnp.project.dto.response.ApiResponse;
 import com.mnp.project.dto.response.ProjectMemberResponse;
+import com.mnp.project.dto.response.UserResponse;
 import com.mnp.project.dto.request.AddProjectMemberRequest;
 import com.mnp.project.dto.request.UpdateProjectMemberRequest;
 import com.mnp.project.entity.ProjectMember;
@@ -27,9 +30,10 @@ import java.util.stream.Collectors;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class ProjectMemberService {
 
-    ProjectMemberRepository projectMemberRepository;
-    ProjectRepository projectRepository;
-    NotificationProducerService notificationProducerService;
+    private final ProjectMemberRepository projectMemberRepository;
+    private final ProjectRepository projectRepository;
+    private final NotificationProducerService notificationProducerService;
+    private final IdentityServiceClient identityServiceClient;
 
     @Transactional
     public ProjectMemberResponse addMemberToProject(AddProjectMemberRequest request) {
@@ -38,9 +42,18 @@ public class ProjectMemberService {
                 .orElseThrow(() -> new AppException(ErrorCode.PROJECT_NOT_EXISTED));
 
         // Check if user is already a member of the project
-        if (projectMemberRepository.existsByProjectIdAndUserIdAndIsActive(
-                request.getProjectId(), request.getUserId(), true)) {
-            throw new AppException(ErrorCode.USER_EXISTED);
+        boolean isExistingMember = projectMemberRepository.existsByProjectIdAndUserIdAndIsActive(
+                request.getProjectId(), request.getUserId(), true);
+
+        if (isExistingMember) {
+            // User is already a member, just return the existing member info without sending notification
+            ProjectMember existingMember = projectMemberRepository
+                    .findByProjectIdAndUserIdAndIsActive(request.getProjectId(), request.getUserId(), true)
+                    .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+            log.info("User {} is already a member of project {} with role {}",
+                    request.getUserId(), request.getProjectId(), existingMember.getRole());
+            return mapToProjectMemberResponse(existingMember);
         }
 
         ProjectMember projectMember = ProjectMember.builder()
@@ -52,7 +65,8 @@ public class ProjectMemberService {
 
         ProjectMember savedMember = projectMemberRepository.save(projectMember);
 
-        // Send notification if the member is being added as TEAM_LEAD
+        // Send notification ONLY when adding a NEW team lead member
+        // The duplicate checking is now handled at the notification service level
         if (ProjectRole.TEAM_LEAD.equals(savedMember.getRole())) {
             try {
                 String currentUserName = getCurrentUserName();
@@ -62,7 +76,7 @@ public class ProjectMemberService {
                     project.getName(),
                     currentUserName
                 );
-                log.info("Sent team lead notification for user {} added to project {}",
+                log.info("Sent team lead notification for NEW user {} added to project {}",
                     savedMember.getUserId(), project.getId());
             } catch (Exception e) {
                 log.error("Failed to send team lead notification for user {} on project {}",
@@ -123,7 +137,18 @@ public class ProjectMemberService {
     }
 
     private String getCurrentUserName() {
-        return SecurityContextHolder.getContext().getAuthentication().getName();
+        try {
+            String userId = SecurityContextHolder.getContext().getAuthentication().getName();
+            ApiResponse<UserResponse> response = identityServiceClient.getUser(userId);
+            if (response != null && response.getResult() != null) {
+                return response.getResult().getFullName();
+            }
+            return "Unknown User";
+        } catch (Exception e) {
+            log.error("Failed to fetch current user name for user {}: {}",
+                SecurityContextHolder.getContext().getAuthentication().getName(), e.getMessage());
+            return "Unknown User";
+        }
     }
 
     public List<ProjectMemberResponse> getProjectMembers(String projectId) {

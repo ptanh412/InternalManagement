@@ -1,0 +1,163 @@
+# Docker Compose for ML Service Development
+
+version: '3.8'
+
+services:
+  # ML Service (Spring Boot)
+  ml-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ml-service
+    ports:
+      - "8090:8090"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - DB_HOST=ml-postgres
+      - DB_USERNAME=ml_user
+      - DB_PASSWORD=ml_password
+      - KAFKA_SERVERS=kafka:9092
+      - REDIS_HOST=redis
+      - PYTHON_API_URL=http://ml-python-api:8000
+    depends_on:
+      - ml-postgres
+      - kafka
+      - redis
+      - ml-python-api
+    volumes:
+      - ml-models:/app/models
+      - ml-logs:/var/log/ml-service
+    networks:
+      - ml-network
+    restart: unless-stopped
+
+  # Python ML API Service
+  ml-python-api:
+    build:
+      context: .
+      dockerfile: Dockerfile.python
+    container_name: ml-python-api
+    ports:
+      - "8000:8000"
+    environment:
+      - POSTGRES_HOST=ml-postgres
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=ml_password
+      - POSTGRES_DB=ml_training_db
+    depends_on:
+      - ml-postgres
+    volumes:
+      - ml-models:/app/models
+      - ml-training-data:/app/data
+    networks:
+      - ml-network
+    restart: unless-stopped
+
+  # PostgreSQL Database for ML Service
+  ml-postgres:
+    image: postgres:15-alpine
+    container_name: ml-postgres
+    environment:
+      - POSTGRES_DB=ml_training_db
+      - POSTGRES_USER=ml_user
+      - POSTGRES_PASSWORD=ml_password
+    ports:
+      - "5433:5432"
+    volumes:
+      - ml-postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - ml-network
+    restart: unless-stopped
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    container_name: ml-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - ml-redis-data:/data
+    networks:
+      - ml-network
+    restart: unless-stopped
+
+  # Kafka for event streaming
+  zookeeper:
+    image: confluentinc/cp-zookeeper:latest
+    container_name: ml-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    networks:
+      - ml-network
+
+  kafka:
+    image: confluentinc/cp-kafka:latest
+    container_name: ml-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9093:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    networks:
+      - ml-network
+
+  # Kafka UI for monitoring
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: ml-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "8080:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: ml-cluster
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9092
+    networks:
+      - ml-network
+
+  # Prometheus for monitoring
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ml-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ml-prometheus-data:/prometheus
+    networks:
+      - ml-network
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ml-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ml-grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./monitoring/grafana/datasources:/etc/grafana/provisioning/datasources
+    networks:
+      - ml-network
+
+volumes:
+  ml-postgres-data:
+  ml-redis-data:
+  ml-models:
+  ml-logs:
+  ml-training-data:
+  ml-prometheus-data:
+  ml-grafana-data:
+
+networks:
+  ml-network:
+    driver: bridge

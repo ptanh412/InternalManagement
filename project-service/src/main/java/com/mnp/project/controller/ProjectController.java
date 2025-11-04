@@ -81,6 +81,24 @@ public class ProjectController {
                 .build();
     }
 
+    @PutMapping("/{id}/tasks/decrement")
+    public ApiResponse<Void> decrementTotalTasks(@PathVariable String id) {
+        projectService.decrementTotalTasks(id);
+        return ApiResponse.<Void>builder().build();
+    }
+
+    @PutMapping("/{id}/tasks/completed/increment")
+    public ApiResponse<Void> incrementCompletedTasks(@PathVariable String id) {
+        projectService.incrementCompletedTasks(id);
+        return ApiResponse.<Void>builder().build();
+    }
+
+    @PutMapping("/{id}/tasks/completed/decrement")
+    public ApiResponse<Void> decrementCompletedTasks(@PathVariable String id) {
+        projectService.decrementCompletedTasks(id);
+        return ApiResponse.<Void>builder().build();
+    }
+
     @PatchMapping("/{id}/status")
     public ApiResponse<ProjectResponse> updateProjectStatus(
             @PathVariable String id,
@@ -157,13 +175,6 @@ public class ProjectController {
                 .build();
     }
 
-    @PutMapping("/{projectId}/skills")
-    public ApiResponse<Void> updateProjectSkills(@PathVariable String projectId, @RequestBody UpdateProjectSkillsRequest request) {
-        projectService.updateProjectSkills(projectId, request.getSkillsToAdd());
-        return ApiResponse.<Void>builder()
-                .message("Project skills updated successfully")
-                .build();
-    }
 
     @GetMapping("/team-lead/{teamLeadId}")
     public ApiResponse<List<ProjectResponse>> getProjectsByTeamLead(@PathVariable String teamLeadId) {

@@ -15,4 +15,10 @@ public interface ConversationRepository extends MongoRepository<Conversation, St
 
     @Query("{'participants.userId' : ?0}")
     List<Conversation> findAllByParticipantIdsContains(String userId);
+
+    // Add method to find group conversations by type and group name
+    List<Conversation> findByTypeAndGroupNameContaining(String type, String groupName);
+
+
+    List<Conversation> findAllByParticipantsUserId(String userId);
 }

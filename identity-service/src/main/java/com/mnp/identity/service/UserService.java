@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import com.mnp.event.dto.NotificationEvent;
 import com.mnp.identity.dto.interservice.InterServiceProfileCreationRequest;
 import com.mnp.identity.dto.request.ApiResponse;
+import com.mnp.identity.dto.request.ChangePasswordRequest;
 import com.mnp.identity.dto.request.UserCreationRequest;
 import com.mnp.identity.dto.request.UserStatusUpdateRequest;
 import com.mnp.identity.dto.request.UserUpdateRequest;
@@ -185,7 +186,7 @@ public class UserService {
             NotificationEvent notificationEvent = NotificationEvent.builder()
                     .channel("EMAIL")
                     .recipient(user.getEmail())
-                    .subject("Welcome to Project Management - Your Account Has Been Created")
+                    .subject("Welcome to Project Management - Your account has been created, please login and change password")
                     .body(emailContent)
                     .build();
 
@@ -246,16 +247,23 @@ public class UserService {
         userRepository.deleteById(userId);
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('PROJECT_MANAGER') or hasRole('TEAM_LEAD')")
     public List<UserResponse> getUsers() {
         log.info("In method get Users");
         return userRepository.findAll().stream().map(userMapper::toUserResponse).toList();
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+//    @PreAuthorize("hasRole('ADMIN') or hasRole('PROJECT_MANAGER') or hasRole('TEAM_LEAD')")
     public UserResponse getUser(String id) {
         return userMapper.toUserResponse(
                 userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED)));
+    }
+
+    // Internal method for inter-service communication without authorization restrictions
+    public UserResponse getUserForInternalService(String id) {
+        log.info("Internal service call: Getting user with ID: {}", id);
+        User user = userRepository.findById(id).orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+        return userMapper.toUserResponse(user);
     }
 
     // New method for detailed user information including relationships
@@ -289,7 +297,7 @@ public class UserService {
                 .toList();
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('PROJECT_MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('PROJECT_MANAGER') or hasRole('TEAM_LEAD')")
     public List<UserResponse> getUsersByRole(String roleName) {
         Role role = roleRepository.findByName(roleName).orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXISTED));
 
@@ -343,5 +351,78 @@ public class UserService {
 			</html>
 			""",
                 firstName, username, department, employeeId);
+    }
+
+    /**
+     * Change password for the current authenticated user
+     */
+    public void changePassword(ChangePasswordRequest request) {
+        // Get current user from security context
+        var context = SecurityContextHolder.getContext();
+        String userId = context.getAuthentication().getName();
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
+
+        // Validate new password and confirm password match
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new AppException(ErrorCode.PASSWORD_MISMATCH);
+        }
+
+        // Validate current password is correct
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new AppException(ErrorCode.INCORRECT_CURRENT_PASSWORD);
+        }
+
+        // Check if new password is different from current password
+        if (passwordEncoder.matches(request.getNewPassword(), user.getPassword())) {
+            throw new AppException(ErrorCode.SAME_PASSWORD);
+        }
+
+        // Update password
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        log.info("Password changed successfully for user: {}", user.getUsername());
+
+        // Send password change notification email
+//        try {
+//            String emailContent = createPasswordChangeEmailHtml(user.getFirstName());
+//
+//            NotificationEvent notificationEvent = NotificationEvent.builder()
+//                    .channel("EMAIL")
+//                    .recipient(user.getEmail())
+//                    .subject("Password Changed Successfully - Project Management System")
+//                    .body(emailContent)
+//                    .build();
+//
+//            kafkaTemplate.send("notification-delivery", notificationEvent);
+//        } catch (Exception e) {
+//            log.error("Failed to send password change email for user: {}", user.getUsername(), e);
+//        }
+    }
+
+    private String createPasswordChangeEmailHtml(String firstName) {
+        return String.format(
+                """
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Password Changed</title>
+                </head>
+                <body>
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <h1 style="color: #333;">Password Changed Successfully</h1>
+                        <p>Hello <strong>%s</strong>,</p>
+                        <p>Your password has been successfully changed for your Project Management System account.</p>
+                        <p>If you did not make this change, please contact your system administrator immediately.</p>
+                        <p>Best regards,<br>The Project Management Team</p>
+                    </div>
+                </body>
+                </html>
+                """,
+                firstName);
     }
 }

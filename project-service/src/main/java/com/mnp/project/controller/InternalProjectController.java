@@ -35,19 +35,6 @@ public class InternalProjectController {
     }
 
     /**
-     * Internal endpoint for task-service to update project skills
-     * This endpoint doesn't require authentication for inter-service communication
-     */
-    @PutMapping("/{projectId}/skills")
-    public ApiResponse<Void> updateProjectSkills(@PathVariable String projectId, @RequestBody UpdateProjectSkillsRequest request) {
-        log.info("Internal call: Updating skills for project {} with skills: {}", projectId, request.getSkillsToAdd());
-        projectService.updateProjectSkills(projectId, request.getSkillsToAdd());
-        return ApiResponse.<Void>builder()
-                .message("Project skills updated successfully")
-                .build();
-    }
-
-    /**
      * Internal endpoint for task-service to add project members
      * This endpoint doesn't require authentication for inter-service communication
      */

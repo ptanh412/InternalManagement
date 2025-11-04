@@ -32,6 +32,11 @@ public enum ErrorCode {
     EMPLOYEE_ID_EXISTED(1017, "Employee ID already exists", HttpStatus.BAD_REQUEST),
     POSITION_NOT_EXISTED(1018, "Position not found", HttpStatus.NOT_FOUND),
     ROLE_NOT_EXISTED(1019, "Role not found", HttpStatus.NOT_FOUND),
+
+    // Password change related errors
+    INCORRECT_CURRENT_PASSWORD(1020, "Current password is incorrect", HttpStatus.BAD_REQUEST),
+    PASSWORD_MISMATCH(1021, "New password and confirm password do not match", HttpStatus.BAD_REQUEST),
+    SAME_PASSWORD(1022, "New password cannot be the same as current password", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

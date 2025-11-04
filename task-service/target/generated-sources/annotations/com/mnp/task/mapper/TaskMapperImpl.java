@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-10-06T15:35:39+0700",
+    date = "2025-10-21T11:38:19+0700",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 21.0.8 (Oracle Corporation)"
 )
 @Component
@@ -88,6 +88,9 @@ public class TaskMapperImpl implements TaskMapper {
             return;
         }
 
+        if ( request.getAssigneeId() != null ) {
+            task.setAssignedTo( request.getAssigneeId() );
+        }
         if ( request.getTitle() != null ) {
             task.setTitle( request.getTitle() );
         }

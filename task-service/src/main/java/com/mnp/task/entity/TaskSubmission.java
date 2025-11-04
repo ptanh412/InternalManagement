@@ -28,7 +28,11 @@ public class TaskSubmission {
 
     String description;
 
-    String attachmentUrl;
+    // Format: [{"name":"file.pdf","url":"http://...","type":"application/pdf","size":1024}]
+    @Column(columnDefinition = "TEXT")
+    String attachmentsJson;
+
+    String originalFileName;
 
     @Enumerated(EnumType.STRING)
     SubmissionStatus status = SubmissionStatus.PENDING;

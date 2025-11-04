@@ -2,6 +2,7 @@ package com.mnp.project.configuration;
 
 import feign.Logger;
 import feign.Request;
+import feign.RequestInterceptor;
 import feign.Retryer;
 import feign.codec.ErrorDecoder;
 import feign.jackson.JacksonDecoder;
@@ -49,6 +50,14 @@ public class FeignClientConfiguration {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         return new JacksonDecoder(mapper);
+    }
+
+    @Bean
+    public RequestInterceptor requestInterceptor() {
+        return requestTemplate -> {
+            requestTemplate.header("Content-Type", "application/json");
+            requestTemplate.header("Accept", "application/json");
+        };
     }
 
     @Bean

@@ -34,6 +34,7 @@ public class TaskResponse {
     List<String> tags;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
+    TaskDependencyResponse[] dependencies; // Add the missing dependencies field
 
     // AI recommendation fields from task service
     List<String> requiredSkills; // Skills needed for this task

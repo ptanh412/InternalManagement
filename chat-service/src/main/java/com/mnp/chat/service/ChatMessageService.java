@@ -56,6 +56,24 @@ public class ChatMessageService {
     WebSocketSessionService webSo;
     MessageReactionService messageReactionService; // Add message reaction service
 
+    /**
+     * Helper method to create a map of WebSocket sessions by socket session ID,
+     * handling duplicate keys by keeping the most recent session (based on createdAt timestamp)
+     */
+    private Map<String, WebSocketSession> createWebSocketSessionMap(List<WebSocketSession> sessions) {
+        return sessions.stream()
+                .collect(Collectors.toMap(
+                    WebSocketSession::getSocketSessionId, 
+                    Function.identity(),
+                    // Merge function to handle duplicate keys - keep the most recent session
+                    (existing, replacement) -> {
+                        log.warn("Duplicate socket session ID found: {}. Keeping most recent session.", 
+                                existing.getSocketSessionId());
+                        return existing.getCreatedAt().isAfter(replacement.getCreatedAt()) ? existing : replacement;
+                    }
+                ));
+    }
+
     public List<ChatMessageResponse> getMessages(String conversationId) {
         // Validate conversationId
         String userId = getCurrentUserId();
@@ -74,7 +92,7 @@ public class ChatMessageService {
                 .map(message -> toChatMessageResponse(message, userId))
                 .toList();
 
-        log.info("Found {} messages for conversation: {}", result.size(), conversationId);
+//        log.info("Found {} messages for conversation: {}", result.size(), conversationId);
 
         // Debug logging for recall messages
         result.forEach(msg -> {
@@ -269,18 +287,13 @@ public class ChatMessageService {
         metadata.put("addedMembersNames", addedMembersNames);
         metadata.put("groupName", groupName);
 
-        // Get adder's profile info for readers list
-        ParticipantInfo adderReaderInfo = null;
-        if (adderResponse != null && adderResponse.getResult() != null) {
-            var adderInfo = adderResponse.getResult();
-            adderReaderInfo = ParticipantInfo.builder()
-                    .userId(adderInfo.getUserId())
-                    .username(adderInfo.getUser().getUsername())
-                    .firstName(adderInfo.getUser().getFirstName())
-                    .lastName(adderInfo.getUser().getLastName())
-                    .avatar(adderInfo.getAvatar())
-                    .build();
-        }
+        // Get existing participants (before adding new members) - they should auto-read this system message
+        List<ParticipantInfo> existingParticipants = conversation.getParticipants().stream()
+                .filter(participant -> !addedMemberIds.contains(participant.getUserId()))
+                .collect(Collectors.toList());
+
+        // Create readers list with all existing participants (they're already in the conversation so they auto-read system messages)
+        List<ParticipantInfo> initialReaders = new ArrayList<>(existingParticipants);
 
         // Create and save a single system message with metadata
         ChatMessage systemMessage = ChatMessage.builder()
@@ -290,10 +303,7 @@ public class ChatMessageService {
                 .status("SENT")
                 .sender(null)
                 .createdDate(Instant.now())
-                .readers(
-                        adderReaderInfo != null
-                                ? new ArrayList<>(List.of(adderReaderInfo))
-                                : new ArrayList<>()) // Include creator in readers
+                .readers(initialReaders) // Existing participants automatically read this system message
                 .build();
 
         try {
@@ -308,6 +318,8 @@ public class ChatMessageService {
 
         // Save the system message to database with JSON metadata
         final ChatMessage finalSystemMessage = chatMessageRepository.save(systemMessage);
+        log.info("Created SYSTEM_ADD_MEMBERS message with {} existing participants already marked as read",
+                initialReaders.size());
 
         // Create a user-friendly display message for conversation list (NOT saved to database)
         String displayMessage = adderName + " added " + addedMembersNames + " to " + groupName;
@@ -318,10 +330,7 @@ public class ChatMessageService {
                 .status("SENT")
                 .sender(null)
                 .createdDate(Instant.now())
-                .readers(
-                        adderReaderInfo != null
-                                ? new ArrayList<>(List.of(adderReaderInfo))
-                                : new ArrayList<>()) // Include creator in readers
+                .readers(initialReaders) // Same readers as the actual message
                 .build();
 
         // Update conversation lastMessage with user-friendly message (not the metadata)
@@ -329,13 +338,13 @@ public class ChatMessageService {
         conversation.setModifiedDate(Instant.now());
         conversationRepository.save(conversation);
 
-        // Get all participants userIds for WebSocket broadcasting
+        // Get all participants userIds for WebSocket broadcasting (existing + newly added)
         List<String> userIds = conversation.getParticipants().stream()
                 .map(ParticipantInfo::getUserId)
                 .toList();
 
-        Map<String, WebSocketSession> webSocketSessions = webSocketSessionRepository.findAllByUserIdIn(userIds).stream()
-                .collect(Collectors.toMap(WebSocketSession::getSocketSessionId, Function.identity()));
+        Map<String, WebSocketSession> webSocketSessions = createWebSocketSessionMap(
+                webSocketSessionRepository.findAllByUserIdIn(userIds));
 
         // Broadcast personalized messages via WebSocket
         socketIOServer.getAllClients().forEach(client -> {
@@ -510,9 +519,8 @@ public class ChatMessageService {
         // Add removed members so they get notified
         allUserIds.addAll(removedMemberIds);
 
-        Map<String, WebSocketSession> webSocketSessions =
-                webSocketSessionRepository.findAllByUserIdIn(allUserIds).stream()
-                        .collect(Collectors.toMap(WebSocketSession::getSocketSessionId, Function.identity()));
+        Map<String, WebSocketSession> webSocketSessions = createWebSocketSessionMap(
+                webSocketSessionRepository.findAllByUserIdIn(allUserIds));
 
         // Broadcast personalized messages via WebSocket
         socketIOServer.getAllClients().forEach(client -> {
@@ -652,9 +660,8 @@ public class ChatMessageService {
         // Add the leaving user so they get notified
         allUserIds.add(leavingUserId);
 
-        Map<String, WebSocketSession> webSocketSessions =
-                webSocketSessionRepository.findAllByUserIdIn(allUserIds).stream()
-                        .collect(Collectors.toMap(WebSocketSession::getSocketSessionId, Function.identity()));
+        Map<String, WebSocketSession> webSocketSessions = createWebSocketSessionMap(
+                webSocketSessionRepository.findAllByUserIdIn(allUserIds));
 
         // Broadcast personalized messages via WebSocket
         socketIOServer.getAllClients().forEach(client -> {
@@ -720,8 +727,8 @@ public class ChatMessageService {
                 .map(ParticipantInfo::getUserId)
                 .toList();
 
-        Map<String, WebSocketSession> webSocketSessions = webSocketSessionRepository.findAllByUserIdIn(userIds).stream()
-                .collect(Collectors.toMap(WebSocketSession::getSocketSessionId, Function.identity()));
+        Map<String, WebSocketSession> webSocketSessions = createWebSocketSessionMap(
+                webSocketSessionRepository.findAllByUserIdIn(userIds));
 
         final ChatMessage finalChatMessage = chatMessage;
 
@@ -747,6 +754,49 @@ public class ChatMessageService {
                 }
             }
         });
+    }
+
+    public long getUnreadCount(String conversationId, String userId) {
+        var conversation = conversationRepository
+                .findById(conversationId)
+                .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+
+        if ("GROUP".equals(conversation.getType())) {
+            // ✅ SỬ DỤNG custom query cho GROUP
+            return chatMessageRepository
+                    .findUnreadMessagesForGroupConversation(conversationId, userId)
+                    .stream()
+                    .filter(msg -> msg.getSender() == null
+                            || msg.getSender().getUserId() == null
+                            || !msg.getSender().getUserId().equals(userId))
+                    .count();
+        } else {
+            // DIRECT conversation
+            return chatMessageRepository
+                    .countByConversationIdAndSenderUserIdNotAndStatusNot(
+                            conversationId, userId, "SEEN");
+        }
+    }
+
+    /**
+     * Tính unread count cho tất cả conversations của user
+     * Sử dụng khi: Load sidebar conversations list
+     */
+    public Map<String, Long> getUnreadCountsForUser(String userId) {
+        // Tìm tất cả conversations mà user tham gia
+        List<Conversation> conversations = conversationRepository
+                .findAllByParticipantsUserId(userId);
+
+        Map<String, Long> unreadCounts = new HashMap<>();
+
+        for (Conversation conversation : conversations) {
+            long count = getUnreadCount(conversation.getId(), userId);
+            if (count > 0) {
+                unreadCounts.put(conversation.getId(), count);
+            }
+        }
+
+        return unreadCounts;
     }
 
     private ChatMessageResponse toChatMessageResponse(ChatMessage chatMessage, String userId) {
@@ -973,45 +1023,65 @@ public class ChatMessageService {
                 .avatar(userInfo.getAvatar())
                 .build();
 
-        // Find all unread messages in this conversation that were NOT sent by current user
-        List<ChatMessage> unreadMessages = chatMessageRepository.findAllByConversationIdAndSenderUserIdNotAndStatusNot(
-                conversationId, userId, "SEEN");
+        // Find ALL messages that need to be marked as read by this user
+        List<ChatMessage> allMessages = chatMessageRepository.findAllByConversationId(conversationId);
 
-        log.info(
-                "Query parameters - conversationId: {}, excludeSenderUserId: {}, excludeStatus: SEEN",
-                conversationId,
-                userId);
-        log.info("Found {} unread messages for user {}", unreadMessages.size(), userId);
+        List<ChatMessage> unreadMessages = allMessages.stream()
+                .filter(message -> {
+                    // Skip messages sent by this user (they auto-read their own messages)
+                    if (message.getSender() != null
+                            && message.getSender().getUserId() != null
+                            && message.getSender().getUserId().equals(userId)) {
+                        return false;
+                    }
 
-        // Mark all unread messages as SEEN and handle both direct and group conversations
+                    // For GROUP conversations, check readers array
+                    if ("GROUP".equals(conversation.getType())) {
+                        // Check if user has already read this message
+                        if (message.getReaders() == null) {
+                            return true; // No readers yet, so it's unread
+                        }
+                        boolean alreadyRead = message.getReaders().stream()
+                                .anyMatch(reader -> reader.getUserId().equals(userId));
+                        return !alreadyRead; // Unread if user not in readers array
+                    } else {
+                        // For DIRECT conversations, check status
+                        return !"SEEN".equals(message.getStatus());
+                    }
+                })
+                .collect(Collectors.toList());
+
+        log.info("Found {} unread messages for user {} in conversation {}", unreadMessages.size(), userId, conversationId);
+
+        // Mark all unread messages as read
         unreadMessages.forEach(message -> {
-            log.info("Marking message {} as SEEN (was: {})", message.getId(), message.getStatus());
+            log.info("Marking message {} (type: {}) as read for user {}", message.getId(), message.getType(), userId);
 
-            // For direct conversations (backward compatibility)
             if ("DIRECT".equals(conversation.getType())) {
                 message.setStatus("SEEN");
                 message.setReadDate(Instant.now());
                 message.setReader(readerInfo);
             } else if ("GROUP".equals(conversation.getType())) {
-                // For group conversations, add user to readers list if not already present
+                // For group conversations, add user to readers list
                 if (message.getReaders() == null) {
                     message.setReaders(new ArrayList<>());
                 }
 
-                // Check if user already read this message
+                // Double-check if user already read this message
                 boolean alreadyRead = message.getReaders().stream()
                         .anyMatch(reader -> reader.getUserId().equals(userId));
 
                 if (!alreadyRead) {
                     message.getReaders().add(readerInfo);
-                    log.info("Added user {} to readers list for message {}", userId, message.getId());
+                    log.info("Added user {} to readers list for message {} (type: {})",
+                            userId, message.getId(), message.getType());
                 }
 
-                // Update status to SEEN and set read date
+                // Update status and read date
                 message.setStatus("SEEN");
                 message.setReadDate(Instant.now());
 
-                // For group messages, also keep the single reader field for the first reader (backward compatibility)
+                // For group messages, also set the single reader field if not set
                 if (message.getReader() == null) {
                     message.setReader(readerInfo);
                 }
@@ -1021,7 +1091,7 @@ public class ChatMessageService {
         // Save all updated messages
         if (!unreadMessages.isEmpty()) {
             chatMessageRepository.saveAll(unreadMessages);
-            log.info("Saved {} updated messages", unreadMessages.size());
+            log.info("Successfully marked {} messages as read for user {}", unreadMessages.size(), userId);
         }
 
         return unreadMessages;
@@ -1042,8 +1112,8 @@ public class ChatMessageService {
 
         log.info("Conversation participants: {}", userIds);
 
-        Map<String, WebSocketSession> webSocketSessions = webSocketSessionRepository.findAllByUserIdIn(userIds).stream()
-                .collect(Collectors.toMap(WebSocketSession::getSocketSessionId, Function.identity()));
+        Map<String, WebSocketSession> webSocketSessions = createWebSocketSessionMap(
+                webSocketSessionRepository.findAllByUserIdIn(userIds));
 
         log.info("Found {} websocket sessions for participants", webSocketSessions.size());
 
@@ -1085,9 +1155,8 @@ public class ChatMessageService {
         log.info("Successfully sent message-status-update to {} clients", sentCount);
     }
 
-    public void broadcastReactionUpdate(String messageId, String userId) {
+    public void broadcastReactionUpdate(String messageId, String reactingUserId) {
         try {
-            // Get the message to find its conversation
             var chatMessage = chatMessageRepository.findById(messageId);
             if (chatMessage.isEmpty()) {
                 log.error("Message not found: {}", messageId);
@@ -1097,55 +1166,55 @@ public class ChatMessageService {
             var message = chatMessage.get();
             String conversationId = message.getConversationId();
 
-            // Get conversation to find participants
             var conversation = conversationRepository
                     .findById(conversationId)
                     .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
 
-            // Get participants userIds
             List<String> userIds = conversation.getParticipants().stream()
                     .map(ParticipantInfo::getUserId)
                     .toList();
 
-            Map<String, WebSocketSession> webSocketSessions =
-                    webSocketSessionRepository.findAllByUserIdIn(userIds).stream()
-                            .collect(Collectors.toMap(WebSocketSession::getSocketSessionId, Function.identity()));
+            Map<String, WebSocketSession> webSocketSessions = createWebSocketSessionMap(
+                    webSocketSessionRepository.findAllByUserIdIn(userIds));
 
-            // Broadcast to all connected clients who are participants in this conversation
+            // ✅ Broadcast ONLY to OTHER participants, NOT the reacting user
             socketIOServer.getAllClients().forEach(client -> {
-                var webSocketSession =
-                        webSocketSessions.get(client.getSessionId().toString());
+                var webSocketSession = webSocketSessions.get(client.getSessionId().toString());
                 if (Objects.nonNull(webSocketSession)) {
-                    try {
-                        // Calculate reaction summary for THIS specific user (not the reactor)
-                        String recipientUserId = webSocketSession.getUserId();
-                        var reactionSummary =
-                                messageReactionService.getMessageReactionsSummary(messageId, recipientUserId);
+                    String recipientUserId = webSocketSession.getUserId();
 
-                        // Create reaction update payload with correct reactedByMe flag for this user
+                    // ✅ SKIP người vừa react/pin/unpin
+                    if (recipientUserId.equals(reactingUserId)) {
+                        log.debug("Skipping reaction update for reacting user: {}", reactingUserId);
+                        return; // Không gửi cho chính user đó
+                    }
+
+                    try {
+                        var reactionSummary = messageReactionService.getMessageReactionsSummary(
+                                messageId, recipientUserId);
+
                         var reactionUpdate = Map.of(
                                 "messageId", messageId,
                                 "conversationId", conversationId,
-                                "reactions", reactionSummary);
+                                "reactions", reactionSummary,
+                                "reactingUserId", reactingUserId // ✅ Thêm info về người react
+                        );
 
                         String reactionUpdateJson = objectMapper.writeValueAsString(reactionUpdate);
                         client.sendEvent("reaction-update", reactionUpdateJson);
 
-                        log.debug(
-                                "Sent reaction update to client: {} (user: {}) with reactedByMe calculated for user: {}",
-                                client.getSessionId(),
-                                recipientUserId,
-                                recipientUserId);
+                        log.debug("Sent reaction update to user: {}", recipientUserId);
                     } catch (Exception e) {
-                        log.error("Error sending reaction update to client: {}", client.getSessionId(), e);
+                        log.error("Error sending reaction update", e);
                     }
                 }
             });
 
-            log.info("Broadcasted reaction update for message: {} to {} participants", messageId, userIds.size());
+            log.info("Broadcasted reaction update for message: {} to {} other participants",
+                    messageId, userIds.size() - 1);
 
         } catch (Exception e) {
-            log.error("Error broadcasting reaction update for message: {}", messageId, e);
+            log.error("Error broadcasting reaction update", e);
         }
     }
 
@@ -1225,9 +1294,8 @@ public class ChatMessageService {
                     .map(ParticipantInfo::getUserId)
                     .toList();
 
-            Map<String, WebSocketSession> webSocketSessions =
-                    webSocketSessionRepository.findAllByUserIdIn(userIds).stream()
-                            .collect(Collectors.toMap(WebSocketSession::getSocketSessionId, Function.identity()));
+            Map<String, WebSocketSession> webSocketSessions = createWebSocketSessionMap(
+                    webSocketSessionRepository.findAllByUserIdIn(userIds));
 
             // Broadcast to all connected clients who are participants in this conversation
             socketIOServer.getAllClients().forEach(client -> {
@@ -1326,7 +1394,7 @@ public class ChatMessageService {
         ChatMessage systemMessage = ChatMessage.builder()
                 .conversationId(message.getConversationId())
                 .message(userInfo.getUser().getFirstName() + " "
-                        + userInfo.getUser().getLastName() + " pinned a message")
+                        + userInfo.getUser().getLastName() + " pinned a message" + (message.getMessage() != null ? " (" + message.getMessage() + ")" : ""))
                 .type("SYSTEM")
                 .status("SENT")
                 .createdDate(Instant.now())
@@ -1435,9 +1503,8 @@ public class ChatMessageService {
                     .map(ParticipantInfo::getUserId)
                     .toList();
 
-            Map<String, WebSocketSession> webSocketSessions =
-                    webSocketSessionRepository.findAllByUserIdIn(userIds).stream()
-                            .collect(Collectors.toMap(WebSocketSession::getSocketSessionId, Function.identity()));
+            Map<String, WebSocketSession> webSocketSessions = createWebSocketSessionMap(
+                    webSocketSessionRepository.findAllByUserIdIn(userIds));
 
             // Broadcast to all connected clients who are participants in this conversation
             socketIOServer.getAllClients().forEach(client -> {
@@ -1780,9 +1847,8 @@ public class ChatMessageService {
                     .map(ParticipantInfo::getUserId)
                     .toList();
 
-            Map<String, WebSocketSession> webSocketSessions =
-                    webSocketSessionRepository.findAllByUserIdIn(userIds).stream()
-                            .collect(Collectors.toMap(WebSocketSession::getSocketSessionId, Function.identity()));
+            Map<String, WebSocketSession> webSocketSessions = createWebSocketSessionMap(
+                    webSocketSessionRepository.findAllByUserIdIn(userIds));
 
             // Create deletion notification
             Map<String, Object> deletionData = Map.of(
@@ -1952,9 +2018,8 @@ public class ChatMessageService {
                     .map(ParticipantInfo::getUserId)
                     .toList();
 
-            Map<String, WebSocketSession> webSocketSessions =
-                    webSocketSessionRepository.findAllByUserIdIn(userIds).stream()
-                            .collect(Collectors.toMap(WebSocketSession::getSocketSessionId, Function.identity()));
+            Map<String, WebSocketSession> webSocketSessions = createWebSocketSessionMap(
+                    webSocketSessionRepository.findAllByUserIdIn(userIds));
 
             log.info("🔥 Broadcasting new group conversation to {} participants", userIds.size());
 

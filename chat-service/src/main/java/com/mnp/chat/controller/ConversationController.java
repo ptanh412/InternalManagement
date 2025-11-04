@@ -37,6 +37,7 @@ public class ConversationController {
 
     @GetMapping("/my-conversations")
     ApiResponse<List<ConversationResponse>> myConversations() {
+        
         return ApiResponse.<List<ConversationResponse>>builder()
                 .result(conversationService.myConversations())
                 .build();

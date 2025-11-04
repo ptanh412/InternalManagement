@@ -1,39 +1,16 @@
 package com.mnp.ai.enums;
 
 public enum TaskType {
-    FRONTEND_DEVELOPMENT,
-    BACKEND_DEVELOPMENT,
-    FULLSTACK_DEVELOPMENT,
-    MOBILE_DEVELOPMENT,
-    API_DEVELOPMENT,
-    DATABASE_DESIGN,
-
-    // Quality & Testing
-    UNIT_TESTING,
-    INTEGRATION_TESTING,
-    E2E_TESTING,
-    PERFORMANCE_TESTING,
-    SECURITY_TESTING,
-
-    // DevOps & Infrastructure
-    CI_CD_SETUP,
-    DEPLOYMENT,
-    INFRASTRUCTURE_SETUP,
-    MONITORING_SETUP,
-
-    // Maintenance
-    BUG_FIX,
-    CODE_REVIEW,
-    REFACTORING,
+    FEATURE,
+    BUG,
+    TASK,
+    EPIC,
+    STORY,
+    SUBTASK,
+    RESEARCH,
     DOCUMENTATION,
-
-    // Analysis & Design
-    TECHNICAL_ANALYSIS,
-    SYSTEM_DESIGN,
-    ARCHITECTURE_REVIEW,
-
-    // Suggest task
-    DEVELOPMENT,
     TESTING,
-    RESEARCH
+    DEPLOYMENT,
+    DEVELOPMENT,
+    DESIGN
 }

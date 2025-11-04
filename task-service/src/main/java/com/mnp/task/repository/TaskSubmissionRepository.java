@@ -10,9 +10,12 @@ import java.util.Optional;
 
 @Repository
 public interface TaskSubmissionRepository extends JpaRepository<TaskSubmission, String> {
+    List<TaskSubmission> findByTaskIdOrderBySubmittedAtDesc(String taskId);
+    List<TaskSubmission> findBySubmittedByOrderBySubmittedAtDesc(String submittedBy);
+    Optional<TaskSubmission> findByTaskIdAndSubmittedBy(String taskId, String submittedBy);
+
+    // Add missing methods for TaskService
     List<TaskSubmission> findByTaskId(String taskId);
-    List<TaskSubmission> findBySubmittedBy(String submittedBy);
     List<TaskSubmission> findByStatus(SubmissionStatus status);
     List<TaskSubmission> findByReviewedBy(String reviewedBy);
-    Optional<TaskSubmission> findByTaskIdAndSubmittedBy(String taskId, String submittedBy);
 }

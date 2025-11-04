@@ -1,0 +1,1024 @@
+{
+  "users": [
+    {
+      "comment": "Frontend Development Department",
+      "username": "alice_frontend_intern",
+      "password": "123456",
+      "email": "alice.frontend.intern@yopmail.com",
+      "firstName": "Alice",
+      "lastName": "Wong",
+      "dob": "2003-09-08",
+      "city": "Ho Chi Minh City",
+      "departmentName": "Frontend Development",
+      "positionTitle": "Frontend Development Intern",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84901234567",
+      "skills": [
+        {
+          "skillName": "HTML/CSS",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "BEGINNER",
+          "yearsOfExperience": 0,
+          "lastUsed": "2025-10-10"
+        },
+        {
+          "skillName": "JavaScript",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "BEGINNER",
+          "yearsOfExperience": 0,
+          "lastUsed": "2025-10-08"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "bob_frontend_junior",
+      "password": "123456",
+      "email": "bob.frontend.junior@yopmail.com",
+      "firstName": "Bob",
+      "lastName": "Smith",
+      "dob": "1999-05-15",
+      "city": "Da Nang",
+      "departmentName": "Frontend Development",
+      "positionTitle": "Junior Frontend Developer",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84907654321",
+      "skills": [
+        {
+          "skillName": "HTML/CSS",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 2,
+          "lastUsed": "2025-10-11"
+        },
+        {
+          "skillName": "JavaScript",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 2,
+          "lastUsed": "2025-10-11"
+        },
+        {
+          "skillName": "React",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 1,
+          "lastUsed": "2025-10-09"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "carol_frontend_mid",
+      "password": "123456",
+      "email": "carol.frontend.mid@yopmail.com",
+      "firstName": "Carol",
+      "lastName": "Johnson",
+      "dob": "1996-12-22",
+      "city": "Hanoi",
+      "departmentName": "Frontend Development",
+      "positionTitle": "Frontend Developer",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84912345678",
+      "skills": [
+        {
+          "skillName": "JavaScript",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 4,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "React",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 3,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "CSS",
+          "skillType": "DESIGN",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 4,
+          "lastUsed": "2025-10-11"
+        }
+      ],
+      "availabilityStatus": "BUSY"
+    },
+    {
+      "username": "david_frontend_senior",
+      "password": "123456",
+      "email": "david.frontend.senior@yopmail.com",
+      "firstName": "David",
+      "lastName": "Brown",
+      "dob": "1992-08-30",
+      "city": "Ho Chi Minh City",
+      "departmentName": "Frontend Development",
+      "positionTitle": "Senior Frontend Developer",
+      "roleName": "TEAM_LEAD",
+      "phoneNumber": "+84923456789",
+      "skills": [
+        {
+          "skillName": "JavaScript",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 6,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "React",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 5,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "TypeScript",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 4,
+          "lastUsed": "2025-10-12"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "emma_frontend_lead",
+      "password": "123456",
+      "email": "emma.frontend.lead@yopmail.com",
+      "firstName": "Emma",
+      "lastName": "Davis",
+      "dob": "1989-03-18",
+      "city": "Can Tho",
+      "departmentName": "Frontend Development",
+      "positionTitle": "Frontend Team Lead",
+      "roleName": "TEAM_LEAD",
+      "phoneNumber": "+84934567890",
+      "skills": [
+        {
+          "skillName": "JavaScript",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 8,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "React",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 7,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Leadership",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 5,
+          "lastUsed": "2025-10-12"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "comment": "Backend Development Department",
+      "username": "frank_backend_intern",
+      "password": "123456",
+      "email": "frank.backend.intern@yopmail.com",
+      "firstName": "Frank",
+      "lastName": "Wilson",
+      "dob": "2004-01-25",
+      "city": "Ho Chi Minh City",
+      "departmentName": "Backend Development",
+      "positionTitle": "Backend Development Intern",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84945678901",
+      "skills": [
+        {
+          "skillName": "Java",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "BEGINNER",
+          "yearsOfExperience": 0,
+          "lastUsed": "2025-10-10"
+        },
+        {
+          "skillName": "MySQL",
+          "skillType": "DATABASE",
+          "proficiencyLevel": "BEGINNER",
+          "yearsOfExperience": 0,
+          "lastUsed": "2025-10-08"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "grace_backend_junior",
+      "password": "123456",
+      "email": "grace.backend.junior@yopmail.com",
+      "firstName": "Grace",
+      "lastName": "Miller",
+      "dob": "2000-07-14",
+      "city": "Da Nang",
+      "departmentName": "Backend Development",
+      "positionTitle": "Junior Backend Developer",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84956789012",
+      "skills": [
+        {
+          "skillName": "Java",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 2,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Spring Boot",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 1,
+          "lastUsed": "2025-10-11"
+        },
+        {
+          "skillName": "PostgreSQL",
+          "skillType": "DATABASE",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 2,
+          "lastUsed": "2025-10-10"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "henry_backend_mid",
+      "password": "123456",
+      "email": "henry.backend.mid@yopmail.com",
+      "firstName": "Henry",
+      "lastName": "Garcia",
+      "dob": "1997-11-09",
+      "city": "Hanoi",
+      "departmentName": "Backend Development",
+      "positionTitle": "Backend Developer",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84967890123",
+      "skills": [
+        {
+          "skillName": "Java",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 4,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Spring Boot",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 3,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Microservices",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 2,
+          "lastUsed": "2025-10-11"
+        }
+      ],
+      "availabilityStatus": "BUSY"
+    },
+    {
+      "username": "iris_backend_senior",
+      "password": "123456",
+      "email": "iris.backend.senior@yopmail.com",
+      "firstName": "Iris",
+      "lastName": "Martinez",
+      "dob": "1993-04-07",
+      "city": "Ho Chi Minh City",
+      "departmentName": "Backend Development",
+      "positionTitle": "Senior Backend Developer",
+      "roleName": "TEAM_LEAD",
+      "phoneNumber": "+84978901234",
+      "skills": [
+        {
+          "skillName": "Java",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 7,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Spring Boot",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 6,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Microservices",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 5,
+          "lastUsed": "2025-10-12"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "comment": "Quality Assurance Department",
+      "username": "jack_qa_intern",
+      "password": "123456",
+      "email": "jack.qa.intern@yopmail.com",
+      "firstName": "Jack",
+      "lastName": "Anderson",
+      "dob": "2003-06-20",
+      "city": "Hai Phong",
+      "departmentName": "Quality Assurance",
+      "positionTitle": "QA Intern",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84989012345",
+      "skills": [
+        {
+          "skillName": "Manual Testing",
+          "skillType": "TOOL",
+          "proficiencyLevel": "BEGINNER",
+          "yearsOfExperience": 0,
+          "lastUsed": "2025-10-10"
+        },
+        {
+          "skillName": "Test Cases",
+          "skillType": "TOOL",
+          "proficiencyLevel": "BEGINNER",
+          "yearsOfExperience": 0,
+          "lastUsed": "2025-10-09"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "kate_qa_junior",
+      "password": "123456",
+      "email": "kate.qa.junior@yopmail.com",
+      "firstName": "Kate",
+      "lastName": "Thompson",
+      "dob": "2001-02-28",
+      "city": "Ho Chi Minh City",
+      "departmentName": "Quality Assurance",
+      "positionTitle": "Junior QA Engineer",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84990123456",
+      "skills": [
+        {
+          "skillName": "Manual Testing",
+          "skillType": "TOOL",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 2,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "JIRA",
+          "skillType": "TOOL",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 2,
+          "lastUsed": "2025-10-11"
+        },
+        {
+          "skillName": "Selenium",
+          "skillType": "TOOL",
+          "proficiencyLevel": "BEGINNER",
+          "yearsOfExperience": 1,
+          "lastUsed": "2025-10-10"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "liam_qa_mid",
+      "password": "123456",
+      "email": "liam.qa.mid@yopmail.com",
+      "firstName": "Liam",
+      "lastName": "White",
+      "dob": "1998-10-05",
+      "city": "Da Nang",
+      "departmentName": "Quality Assurance",
+      "positionTitle": "QA Engineer",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84901234567",
+      "skills": [
+        {
+          "skillName": "Test Automation",
+          "skillType": "TOOL",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 3,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Selenium",
+          "skillType": "TOOL",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 3,
+          "lastUsed": "2025-10-11"
+        },
+        {
+          "skillName": "Cypress",
+          "skillType": "TOOL",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 2,
+          "lastUsed": "2025-10-10"
+        }
+      ],
+      "availabilityStatus": "BUSY"
+    },
+    {
+      "comment": "DevOps Department",
+      "username": "mia_devops_intern",
+      "password": "123456",
+      "email": "mia.devops.intern@yopmail.com",
+      "firstName": "Mia",
+      "lastName": "Clark",
+      "dob": "2004-09-12",
+      "city": "Ho Chi Minh City",
+      "departmentName": "DevOps",
+      "positionTitle": "DevOps Intern",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84912345670",
+      "skills": [
+        {
+          "skillName": "Linux",
+          "skillType": "TOOL",
+          "proficiencyLevel": "BEGINNER",
+          "yearsOfExperience": 0,
+          "lastUsed": "2025-10-10"
+        },
+        {
+          "skillName": "Docker",
+          "skillType": "TOOL",
+          "proficiencyLevel": "BEGINNER",
+          "yearsOfExperience": 0,
+          "lastUsed": "2025-10-08"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "noah_devops_junior",
+      "password": "123456",
+      "email": "noah.devops.junior@yopmail.com",
+      "firstName": "Noah",
+      "lastName": "Lewis",
+      "dob": "2000-12-03",
+      "city": "Hanoi",
+      "departmentName": "DevOps",
+      "positionTitle": "Junior DevOps Engineer",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84923456781",
+      "skills": [
+        {
+          "skillName": "Docker",
+          "skillType": "TOOL",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 2,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "AWS",
+          "skillType": "TOOL",
+          "proficiencyLevel": "BEGINNER",
+          "yearsOfExperience": 1,
+          "lastUsed": "2025-10-11"
+        },
+        {
+          "skillName": "Jenkins",
+          "skillType": "TOOL",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 1,
+          "lastUsed": "2025-10-10"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "olivia_devops_mid",
+      "password": "123456",
+      "email": "olivia.devops.mid@yopmail.com",
+      "firstName": "Olivia",
+      "lastName": "Walker",
+      "dob": "1996-05-16",
+      "city": "Can Tho",
+      "departmentName": "DevOps",
+      "positionTitle": "DevOps Engineer",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84934567892",
+      "skills": [
+        {
+          "skillName": "Kubernetes",
+          "skillType": "TOOL",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 3,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "AWS",
+          "skillType": "TOOL",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 4,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Terraform",
+          "skillType": "TOOL",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 2,
+          "lastUsed": "2025-10-11"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "comment": "Mobile Development Department",
+      "username": "paul_mobile_intern",
+      "password": "123456",
+      "email": "paul.mobile.intern@yopmail.com",
+      "firstName": "Paul",
+      "lastName": "Hall",
+      "dob": "2003-11-11",
+      "city": "Ho Chi Minh City",
+      "departmentName": "Mobile Development",
+      "positionTitle": "Mobile Development Intern",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84945678903",
+      "skills": [
+        {
+          "skillName": "Java",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "BEGINNER",
+          "yearsOfExperience": 0,
+          "lastUsed": "2025-10-10"
+        },
+        {
+          "skillName": "Android",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "BEGINNER",
+          "yearsOfExperience": 0,
+          "lastUsed": "2025-10-09"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "quinn_mobile_junior",
+      "password": "123456",
+      "email": "quinn.mobile.junior@yopmail.com",
+      "firstName": "Quinn",
+      "lastName": "Young",
+      "dob": "2001-08-19",
+      "city": "Da Nang",
+      "departmentName": "Mobile Development",
+      "positionTitle": "Junior Mobile Developer",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84956789014",
+      "skills": [
+        {
+          "skillName": "Android",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 2,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Kotlin",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "INTERMEDIATE",
+          "yearsOfExperience": 1,
+          "lastUsed": "2025-10-11"
+        },
+        {
+          "skillName": "Flutter",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "BEGINNER",
+          "yearsOfExperience": 1,
+          "lastUsed": "2025-10-10"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "ruby_mobile_mid",
+      "password": "123456",
+      "email": "ruby.mobile.mid@yopmail.com",
+      "firstName": "Ruby",
+      "lastName": "King",
+      "dob": "1997-01-27",
+      "city": "Hue",
+      "departmentName": "Mobile Development",
+      "positionTitle": "Mobile Developer",
+      "roleName": "EMPLOYEE",
+      "phoneNumber": "+84967890125",
+      "skills": [
+        {
+          "skillName": "React Native",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 3,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "iOS",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 4,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Swift",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 3,
+          "lastUsed": "2025-10-11"
+        }
+      ],
+      "availabilityStatus": "BUSY"
+    },
+    {
+      "comment": "Engineering Department - Leadership Roles",
+      "username": "sam_eng_lead",
+      "password": "123456",
+      "email": "sam.eng.lead@yopmail.com",
+      "firstName": "Sam",
+      "lastName": "Wright",
+      "dob": "1988-07-02",
+      "city": "Ho Chi Minh City",
+      "departmentName": "Engineering",
+      "positionTitle": "Engineering Lead",
+      "roleName": "PROJECT_MANAGER",
+      "phoneNumber": "+84978901236",
+      "skills": [
+        {
+          "skillName": "Technical Leadership",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 8,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Architecture",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 10,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Project Management",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 6,
+          "lastUsed": "2025-10-12"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "tina_principal_eng",
+      "password": "123456",
+      "email": "tina.principal.eng@yopmail.com",
+      "firstName": "Tina",
+      "lastName": "Lopez",
+      "dob": "1985-12-14",
+      "city": "Hanoi",
+      "departmentName": "Engineering",
+      "positionTitle": "Principal Engineer",
+      "roleName": "PROJECT_MANAGER",
+      "phoneNumber": "+84989012347",
+      "skills": [
+        {
+          "skillName": "System Architecture",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 12,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Innovation",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 10,
+          "lastUsed": "2025-10-11"
+        },
+        {
+          "skillName": "Research",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 8,
+          "lastUsed": "2025-10-10"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "comment": "Additional Project Managers across departments",
+      "username": "victor_frontend_pm",
+      "password": "123456",
+      "email": "victor.frontend.pm@yopmail.com",
+      "firstName": "Victor",
+      "lastName": "Rodriguez",
+      "dob": "1987-04-22",
+      "city": "Ho Chi Minh City",
+      "departmentName": "Frontend Development",
+      "positionTitle": "Frontend Project Manager",
+      "roleName": "PROJECT_MANAGER",
+      "phoneNumber": "+84990123458",
+      "skills": [
+        {
+          "skillName": "Project Management",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 8,
+          "lastUsed": "2025-10-13"
+        },
+        {
+          "skillName": "Agile/Scrum",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 7,
+          "lastUsed": "2025-10-13"
+        },
+        {
+          "skillName": "JavaScript",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 10,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Team Leadership",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 6,
+          "lastUsed": "2025-10-13"
+        }
+      ],
+      "availabilityStatus": "BUSY"
+    },
+    {
+      "username": "wendy_backend_pm",
+      "password": "123456",
+      "email": "wendy.backend.pm@yopmail.com",
+      "firstName": "Wendy",
+      "lastName": "Nguyen",
+      "dob": "1989-09-15",
+      "city": "Da Nang",
+      "departmentName": "Backend Development",
+      "positionTitle": "Backend Project Manager",
+      "roleName": "PROJECT_MANAGER",
+      "phoneNumber": "+84901234569",
+      "skills": [
+        {
+          "skillName": "Project Management",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 6,
+          "lastUsed": "2025-10-13"
+        },
+        {
+          "skillName": "Java",
+          "skillType": "PROGRAMMING_LANGUAGE",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 9,
+          "lastUsed": "2025-10-11"
+        },
+        {
+          "skillName": "Microservices Architecture",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 5,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Stakeholder Management",
+          "skillType": "TOOL",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 6,
+          "lastUsed": "2025-10-13"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "xavier_qa_pm",
+      "password": "123456",
+      "email": "xavier.qa.pm@yopmail.com",
+      "firstName": "Xavier",
+      "lastName": "Chen",
+      "dob": "1986-11-08",
+      "city": "Hanoi",
+      "departmentName": "Quality Assurance",
+      "positionTitle": "QA Project Manager",
+      "roleName": "PROJECT_MANAGER",
+      "phoneNumber": "+84912345680",
+      "skills": [
+        {
+          "skillName": "Quality Management",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 9,
+          "lastUsed": "2025-10-13"
+        },
+        {
+          "skillName": "Test Strategy",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 8,
+          "lastUsed": "2025-10-13"
+        },
+        {
+          "skillName": "JIRA",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 7,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Risk Management",
+          "skillType": "TOOL",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 6,
+          "lastUsed": "2025-10-13"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "yara_devops_pm",
+      "password": "123456",
+      "email": "yara.devops.pm@yopmail.com",
+      "firstName": "Yara",
+      "lastName": "Patel",
+      "dob": "1988-02-17",
+      "city": "Can Tho",
+      "departmentName": "DevOps",
+      "positionTitle": "DevOps Project Manager",
+      "roleName": "PROJECT_MANAGER",
+      "phoneNumber": "+84923456791",
+      "skills": [
+        {
+          "skillName": "Infrastructure Management",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 7,
+          "lastUsed": "2025-10-13"
+        },
+        {
+          "skillName": "AWS",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 8,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "CI/CD Pipeline",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 6,
+          "lastUsed": "2025-10-13"
+        },
+        {
+          "skillName": "Budget Management",
+          "skillType": "TOOL",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 5,
+          "lastUsed": "2025-10-13"
+        }
+      ],
+      "availabilityStatus": "BUSY"
+    },
+    {
+      "username": "zoe_mobile_pm",
+      "password": "123456",
+      "email": "zoe.mobile.pm@yopmail.com",
+      "firstName": "Zoe",
+      "lastName": "Kim",
+      "dob": "1990-06-30",
+      "city": "Ho Chi Minh City",
+      "departmentName": "Mobile Development",
+      "positionTitle": "Mobile Project Manager",
+      "roleName": "PROJECT_MANAGER",
+      "phoneNumber": "+84934567802",
+      "skills": [
+        {
+          "skillName": "Mobile Strategy",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 6,
+          "lastUsed": "2025-10-13"
+        },
+        {
+          "skillName": "Cross-platform Development",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 7,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "App Store Management",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 5,
+          "lastUsed": "2025-10-11"
+        },
+        {
+          "skillName": "Product Management",
+          "skillType": "TOOL",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 6,
+          "lastUsed": "2025-10-13"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "alex_senior_pm",
+      "password": "123456",
+      "email": "alex.senior.pm@yopmail.com",
+      "firstName": "Alex",
+      "lastName": "Taylor",
+      "dob": "1983-08-11",
+      "city": "Hai Phong",
+      "departmentName": "Engineering",
+      "positionTitle": "Senior Project Manager",
+      "roleName": "PROJECT_MANAGER",
+      "phoneNumber": "+84945678913",
+      "skills": [
+        {
+          "skillName": "Enterprise Project Management",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 12,
+          "lastUsed": "2025-10-13"
+        },
+        {
+          "skillName": "Strategic Planning",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 10,
+          "lastUsed": "2025-10-13"
+        },
+        {
+          "skillName": "Multi-team Coordination",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 8,
+          "lastUsed": "2025-10-13"
+        },
+        {
+          "skillName": "Business Analysis",
+          "skillType": "TOOL",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 9,
+          "lastUsed": "2025-10-12"
+        }
+      ],
+      "availabilityStatus": "AVAILABLE"
+    },
+    {
+      "username": "bella_technical_pm",
+      "password": "123456",
+      "email": "bella.technical.pm@yopmail.com",
+      "firstName": "Bella",
+      "lastName": "Johnson",
+      "dob": "1985-01-25",
+      "city": "Hue",
+      "departmentName": "Engineering",
+      "positionTitle": "Technical Project Manager",
+      "roleName": "PROJECT_MANAGER",
+      "phoneNumber": "+84956789024",
+      "skills": [
+        {
+          "skillName": "Technical Leadership",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 10,
+          "lastUsed": "2025-10-13"
+        },
+        {
+          "skillName": "Software Architecture",
+          "skillType": "FRAMEWORK",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 11,
+          "lastUsed": "2025-10-12"
+        },
+        {
+          "skillName": "Vendor Management",
+          "skillType": "TOOL",
+          "proficiencyLevel": "ADVANCED",
+          "yearsOfExperience": 7,
+          "lastUsed": "2025-10-13"
+        },
+        {
+          "skillName": "Technology Roadmap",
+          "skillType": "TOOL",
+          "proficiencyLevel": "EXPERT",
+          "yearsOfExperience": 8,
+          "lastUsed": "2025-10-11"
+        }
+      ],
+      "availabilityStatus": "BUSY"
+    }
+  ]
+}

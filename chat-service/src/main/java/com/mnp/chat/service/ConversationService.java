@@ -44,7 +44,7 @@ public class ConversationService {
     ChatMessageRepository chatMessageRepository;
     ChatMessageService chatMessageService;
     ProfileClient profileClient;
-    ChatNotificationService chatNotificationService;
+//    ChatNotificationService chatNotificationService;
 
     ObjectMapper objectMapper; // Add ObjectMapper for JSON parsing
 
@@ -174,12 +174,12 @@ public class ConversationService {
                     continue;
                 }
 
-                // Skip basic system messages that shouldn't count toward unread
-                if ("SYSTEM".equals(message.getType())
-                        && (message.getMessage().contains("Let's start chat")
-                                || message.getMessage().contains("start chat conversation"))) {
-                    continue;
-                }
+//                // Skip basic system messages that shouldn't count toward unread
+//                if ("SYSTEM".equals(message.getType())
+//                        && (message.getMessage().contains("Let's start chat")
+//                                || message.getMessage().contains("start chat conversation"))) {
+//                    continue;
+//                }
 
                 // Skip messages sent by the current user (they auto-read their own messages)
                 if (message.getSender() != null
@@ -198,14 +198,14 @@ public class ConversationService {
                 // If user hasn't read it, count it as unread
                 if (!userHasRead) {
                     unreadCount++;
-                    log.info(
-                            "🔍 Unread message found (after last addition): id={}, type={}, createdDate={}, message='{}'",
-                            message.getId(),
-                            message.getType(),
-                            message.getCreatedDate(),
-                            message.getMessage()
-                                    .substring(
-                                            0, Math.min(30, message.getMessage().length())));
+//                    log.info(
+//                            "🔍 Unread message found (after last addition): id={}, type={}, createdDate={}, message='{}'",
+//                            message.getId(),
+//                            message.getType(),
+//                            message.getCreatedDate(),
+//                            message.getMessage()
+//                                    .substring(
+//                                            0, Math.min(30, message.getMessage().length())));
                 }
             }
         } else {
@@ -350,12 +350,6 @@ public class ConversationService {
                 .build();
     }
 
-    //    public ConversationResponse addMembersToGroup(String conversationId, AddParticipantsRequest
-    // addParticipantsRequest) {
-    //        String userId = SecurityContextHolder.getContext().getAuthentication().getName();
-    //        return addMembersToGroup(conversationId, addParticipantsRequest, userId);
-    //    }
-
     public ConversationResponse addMembersToGroup(
             String conversationId, AddParticipantsRequest addParticipantsRequest, String userId) {
         Conversation conversation = conversationRepository
@@ -435,10 +429,10 @@ public class ConversationService {
 
         // Send notifications to newly added members
         String addedByName = getParticipantName(conversation.getParticipants(), userId);
-        for (ParticipantInfo newParticipant : newParticipants) {
-            chatNotificationService.notifyUserAddedToGroup(
-                    conversation.getGroupName(), conversation.getId(), newParticipant, addedByName);
-        }
+//        for (ParticipantInfo newParticipant : newParticipants) {
+//            chatNotificationService.notifyUserAddedToGroup(
+//                    conversation.getGroupName(), conversation.getId(), newParticipant, addedByName);
+//        }
 
         // Convert to ConversationResponse
         return toConversationResponse(updatedConversation, userId);
@@ -759,12 +753,20 @@ public class ConversationService {
         }
 
         var userInfo = profileResponse.getResult();
+        var user = userInfo.getUser();
+
+        // Extract complete user profile data including department, position, and role information
         ParticipantInfo newParticipant = ParticipantInfo.builder()
                 .userId(userInfo.getUserId())
-                .username(userInfo.getUser().getUsername())
-                .firstName(userInfo.getUser().getFirstName())
-                .lastName(userInfo.getUser().getLastName())
+                .username(user.getUsername())
+                .firstName(user.getFirstName())
+                .lastName(user.getLastName())
                 .avatar(userInfo.getAvatar())
+                // Add the missing profile fields
+                .departmentName(user.getDepartmentName())
+                .positionTitle(user.getPositionTitle())
+                .seniorityLevel(user.getSeniorityLevel())
+                .roleName(user.getRoleName())
                 .build();
 
         // Add the new participant
@@ -776,8 +778,7 @@ public class ConversationService {
         // Send system message about the new member
         ChatMessage addMemberMessage = ChatMessage.builder()
                 .conversationId(updatedGroup.getId())
-                .message(userInfo.getUser().getFirstName() + " "
-                        + userInfo.getUser().getLastName() + " has been added to the project group.")
+                .message(user.getFirstName() + " " + user.getLastName() + " has been added to the project group.")
                 .type("SYSTEM_ADD_MEMBERS")
                 .sender(null)
                 .createdDate(Instant.now())
@@ -787,12 +788,12 @@ public class ConversationService {
 
         // Send project-specific notification to the newly added user
         String projectManagerName = getParticipantName(projectGroup.getParticipants(), projectGroup.getCreatedBy());
-        chatNotificationService.notifyUserAddedToProjectGroup(
-                extractProjectNameFromGroupName(projectGroup.getGroupName()),
-                projectId,
-                updatedGroup.getId(),
-                newParticipant,
-                projectManagerName);
+//        chatNotificationService.notifyUserAddedToProjectGroup(
+//                extractProjectNameFromGroupName(projectGroup.getGroupName()),
+//                projectId,
+//                updatedGroup.getId(),
+//                newParticipant,
+//                projectManagerName);
 
         log.info("User {} added successfully to project group: {}", userId, projectId);
         return toConversationResponse(updatedGroup, userId);
@@ -874,5 +875,40 @@ public class ConversationService {
         return projectGroup.get().getParticipants().stream()
                 .map(ParticipantInfo::getUserId)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Find project conversations by project name for internal integration
+     */
+    public List<ConversationResponse> findProjectConversations(String projectName) {
+        log.info("Finding project conversations for project: {}", projectName);
+
+        // Find group conversations that contain the project name
+        List<Conversation> conversations = conversationRepository.findByTypeAndGroupNameContaining("GROUP", projectName);
+
+        return conversations.stream()
+            .map(conversation -> toConversationResponse(conversation, "SYSTEM"))
+            .collect(Collectors.toList());
+    }
+
+    /**
+     * Check if user is already a member of the project group
+     */
+    public boolean isUserInProjectGroup(String projectId, String userId) {
+        log.info("Checking if user {} is in project group for project: {}", userId, projectId);
+
+        String projectGroupHash = "PROJECT_" + projectId;
+        Optional<Conversation> projectGroup = conversationRepository.findByParticipantsHash(projectGroupHash);
+
+        if (projectGroup.isEmpty()) {
+            log.info("Project group not found for project: {}", projectId);
+            return false;
+        }
+
+        boolean isAlreadyMember = projectGroup.get().getParticipants().stream()
+                .anyMatch(participant -> participant.getUserId().equals(userId));
+
+        log.info("User {} membership in project {}: {}", userId, projectId, isAlreadyMember);
+        return isAlreadyMember;
     }
 }

@@ -10,6 +10,10 @@ spring:
     authentication:
       username: neo4j
       password: 12345678
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 15MB
 logging:
   level:
     org.springframework.data.neo4j.cypher.deprecation: ERROR

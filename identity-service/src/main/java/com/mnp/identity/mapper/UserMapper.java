@@ -21,7 +21,7 @@ public interface UserMapper {
     @Mapping(target = "isActive", constant = "true")
     @Mapping(target = "online", constant = "false")
     @Mapping(target = "lastLogin", ignore = true)
-    @Mapping(target = "performanceScore", ignore = true)
+    @Mapping(target = "performanceScore", constant = "70.0")
     User toUser(UserCreationRequest request);
 
     @Mapping(

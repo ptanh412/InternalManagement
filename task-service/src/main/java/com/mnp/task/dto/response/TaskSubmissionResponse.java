@@ -1,10 +1,12 @@
 package com.mnp.task.dto.response;
 
+import com.mnp.task.dto.request.TaskSubmissionRequest;
 import com.mnp.task.enums.SubmissionStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Data
 @Builder
@@ -14,15 +16,17 @@ import java.time.LocalDateTime;
 public class TaskSubmissionResponse {
     String id;
     String taskId;
-    String taskTitle; // For better UX
     String submittedBy;
-    String submittedByName; // For better UX
     String description;
-    String attachmentUrl;
+    List<TaskSubmissionRequest.AttachmentInfo> attachments;
+
     SubmissionStatus status;
     String reviewComments;
     String reviewedBy;
-    String reviewedByName; // For better UX
     LocalDateTime reviewedAt;
     LocalDateTime submittedAt;
+
+    // New fields for project and team lead information
+    String projectName;
+    String teamLeadName;
 }

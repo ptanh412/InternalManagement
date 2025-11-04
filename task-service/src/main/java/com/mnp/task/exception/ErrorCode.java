@@ -36,7 +36,10 @@ public enum ErrorCode {
 
     // Task related errors
     TASK_NOT_FOUND(1020, "Task not found", HttpStatus.NOT_FOUND),
-
+    TASK_ALREADY_SUBMITTED(1021, "Task already submitted", HttpStatus.BAD_REQUEST),
+    INVALID_ATTACHMENT(1022, "Invalid attachment", HttpStatus.BAD_REQUEST),
+    CANNOT_EDIT_SUBMISSION(1023, "Cannot edit submission with current status", HttpStatus.BAD_REQUEST),
+    CANNOT_EDIT_REVIEW(1024, "Cannot edit review for pending submission", HttpStatus.BAD_REQUEST),
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

@@ -29,4 +29,5 @@ public class AuthenticationRequestInterceptor implements RequestInterceptor {
             log.warn("Failed to get authentication header: {}", e.getMessage());
         }
     }
+
 }

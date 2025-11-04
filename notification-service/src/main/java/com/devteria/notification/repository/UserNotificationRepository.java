@@ -40,4 +40,9 @@ public interface UserNotificationRepository extends MongoRepository<UserNotifica
     // Get recent notifications for a user (last N days)
     List<UserNotification> findByUserIdAndCreatedAtGreaterThanEqualOrderByCreatedAtDesc(
             String userId, LocalDateTime since);
+
+    // Check for duplicate notifications based on user, type, and project data
+    @Query("{ 'userId': ?0, 'type': ?1, 'data.projectId': ?2, 'createdAt': { '$gte': ?3 } }")
+    List<UserNotification> findRecentNotificationsByUserTypeAndProject(
+            String userId, String type, String projectId, LocalDateTime since);
 }

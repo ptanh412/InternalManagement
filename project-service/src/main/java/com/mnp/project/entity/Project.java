@@ -10,7 +10,6 @@ import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 @Getter
@@ -50,11 +49,6 @@ public class Project {
     Integer totalTasks = 0;
     Integer completedTasks = 0;
     Double completionPercentage = 0.0;
-
-    @ElementCollection
-    @CollectionTable(name = "project_required_skills", joinColumns = @JoinColumn(name = "project_id"))
-    @Column(name = "skill")
-    List<String> requiredSkills;
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "JSON")

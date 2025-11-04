@@ -103,6 +103,7 @@ public class UserProfileService {
     }
 
     public UserProfileResponse updateMyProfile(UpdateProfileRequest request) {
+        log.info("Updating my profile: {} ", request.getAvatar());
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         String userId = authentication.getName();
 
@@ -113,7 +114,15 @@ public class UserProfileService {
         userProfileMapper.update(profile, request);
         profile.onUpdate(); // Update timestamp
 
-        return buildUserProfileResponse(userProfileRepository.save(profile));
+        log.info("Profile before save - avatar: {}, updatedAt: {}",
+                profile.getAvatar(), profile.getUpdatedAt());
+
+        UserProfile savedProfile = userProfileRepository.save(profile);
+
+        log.info("Profile after save - avatar: {}", savedProfile.getAvatar());
+
+
+        return buildUserProfileResponse(savedProfile);
     }
 
     public UserProfileResponse updateAvatar(MultipartFile file) {

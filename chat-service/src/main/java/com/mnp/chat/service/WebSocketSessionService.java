@@ -21,6 +21,13 @@ public class WebSocketSessionService {
     WebSocketSessionRepository webSocketSessionRepository;
 
     public WebSocketSession create(WebSocketSession webSocketSession) {
+        // Clean up any existing sessions with the same socket session ID to prevent duplicates
+        String socketSessionId = webSocketSession.getSocketSessionId();
+        deleteSession(socketSessionId);
+        
+        log.info("Creating new WebSocket session for user: {} with socket ID: {}", 
+                webSocketSession.getUserId(), socketSessionId);
+        
         return webSocketSessionRepository.save(webSocketSession);
     }
 
@@ -84,5 +91,28 @@ public class WebSocketSessionService {
 
     public Optional<WebSocketSession> getSessionBySocketId(String socketSessionId) {
         return webSocketSessionRepository.findBySocketSessionId(socketSessionId);
+    }
+
+    /**
+     * Clean up stale sessions that are older than the specified duration
+     * This helps prevent accumulation of dead sessions in the database
+     */
+    public void cleanupStaleSessions(int hoursOld) {
+        Instant cutoff = Instant.now().minusSeconds(hoursOld * 3600L);
+        
+        // Find sessions older than cutoff that haven't been active recently
+        var allSessions = webSocketSessionRepository.findAll();
+        var staleSessions = allSessions.stream()
+                .filter(session -> session.getCreatedAt().isBefore(cutoff))
+                .filter(session -> session.getLastActivityAt() == null || session.getLastActivityAt().isBefore(cutoff))
+                .toList();
+                
+        if (!staleSessions.isEmpty()) {
+            log.info("Cleaning up {} stale WebSocket sessions older than {} hours", 
+                    staleSessions.size(), hoursOld);
+            
+            staleSessions.forEach(session -> 
+                webSocketSessionRepository.deleteBySocketSessionId(session.getSocketSessionId()));
+        }
     }
 }

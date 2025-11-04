@@ -14,18 +14,33 @@ import lombok.experimental.FieldDefaults;
 public class UserResponse {
     String id;
     String username;
+    String email;
+    boolean emailVerified;
     String firstName;
     String lastName;
-    String email;
     String employeeId;
-    String departmentName;
+    String phoneNumber;
+    Double performanceScore;
+    
+    // Role information
     String roleName;
     String roleDescription;
+    
+    // Department information
+    String departmentName;
+    
+    // Position information
     String positionTitle;
     String seniorityLevel;
-    Boolean isActive;
-    Boolean emailVerified;
-    Boolean online;
+    
+    // Status and timestamps
+    boolean isActive;
+    boolean online;
+    LocalDateTime lastLogin;
+    LocalDateTime createdAt;
+    LocalDateTime updatedAt;
+    
+    // Legacy fields for backward compatibility
     LocalDateTime createdDate;
     LocalDateTime lastModifiedDate;
 }

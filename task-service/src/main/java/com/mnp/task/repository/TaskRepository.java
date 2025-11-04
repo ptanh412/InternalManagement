@@ -40,6 +40,10 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     @Query("SELECT t FROM Task t WHERE t.dueDate <= :now AND t.status NOT IN ('DONE', 'CANCELLED') AND t.assignedTo IS NOT NULL")
     List<Task> findOverdueTasks(@Param("now") LocalDateTime now);
 
+    // Method for finding tasks by assignee or creator (for performance metrics)
+    @Query("SELECT t FROM Task t WHERE t.assignedTo = :userId OR t.createdBy = :userId")
+    List<Task> findByAssignedToOrCreatedBy(@Param("userId") String assignedTo, @Param("userId") String createdBy);
+
     // Convenience method that will be called from service
     default List<Task> findTasksDueWithin24Hours() {
         LocalDateTime now = LocalDateTime.now();
