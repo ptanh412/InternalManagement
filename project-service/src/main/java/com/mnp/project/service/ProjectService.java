@@ -201,7 +201,7 @@ public class ProjectService {
                 .completedTasks(project.getCompletedTasks())
                 .pendingTasks(project.getTotalTasks() - project.getCompletedTasks())
                 .lastUpdated(project.getUpdatedAt())
-                .isOnTrack(isProjectOnTrack(project))
+                .isOnSchedule(isProjectOnTrack(project))
                 .daysRemaining(calculateDaysRemaining(project))
                 .build();
     }

@@ -217,8 +217,8 @@ const NotificationDropdown = ({
               </span>
             )}
             {/* Connection Status */}
-            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-              isConnected 
+            {/* <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+              isConnected   
                 ? 'bg-green-100 text-green-800' 
                 : 'bg-red-100 text-red-800'
             }`}>
@@ -226,7 +226,7 @@ const NotificationDropdown = ({
                 isConnected ? 'bg-green-600' : 'bg-red-600'
               }`}></span>
               {isConnected ? 'Live' : 'Offline'}
-            </span>
+            </span> */}
           </div>
           {totalUnreadCount > 0 && (
             <button

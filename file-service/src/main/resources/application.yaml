@@ -14,5 +14,5 @@ spring:
       max-request-size: 15MB
 app:
   file:
-    storage-dir: ${user.home}/Documents/uploads
+    storage-dir: /Users/phamanh/uploads
     download-prefix: http://localhost:8888/api/v1/file/media/download/

@@ -55,7 +55,6 @@ public class PerformanceCalculationService {
             metrics.getCompletedTasks(),
             metrics.getAverageQualityRating(),
             metrics.getOnTimeCompletionRate(),
-            metrics.getAverageTaskDuration(),
             metrics.getEstimatedActualRatio()
         );
 
@@ -76,7 +75,7 @@ public class PerformanceCalculationService {
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         // Get current performance score or initialize if null
-        Double currentScore = user.getPerformanceScore() != null ? user.getPerformanceScore() : 70.0;
+        double currentScore = user.getPerformanceScore() != null ? user.getPerformanceScore() : 70.0;
 
         // Calculate score impact based on task performance
         double scoreImpact = calculateTaskScoreImpact(
@@ -110,7 +109,6 @@ public class PerformanceCalculationService {
             int completedTasks, 
             Double averageQualityRating,
             Double onTimeCompletionRate,
-            Double averageTaskDuration,
             Double estimatedActualRatio) {
 
         if (totalTasks == 0) {
@@ -143,11 +141,11 @@ public class PerformanceCalculationService {
      * Calculate score impact for a single task review
      */
     private double calculateTaskScoreImpact(
-            Integer qualityRating,
-            boolean completedOnTime,
-            String taskComplexity,
-            Integer estimatedHours,
-            Integer actualHours) {
+            Integer qualityRating, // 4 x 20 = 80
+            boolean completedOnTime, // true = 90
+            String taskComplexity, // high
+            Integer estimatedHours, //32
+            Integer actualHours) { // 12
 
         // Base score components
         double qualityComponent = qualityRating != null ? (qualityRating * 20.0) : 70.0; // 1-5 rating * 20
@@ -156,9 +154,9 @@ public class PerformanceCalculationService {
         // Efficiency component based on estimated vs actual hours
         double efficiencyComponent = 70.0; // default
         if (estimatedHours != null && actualHours != null && estimatedHours > 0) {
-            double ratio = (double) actualHours / estimatedHours;
+            double ratio = (double) actualHours / estimatedHours; // 0.375
             if (ratio <= 1.0) {
-                efficiencyComponent = 100.0 - (ratio * 10.0); // Bonus for completing under estimate
+                efficiencyComponent = 100.0 - (ratio * 10.0); // Bonus for completing under estimate /100 96.25
             } else if (ratio <= 1.5) {
                 efficiencyComponent = 90.0 - ((ratio - 1.0) * 40.0); // Moderate penalty
             } else {
@@ -167,7 +165,7 @@ public class PerformanceCalculationService {
         }
 
         // Complexity bonus/adjustment
-        double complexityMultiplier = getComplexityMultiplier(taskComplexity);
+        double complexityMultiplier = getComplexityMultiplier(taskComplexity); //1.1
 
         // Calculate weighted task score
         double taskScore = (qualityComponent * 0.4) + 
@@ -262,6 +260,33 @@ public class PerformanceCalculationService {
             log.error("Failed to fetch task metrics for user: {}", userId, e);
         }
 
+        // Calculate derived metrics from available data
+        Double qualityScore = null;
+        Double timelinessScore = null;
+        Double completionRate = null;
+        Double efficiencyScore = null;
+        Integer totalTasksAssigned = 0;
+        Integer totalTasksCompleted = 0;
+        Integer totalTasksOnTime = 0;
+        Double averageQualityRating = null;
+
+        if (taskMetrics != null) {
+            totalTasksAssigned = taskMetrics.getTotalTasks();
+            totalTasksCompleted = taskMetrics.getCompletedTasks();
+            averageQualityRating = taskMetrics.getAverageQualityRating();
+
+            // Calculate derived scores
+            qualityScore = calculateQualityScore(taskMetrics.getAverageQualityRating());
+            timelinessScore = calculateTimelinessScore(taskMetrics.getOnTimeCompletionRate());
+            completionRate = taskMetrics.getTotalTasks() > 0
+                ? (taskMetrics.getCompletedTasks() * 100.0) / taskMetrics.getTotalTasks()
+                : null;
+            efficiencyScore = calculateEfficiencyScore(taskMetrics.getEstimatedActualRatio());
+            totalTasksOnTime = taskMetrics.getOnTimeCompletionRate() != null
+                ? (int) (taskMetrics.getCompletedTasks() * taskMetrics.getOnTimeCompletionRate())
+                : 0;
+        }
+
         // Calculate performance categories and insights
         String performanceCategory = calculatePerformanceCategory(user.getPerformanceScore());
         String[] strengthAreas = identifyStrengthAreas(taskMetrics);
@@ -272,17 +297,17 @@ public class PerformanceCalculationService {
                 .userName(user.getFirstName() + " " + user.getLastName())
                 .userEmail(user.getEmail())
                 .performanceScore(user.getPerformanceScore())
-                .qualityScore(taskMetrics != null ? taskMetrics.getAverageQualityRating() : null)
-                .timelinessScore(taskMetrics != null ? taskMetrics.getTimelinessScore() : null)
-                .completionRate(taskMetrics != null ? taskMetrics.getCompletionRate() : null)
-                .efficiencyScore(taskMetrics != null ? taskMetrics.getEfficiencyScore() : null)
-                .totalTasksAssigned(taskMetrics != null ? taskMetrics.getTotalTasksAssigned() : 0)
-                .totalTasksCompleted(taskMetrics != null ? taskMetrics.getTotalTasksCompleted() : 0)
-                .totalTasksOnTime(taskMetrics != null ? taskMetrics.getTasksCompletedOnTime() : 0)
-                .totalEstimatedHours(taskMetrics != null ? taskMetrics.getTotalEstimatedHours() : 0.0)
-                .totalActualHours(taskMetrics != null ? taskMetrics.getTotalActualHours() : 0.0)
-                .averageQualityRating(taskMetrics != null ? taskMetrics.getAverageQualityRating() : null)
-                .lastPerformanceUpdate(user.getLastPerformanceUpdate())
+                .qualityScore(qualityScore)
+                .timelinessScore(timelinessScore)
+                .completionRate(completionRate)
+                .efficiencyScore(efficiencyScore)
+                .totalTasksAssigned(totalTasksAssigned)
+                .totalTasksCompleted(totalTasksCompleted)
+                .totalTasksOnTime(totalTasksOnTime)
+                .totalEstimatedHours(null) // Not available in current TaskMetricsResponse
+                .totalActualHours(null) // Not available in current TaskMetricsResponse
+                .averageQualityRating(averageQualityRating)
+                .lastPerformanceUpdate(user.getUpdatedAt()) // Use updatedAt as proxy for lastPerformanceUpdate
                 .lastCalculated(LocalDateTime.now())
                 .performanceCategory(performanceCategory)
                 .strengthAreas(strengthAreas)
@@ -307,13 +332,14 @@ public class PerformanceCalculationService {
         if (metrics.getAverageQualityRating() != null && metrics.getAverageQualityRating() >= 4.0) {
             strengths.add("High Quality Work");
         }
-        if (metrics.getTimelinessScore() != null && metrics.getTimelinessScore() >= 85.0) {
+        if (metrics.getOnTimeCompletionRate() != null && metrics.getOnTimeCompletionRate() >= 0.85) {
             strengths.add("Meeting Deadlines");
         }
-        if (metrics.getCompletionRate() != null && metrics.getCompletionRate() >= 90.0) {
+        if (metrics.getTotalTasks() > 0 &&
+            ((double) metrics.getCompletedTasks() / metrics.getTotalTasks()) >= 0.90) {
             strengths.add("Task Completion");
         }
-        if (metrics.getEfficiencyScore() != null && metrics.getEfficiencyScore() >= 100.0) {
+        if (metrics.getEstimatedActualRatio() != null && metrics.getEstimatedActualRatio() <= 1.0) {
             strengths.add("Time Management");
         }
         return strengths.toArray(new String[0]);
@@ -326,13 +352,14 @@ public class PerformanceCalculationService {
         if (metrics.getAverageQualityRating() != null && metrics.getAverageQualityRating() < 3.5) {
             improvements.add("Work Quality");
         }
-        if (metrics.getTimelinessScore() != null && metrics.getTimelinessScore() < 70.0) {
+        if (metrics.getOnTimeCompletionRate() != null && metrics.getOnTimeCompletionRate() < 0.70) {
             improvements.add("Deadline Management");
         }
-        if (metrics.getCompletionRate() != null && metrics.getCompletionRate() < 80.0) {
+        if (metrics.getTotalTasks() > 0 &&
+            ((double) metrics.getCompletedTasks() / metrics.getTotalTasks()) < 0.80) {
             improvements.add("Task Follow-through");
         }
-        if (metrics.getEfficiencyScore() != null && metrics.getEfficiencyScore() < 80.0) {
+        if (metrics.getEstimatedActualRatio() != null && metrics.getEstimatedActualRatio() > 1.5) {
             improvements.add("Time Efficiency");
         }
         return improvements.toArray(new String[0]);

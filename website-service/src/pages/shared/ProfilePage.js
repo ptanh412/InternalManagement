@@ -22,6 +22,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth';
 import { apiService } from '../../services/apiService';
+import { useNotification } from '../../contexts/NotificationContext';
 
 
 const ProfilePage = () => {
@@ -32,6 +33,7 @@ const ProfilePage = () => {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const { success, error, warning, info } = useNotification();
 
   // Profile data from profile service
   const [profileData, setProfileData] = useState({
@@ -281,19 +283,19 @@ const ProfilePage = () => {
   const handleChangePassword = async () => {
     // Validate passwords match
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('New password and confirm password do not match');
+      warning('New password and confirmation do not match');
       return;
     }
 
     // Validate password length
     if (passwordData.newPassword.length < 8) {
-      alert('New password must be at least 8 characters long');
+      warning('New password must be at least 8 characters long');
       return;
     }
 
     // Validate all fields are filled
     if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
-      alert('Please fill in all password fields');
+      warning('Please fill in all password fields');
       return;
     }
 
@@ -314,16 +316,16 @@ const ProfilePage = () => {
         confirmPassword: ''
       });
 
-      alert('Password changed successfully!');
+      success('Password changed successfully!');
 
     } catch (error) {
       console.error('Error changing password:', error);
 
       // Handle specific error messages from backend
       if (error.response?.data?.message) {
-        alert(`Error: ${error.response.data.message}`);
+        error(`Error: ${error.response.data.message}`);
       } else {
-        alert('Failed to change password. Please try again.');
+        error('Failed to change password. Please try again.');
       }
     } finally {
       setSaving(false);
@@ -356,7 +358,7 @@ const ProfilePage = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Profile Card */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-white/20 backdrop-blur-sm animate-slideInFromLeft">
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-white/20 backdrop-blur-sm animate-slideInFromLeft lg:sticky lg:top-8">
               {/* Cover Image */}
               <div className="h-32 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 relative">
                 <div className="absolute inset-0 bg-black/10"></div>

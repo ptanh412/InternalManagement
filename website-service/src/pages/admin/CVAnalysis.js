@@ -525,24 +525,24 @@ const CVAnalysis = () => {
     const profile = editingResult.userProfile;
 
     const updateProfile = (field, value) => {
-      setEditingResult({
-        ...editingResult,
+      setEditingResult((prev) => ({
+        ...prev,
         userProfile: {
-          ...editingResult.userProfile,
+          ...prev.userProfile,
           [field]: value
         }
-      });
+      }));
     };
 
     const updateBusinessMapping = (field, value) => {
-    setEditingResult({
-      ...editingResult,
-      businessMappings: {
-        ...editingResult.businessMappings,
-        [field]: value
-      }
-    });
-  };
+      setEditingResult((prev) => ({
+        ...prev,
+        businessMappings: {
+          ...prev.businessMappings,
+          [field]: value
+        }
+      }));
+    };
 
   
   const convertToUserCreationRequest = (cvAnalysisResult) => {

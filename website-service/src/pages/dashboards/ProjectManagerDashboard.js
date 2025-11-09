@@ -840,7 +840,7 @@ const ProjectManagerDashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-8">
+        {/* <div className="mt-8">
           <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">
               Quick Actions
@@ -890,7 +890,7 @@ const ProjectManagerDashboard = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

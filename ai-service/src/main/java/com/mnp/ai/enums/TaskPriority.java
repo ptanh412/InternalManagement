@@ -1,8 +1,11 @@
 package com.mnp.ai.enums;
 
+/**
+ * Task priority levels - aligned with task-service
+ */
 public enum TaskPriority {
-    HIGH,
-    MEDIUM,
     LOW,
-    CRITICAL
+    MEDIUM,
+    HIGH,
+    URGENT
 }

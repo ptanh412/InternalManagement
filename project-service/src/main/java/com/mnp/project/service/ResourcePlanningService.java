@@ -222,7 +222,7 @@ public class ResourcePlanningService {
 
         while (!current.isAfter(end)) {
             // Calculate resource needs per month (can vary based on project phases)
-            int monthIndex = (int) current.until(end).toTotalMonths();
+            int monthIndex = (int) YearMonth.from(requirements.startDate).until(current, java.time.temporal.ChronoUnit.MONTHS);
             int plannedResources = calculateMonthlyResourceNeed(monthIndex, requirements);
             double monthlyBudget = requirements.totalBudget / 6; // Distribute evenly
 

@@ -280,7 +280,7 @@ const Dashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <div className="mt-8">
+        {/* <div className="mt-8">
           <div className="card p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">
               Quick Actions
@@ -304,7 +304,7 @@ const Dashboard = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div> */}
       </div>
     </div>
   );

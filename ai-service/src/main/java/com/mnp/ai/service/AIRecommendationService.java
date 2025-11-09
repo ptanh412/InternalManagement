@@ -43,6 +43,16 @@ public class AIRecommendationService {
                 return List.of();
             }
 
+            // Filter candidates based on task creator's role (same logic as GeminiAI)
+            List<UserProfile> filteredCandidates = filterCandidatesByCreatorRole(taskProfile, candidates);
+            if (filteredCandidates.isEmpty()) {
+                log.warn("No suitable candidates found after role filtering for task: {}", taskId);
+                return List.of();
+            }
+            
+            log.info("Filtered to {} candidates based on creator role (from {} total)", 
+                     filteredCandidates.size(), candidates.size());
+
             // Check if task has HIGH or CRITICAL priority for enhanced AI analysis
             String priority = taskProfile.getPriority();
             boolean useGeminiAI = "HIGH".equalsIgnoreCase(priority) || "CRITICAL".equalsIgnoreCase(priority) ||
@@ -54,26 +64,27 @@ public class AIRecommendationService {
                 log.info("Using Gemini AI for enhanced recommendations due to {} priority task", priority);
                 try {
                     // Use Gemini AI for intelligent analysis and team lead prioritization
-                    recommendations = geminiRecommendationService.generateGeminiRecommendations(taskProfile, candidates);
+                    // GeminiAI will apply its own filtering, but we pass filtered candidates for consistency
+                    recommendations = geminiRecommendationService.generateGeminiRecommendations(taskProfile, filteredCandidates);
 
                     // If Gemini recommendations are successful, enhance with hybrid scores for comparison
-                    recommendations = enhanceWithHybridScores(recommendations, taskProfile, candidates);
+                    recommendations = enhanceWithHybridScores(recommendations, taskProfile, filteredCandidates);
 
                 } catch (Exception e) {
                     log.warn("Gemini AI recommendations failed, falling back to hybrid algorithm: {}", e.getMessage());
-                    recommendations = hybridRecommendationAlgorithm.generateRecommendations(taskProfile, candidates);
-                    recommendations = applyBasicTeamLeadPrioritization(recommendations, taskProfile, candidates);
+                    recommendations = hybridRecommendationAlgorithm.generateRecommendations(taskProfile, filteredCandidates);
+                    recommendations = applyBasicTeamLeadPrioritization(recommendations, taskProfile, filteredCandidates);
                 }
             } else {
                 // Use standard hybrid algorithm for regular priority tasks
                 log.info("Using hybrid algorithm for standard priority task");
-                recommendations = hybridRecommendationAlgorithm.generateRecommendations(taskProfile, candidates);
+                recommendations = hybridRecommendationAlgorithm.generateRecommendations(taskProfile, filteredCandidates);
                 // Still apply team lead logic for HIGH/CRITICAL priority
-                recommendations = applyBasicTeamLeadPrioritization(recommendations, taskProfile, candidates);
+                recommendations = applyBasicTeamLeadPrioritization(recommendations, taskProfile, filteredCandidates);
             }
 
             // Clean up and ensure all fields have proper values
-            recommendations = cleanupRecommendations(recommendations, taskProfile, candidates);
+            recommendations = cleanupRecommendations(recommendations, taskProfile, filteredCandidates);
 
             log.info("Generated {} recommendations for task: {}", recommendations.size(), taskId);
             return recommendations;
@@ -82,6 +93,66 @@ public class AIRecommendationService {
             log.error("Error generating recommendations for task: {}", taskId, e);
             throw new RuntimeException("Failed to generate recommendations", e);
         }
+    }
+
+    /**
+     * Filter candidates based on task creator's role
+     * If task is created by TEAM_LEAD, only recommend EMPLOYEE role candidates
+     */
+    private List<UserProfile> filterCandidatesByCreatorRole(TaskProfile task, List<UserProfile> candidates) {
+        // Get creator's profile to check their role
+        String creatorId = task.getCreatedBy();
+        if (creatorId == null || creatorId.isEmpty()) {
+            log.debug("No creator ID found, returning all candidates");
+            return candidates;
+        }
+
+        // Find creator in candidates list or assume they are a team lead if not in list
+        UserProfile creator = candidates.stream()
+                .filter(c -> c.getUserId().equals(creatorId))
+                .findFirst()
+                .orElse(null);
+
+        boolean creatorIsTeamLead = false;
+        if (creator != null) {
+            String role = creator.getRole();
+            creatorIsTeamLead = role != null &&
+                (role.toUpperCase().contains("TEAM_LEAD") ||
+                 role.toUpperCase().contains("MANAGER") ||
+                 role.toUpperCase().contains("LEAD"));
+        } else {
+            // If creator not in candidates list, check if they might be a team lead
+            // by querying the data service or assuming based on context
+            log.debug("Creator {} not found in candidates list, checking role from task context", creatorId);
+            // For safety, we'll assume they might be a team lead to apply filtering
+            creatorIsTeamLead = true;
+        }
+
+        // If creator is team lead, filter to only EMPLOYEE role candidates
+        if (creatorIsTeamLead) {
+            log.info("Creator is TEAM_LEAD, filtering candidates to EMPLOYEE role only");
+            List<UserProfile> filtered = candidates.stream()
+                .filter(candidate -> {
+                    String role = candidate.getRole();
+                    if (role == null) return false;
+                    
+                    String roleUpper = role.toUpperCase();
+                    // Include only EMPLOYEE role, exclude TEAM_LEAD, MANAGER, LEAD, ADMIN
+                    return roleUpper.contains("EMPLOYEE") && 
+                           !roleUpper.contains("TEAM_LEAD") &&
+                           !roleUpper.contains("MANAGER") &&
+                           !roleUpper.contains("LEAD") &&
+                           !roleUpper.contains("ADMIN");
+                })
+                .collect(java.util.stream.Collectors.toList());
+            
+            log.info("Filtered from {} to {} EMPLOYEE candidates", candidates.size(), filtered.size());
+            return filtered;
+        }
+
+        // For non-team-lead creators, return all candidates
+        log.debug("Creator is not TEAM_LEAD, returning all candidates");
+        return candidates;
     }
 
     /**
@@ -608,16 +679,26 @@ public class AIRecommendationService {
             TaskProfile taskProfile = dataIntegrationService.getTaskProfile(taskId);
             List<UserProfile> emergencyCandidates = dataIntegrationService.getEmergencyCandidates(taskProfile);
 
+            // Filter candidates based on task creator's role (same as main flow)
+            List<UserProfile> filteredCandidates = filterCandidatesByCreatorRole(taskProfile, emergencyCandidates);
+            if (filteredCandidates.isEmpty()) {
+                log.warn("No suitable emergency candidates found after role filtering for task: {}", taskId);
+                return List.of();
+            }
+            
+            log.info("Filtered emergency candidates to {} (from {} total)", 
+                     filteredCandidates.size(), emergencyCandidates.size());
+
             // Always use Gemini AI for emergency tasks
             try {
                 List<AssignmentRecommendation> recommendations =
-                    geminiRecommendationService.generateGeminiRecommendations(taskProfile, emergencyCandidates);
-                return enhanceWithHybridScores(recommendations, taskProfile, emergencyCandidates);
+                    geminiRecommendationService.generateGeminiRecommendations(taskProfile, filteredCandidates);
+                return enhanceWithHybridScores(recommendations, taskProfile, filteredCandidates);
             } catch (Exception e) {
                 log.warn("Gemini AI failed for emergency task, using hybrid fallback: {}", e.getMessage());
                 List<AssignmentRecommendation> recommendations =
-                    hybridRecommendationAlgorithm.generateRecommendations(taskProfile, emergencyCandidates);
-                return applyBasicTeamLeadPrioritization(recommendations, taskProfile, emergencyCandidates);
+                    hybridRecommendationAlgorithm.generateRecommendations(taskProfile, filteredCandidates);
+                return applyBasicTeamLeadPrioritization(recommendations, taskProfile, filteredCandidates);
             }
 
         } catch (Exception e) {
@@ -636,6 +717,16 @@ public class AIRecommendationService {
             TaskProfile taskProfile = dataIntegrationService.getTaskProfile(taskId);
             List<UserProfile> teamCandidates = dataIntegrationService.getTeamBasedCandidates(taskProfile, teamId);
 
+            // Filter candidates based on task creator's role (same as main flow)
+            List<UserProfile> filteredCandidates = filterCandidatesByCreatorRole(taskProfile, teamCandidates);
+            if (filteredCandidates.isEmpty()) {
+                log.warn("No suitable team candidates found after role filtering for task: {} and team: {}", taskId, teamId);
+                return List.of();
+            }
+            
+            log.info("Filtered team candidates to {} (from {} total)", 
+                     filteredCandidates.size(), teamCandidates.size());
+
             // Use Gemini AI for complex or high priority team tasks
             String priority = taskProfile.getPriority();
             boolean useGeminiAI = "HIGH".equalsIgnoreCase(priority) || "CRITICAL".equalsIgnoreCase(priority);
@@ -643,16 +734,16 @@ public class AIRecommendationService {
             if (useGeminiAI) {
                 try {
                     List<AssignmentRecommendation> recommendations =
-                        geminiRecommendationService.generateGeminiRecommendations(taskProfile, teamCandidates);
-                    return enhanceWithHybridScores(recommendations, taskProfile, teamCandidates);
+                        geminiRecommendationService.generateGeminiRecommendations(taskProfile, filteredCandidates);
+                    return enhanceWithHybridScores(recommendations, taskProfile, filteredCandidates);
                 } catch (Exception e) {
                     log.warn("Gemini AI failed for team task, using hybrid fallback: {}", e.getMessage());
                 }
             }
 
             List<AssignmentRecommendation> recommendations =
-                hybridRecommendationAlgorithm.generateRecommendations(taskProfile, teamCandidates);
-            return applyBasicTeamLeadPrioritization(recommendations, taskProfile, teamCandidates);
+                hybridRecommendationAlgorithm.generateRecommendations(taskProfile, filteredCandidates);
+            return applyBasicTeamLeadPrioritization(recommendations, taskProfile, filteredCandidates);
 
         } catch (Exception e) {
             log.error("Error generating team-based recommendations for task: {} and team: {}", taskId, teamId, e);

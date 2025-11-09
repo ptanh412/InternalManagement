@@ -385,6 +385,12 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
       return;
     }
 
+    // Validate: If assignee is selected, due date must be set
+    if (formData.assigneeId && !formData.dueDate) {
+      notify.error('Please select a due date when assigning a task to someone', 'Due Date Required');
+      return;
+    }
+
     setLoading(true);
     try {
       // Prepare update data
@@ -562,20 +568,68 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
                   <span className="ml-2 text-sm text-gray-600">Loading users...</span>
                 </div>
               ) : (
-                <select
-                  id="assigneeId"
-                  name="assigneeId"
-                  value={formData.assigneeId}
-                  onChange={handleInputChange}
-                  className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">Select assignee (optional)</option>
-                  {users.map(user => (
-                    <option key={user.id} value={user.id}>
-                      {user.firstName} {user.lastName} ({user.email})
+                <div className="relative">
+                  <select
+                    id="assigneeId"
+                    name="assigneeId"
+                    value={formData.assigneeId}
+                    onChange={handleInputChange}
+                    className="w-full border border-gray-300 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer hover:border-gray-400 transition-colors"
+                  >
+                    <option value="" className="text-gray-500">
+                      🔍 Select assignee (optional)
                     </option>
-                  ))}
-                </select>
+                    {users.map(user => (
+                      <option key={user.id} value={user.id} className="py-2">
+                        👤 {user.firstName} {user.lastName} • {user.email}
+                      </option>
+                    ))}
+                  </select>
+                  {/* Custom dropdown icon */}
+                  <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                </div>
+              )}
+              
+              {/* Display selected user info */}
+              {formData.assigneeId && users.length > 0 && (
+                <div className="mt-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <div className="h-10 w-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold shadow-md">
+                        {(() => {
+                          const selectedUser = users.find(u => u.id === formData.assigneeId);
+                          return selectedUser ? `${selectedUser.firstName[0]}${selectedUser.lastName[0]}` : '?';
+                        })()}
+                      </div>
+                    </div>
+                    <div className="ml-3 flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {(() => {
+                          const selectedUser = users.find(u => u.id === formData.assigneeId);
+                          return selectedUser ? `${selectedUser.firstName} ${selectedUser.lastName}` : 'Unknown User';
+                        })()}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        {(() => {
+                          const selectedUser = users.find(u => u.id === formData.assigneeId);
+                          return selectedUser?.email || 'No email';
+                        })()}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, assigneeId: '' }))}
+                      className="ml-2 text-gray-400 hover:text-red-600 transition-colors"
+                      title="Remove assignee"
+                    >
+                      <XMarkIcon className="h-5 w-5" />
+                    </button>
+                  </div>
+                </div>
               )}
               
               {/* AI Recommendations Panel */}
@@ -621,15 +675,27 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
             <div>
               <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 mb-2">
                 <CalendarIcon className="h-4 w-4 inline mr-1" />
-                Due Date
+                Due Date {formData.assigneeId && <span className="text-red-600">*</span>}
               </label>
+              {formData.assigneeId && !formData.dueDate && (
+                <div className="mb-2 flex items-center p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+                  <ExclamationTriangleIcon className="h-4 w-4 text-yellow-600 mr-2 flex-shrink-0" />
+                  <span className="text-xs text-yellow-800">
+                    Due date is required when assigning a task to someone
+                  </span>
+                </div>
+              )}
               <input
                 type="datetime-local"
                 id="dueDate"
                 name="dueDate"
                 value={formData.dueDate}
                 onChange={handleInputChange}
-                className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className={`w-full border rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  formData.assigneeId && !formData.dueDate
+                    ? 'border-yellow-400 bg-yellow-50'
+                    : 'border-gray-300'
+                }`}
               />
             </div>
 

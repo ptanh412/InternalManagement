@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component;
 
 @Generated(
     value = "org.mapstruct.ap.MappingProcessor",
-    date = "2025-10-21T11:38:19+0700",
+    date = "2025-11-06T15:40:11+0700",
     comments = "version: 1.5.5.Final, compiler: javac, environment: Java 21.0.8 (Oracle Corporation)"
 )
 @Component
@@ -56,6 +56,9 @@ public class TaskMapperImpl implements TaskMapper {
         TaskResponse.TaskResponseBuilder taskResponse = TaskResponse.builder();
 
         taskResponse.assigneeId( task.getAssignedTo() );
+        taskResponse.startedAt( task.getStartedAt() );
+        taskResponse.completedAt( task.getCompletedAt() );
+        taskResponse.actualHours( task.getActualHours() );
         taskResponse.id( task.getId() );
         taskResponse.title( task.getTitle() );
         taskResponse.projectId( task.getProjectId() );
@@ -68,7 +71,6 @@ public class TaskMapperImpl implements TaskMapper {
         taskResponse.status( task.getStatus() );
         taskResponse.priority( task.getPriority() );
         taskResponse.estimatedHours( task.getEstimatedHours() );
-        taskResponse.actualHours( task.getActualHours() );
         taskResponse.progressPercentage( task.getProgressPercentage() );
         List<String> list = task.getTags();
         if ( list != null ) {

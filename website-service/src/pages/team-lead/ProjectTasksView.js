@@ -326,7 +326,7 @@ const ProjectTasksView = () => {
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-2">
             {/* Search */}
             <div className="relative">
               <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
@@ -373,28 +373,28 @@ const ProjectTasksView = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="flex items-center gap-1 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors whitespace-nowrap"
             >
-              <PlusIcon className="h-4 w-4 mr-2" />
-              Create Task
+              <PlusIcon className="h-4 w-4 mr-1" />
+              <p className='text-sm'>Create task</p>
             </button>
             
             <button
               onClick={() => setShowAIModal(true)}
-              className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+              className="flex items-center gap-1 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors whitespace-nowrap"
             >
               <SparklesIcon className="h-4 w-4 mr-2" />
-              AI Recommend Tasks
+              AI Recommend
             </button>
             
-            <div className="text-sm text-gray-600">
-              {filteredTasks.length} of {tasks.length} tasks
-            </div>
           </div>
         </div>
+            <div className="text-sm text-gray-600 whitespace-nowrap text-end mt-4">
+              {filteredTasks.length} of {tasks.length} tasks
+            </div>
       </div>
 
       {/* Tasks List */}
@@ -531,9 +531,8 @@ const ProjectTasksView = () => {
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
         onTaskCreated={(newTask) => {
-          // Refresh the task list to get the latest data
+          // Reload the task list to get the latest data
           loadProjectAndTasks();
-          setShowCreateModal(false);
         }}
         projects={project ? [{ id: project.id, name: project.name || projectName }] : []}
         defaultProjectId={projectId}

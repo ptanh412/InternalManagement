@@ -15,6 +15,8 @@ const SidebarMenu = ({ isOpen, onToggle, isMobile = false }) => {
   const location = useLocation();
   const userRole = getUserRole();
 
+  console.log("SidebarMenu rendered for route:", location.pathname);
+
   // Get navigation items based on user role
   const navigationItems = getNavigationForRole(userRole);
   const roleColor = getRoleColor(userRole);
@@ -51,7 +53,7 @@ const SidebarMenu = ({ isOpen, onToggle, isMobile = false }) => {
   };
 
   const sidebarClasses = `
-    ${isMobile ? 'fixed inset-y-0 left-0 z-50' : 'relative'}
+    ${isMobile ? 'fixed inset-y-0 left-0 z-50' : ''}
     ${isMobile && !isOpen ? '-translate-x-full' : 'translate-x-0'}
     ${!isMobile && isCollapsed ? 'w-16' : 'w-64'}
     transition-all duration-300 ease-in-out

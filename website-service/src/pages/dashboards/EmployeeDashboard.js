@@ -868,7 +868,7 @@ const EmployeeDashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* My Tasks */}
-          <div className="lg:col-span-2">
+          {/* <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
@@ -939,11 +939,11 @@ const EmployeeDashboard = () => {
                 ))}
               </div>
             </div>
-          </div>
+          </div> */}
 
           <div>
             {/* Time Entries */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-6">
+            {/* <div className="bg-white rounded-lg shadow-md p-6 mb-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
                   Recent Time Entries
@@ -975,10 +975,10 @@ const EmployeeDashboard = () => {
                   View Timesheet
                 </button>
               </div>
-            </div>
+            </div> */}
 
             {/* Recent Activities */}
-            <div className="bg-white rounded-lg shadow-md p-6">
+            {/* <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
                   My Activities
@@ -1009,12 +1009,12 @@ const EmployeeDashboard = () => {
                   View all activities →
                 </button>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
 
             {/* Quick Actions */}
-            <div className="mt-8">
+            {/* <div className="mt-8">
               <div className="bg-white rounded-lg shadow-md p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-6">
                   Quick Actions
@@ -1054,7 +1054,7 @@ const EmployeeDashboard = () => {
                   </button>
                 </div>
               </div>
-            </div>
+            </div> */}
           </>
         )}
 

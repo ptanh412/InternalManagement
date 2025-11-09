@@ -21,6 +21,8 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
   const [editReviewMode, setEditReviewMode] = useState(false);
   const [editSubmissionMode, setEditSubmissionMode] = useState(false);
   const [reviewComments, setReviewComments] = useState('');
+  const [qualityRating, setQualityRating] = useState(null);
+  const [taskComplexity, setTaskComplexity] = useState('MEDIUM');
   const [editedComments, setEditedComments] = useState(submission.reviewComments || '');
   const [editedDescription, setEditedDescription] = useState(submission.description || '');
   const [editedStatus, setEditedStatus] = useState(submission.status);
@@ -38,12 +40,14 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
   };
 
   const handleReview = (status) => {
-    onReview(submission.id, status, reviewComments);
+    onReview(submission.id, status, reviewComments, qualityRating, taskComplexity);
     setReviewMode(false);
     setReviewComments('');
+    setQualityRating(null);
+    setTaskComplexity('MEDIUM');
   };
 
-  console.log(submission.id, editedStatus, editedComments);
+  // console.log(submission.id, editedStatus, editedComments);
   const handleEditReview = () => {
     onEditReview(submission.id, editedStatus, editedComments);
     setEditReviewMode(false);
@@ -112,8 +116,6 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
   // Check if current user can edit submission
   const canEditSubmission = 
     (submission.status === 'PENDING' || submission.status === 'REJECTED');
-
-  console.log(submission);
 
   return (
     <div className="border border-gray-200 rounded-lg p-6 bg-white">
@@ -286,28 +288,80 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
                   placeholder="Provide feedback for the team member..."
                 />
               </div>
+
+              {/* Quality Rating */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Quality Rating (1-5) <span className="text-red-500">*</span>
+                </label>
+                <div className="flex items-center space-x-2">
+                  {[1, 2, 3, 4, 5].map((rating) => (
+                    <button
+                      key={rating}
+                      type="button"
+                      onClick={() => setQualityRating(rating)}
+                      className={`w-12 h-12 rounded-lg border-2 transition-all ${
+                        qualityRating === rating
+                          ? 'border-yellow-500 bg-yellow-50 text-yellow-700 font-bold'
+                          : 'border-gray-300 hover:border-yellow-300 text-gray-600'
+                      }`}
+                    >
+                      {rating}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  1 = Poor, 2 = Fair, 3 = Good, 4 = Very Good, 5 = Excellent
+                </p>
+              </div>
+
+              {/* Task Complexity */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Task Complexity <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={taskComplexity}
+                  onChange={(e) => setTaskComplexity(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="LOW">Low - Simple task, minimal effort required</option>
+                  <option value="MEDIUM">Medium - Moderate complexity and effort</option>
+                  <option value="HIGH">High - Complex task requiring significant effort</option>
+                  <option value="CRITICAL">Critical - Highly complex, mission-critical task</option>
+                </select>
+              </div>
+
               <div className="flex justify-end space-x-3">
                 <button
-                  onClick={() => setReviewMode(false)}
+                  onClick={() => {
+                    setReviewMode(false);
+                    setReviewComments('');
+                    setQualityRating(null);
+                    setTaskComplexity('MEDIUM');
+                  }}
                   className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={() => handleReview('REJECTED')}
-                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700"
+                  disabled={!qualityRating}
+                  className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Reject
                 </button>
                 <button
                   onClick={() => handleReview('NEEDS_REVISION')}
-                  className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700"
+                  disabled={!qualityRating}
+                  className="px-4 py-2 text-sm font-medium text-white bg-orange-600 rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Request Changes
                 </button>
                 <button
                   onClick={() => handleReview('APPROVED')}
-                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700"
+                  disabled={!qualityRating}
+                  className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Approve
                 </button>
@@ -471,9 +525,9 @@ const TaskDetailModal = ({ isOpen, onClose, taskId, onEdit }) => {
     }
   };
 
-  const handleReviewSubmission = async (submissionId, status, comments = '') => {
+  const handleReviewSubmission = async (submissionId, status, comments = '', qualityRating = null, taskComplexity = 'MEDIUM') => {
     try {
-      await apiService.reviewSubmission(task.id, submissionId, status, comments);
+      await apiService.reviewSubmission(task.id, submissionId, status, comments, qualityRating, taskComplexity);
       notify.success(`Submission ${status.toLowerCase()} successfully`);
       // Reload submissions to reflect the update
       await loadSubmissions();

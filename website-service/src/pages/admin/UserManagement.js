@@ -17,7 +17,8 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiService } from '../../services/apiService';
 
 const UserManagement = () => {
-  const { user } = useAuth();
+  console.log("UserManagement rendered");
+  const { user, isAuthenticated } = useAuth();
   const [users, setUsers] = useState([]);
   const [departments, setDepartments] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -31,6 +32,7 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [showBulkUpload, setShowBulkUpload] = useState(false);
 
+  console.log("User:" ,user, isAuthenticated);
   useEffect(() => {
     loadData();
   }, []);
@@ -154,29 +156,26 @@ const UserManagement = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-600"></div>
       </div>
     );
   }
-  console.log(users);
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <UsersIcon className="h-8 w-8 text-primary-600 mr-3" />
-            User Management
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Manage users, roles, and permissions across the organization
-          </p>
-        </div>
+    <div className="space-y-8 py-8">
+      <div className="max-w-5xl mx-auto px-2 sm:px-6 lg:px-8">
+        <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+          <UsersIcon className="h-8 w-8 text-primary-600 mr-3" />
+          User Management
+        </h1>
+        <p className="text-gray-600 mt-2">
+          Manage users, roles, and permissions across the organization
+        </p>
+      </div>
 
         {/* Controls */}
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex md:flex-row md:items-center md:justify-between gap-4">
             {/* Search and Filters */}
             <div className="flex flex-col md:flex-row gap-4 flex-1">
               {/* Search */}
@@ -215,7 +214,7 @@ const UserManagement = () => {
                   ))}
                 </select>
 
-                <select
+                {/* <select
                   value={selectedStatus}
                   onChange={(e) => setSelectedStatus(e.target.value)}
                   className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
@@ -224,7 +223,7 @@ const UserManagement = () => {
                   <option value="ACTIVE">Active</option>
                   <option value="INACTIVE">Inactive</option>
                   <option value="PENDING">Pending</option>
-                </select>
+                </select> */}
               </div>
             </div>
 
@@ -251,28 +250,28 @@ const UserManagement = () => {
         {/* Users Table */}
         <div className="bg-white rounded-lg shadow-md overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+            <table className="min-w-full divide-y divide-gray-200 px-3">             
+               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     User
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Department
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  </th> */}
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Role
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  {/* <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Last Login
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  </th> */}
+                  <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Position
                   </th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -280,7 +279,7 @@ const UserManagement = () => {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredUsers?.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div className="flex-shrink-0 h-10 w-10">
                           <div className="h-10 w-10 rounded-full bg-primary-100 flex items-center justify-center">
@@ -299,13 +298,13 @@ const UserManagement = () => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {user.departmentName}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    </td> */}
+                    <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900">
                       {user.roleName}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-2 py-4 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(user.active)}`}>
                         {user.active ? (
                           <div>
@@ -320,13 +319,13 @@ const UserManagement = () => {
                         )}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {/* <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {formatDateTime(user.lastLogin)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    </td> */}
+                    <td className="px-2 py-4 whitespace-nowrap text-sm text-gray-900">
                       {user.positionTitle}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <td className="px-3 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-2">
                         <button
                           onClick={() => {
@@ -426,7 +425,6 @@ const UserManagement = () => {
             </div>
           </div>
         </div>
-      </div>
 
       {/* Modals */}
       {showCreateModal && (

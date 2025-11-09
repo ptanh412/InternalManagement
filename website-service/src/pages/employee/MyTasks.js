@@ -250,22 +250,20 @@ const MyTasks = () => {
     try {
       setLoading(true);
       
-      // Use API service to get tasks assigned to current user
       const response = await apiService.getMyTasks();
       console.log("List task: ", response);
       
       if (response && response.length > 0) {
-        // Transform the API response and enrich with project and user details
         const transformedTasks = await Promise.all(
           response.map(async (task) => {
-            // Fetch project details if projectId exists
+            // Fetch project details
             let projectName = 'Unknown Project';
             if (task.projectId) {
               const projectDetails = await fetchProjectDetails(task.projectId);
               projectName = projectDetails?.name || projectDetails?.title || 'Unknown Project';
             }
 
-            // Fetch user details if createdBy exists
+            // Fetch user details
             let assignedByName = 'System';
             if (task.createdBy) {
               const userDetails = await fetchUserDetails(task.createdBy);
@@ -283,11 +281,12 @@ const MyTasks = () => {
               description: task.description || '',
               status: task.status || 'TODO',
               priority: task.priority || 'MEDIUM',
-              progress: task.progress || 0,
+              progress: task.progressPercentage || 0,
               estimatedHours: task.estimatedHours || 0,
               actualHours: task.actualHours || 0,
               createdDate: task.createdAt ? task.createdAt.split('T')[0] : null,
               dueDate: task.dueDate ? task.dueDate.split('T')[0] : null,
+              startDate: task.startedAt ? task.startedAt.split('T')[0] : null, // ✅ Sửa từ startDate thành startedAt
               projectName: projectName,
               projectId: task.projectId,
               assignedBy: assignedByName,
@@ -303,7 +302,6 @@ const MyTasks = () => {
         setTasks(transformedTasks);
         console.log('Loaded and enriched tasks from API:', transformedTasks);
       } else {
-        // Fallback to empty array if no tasks
         setTasks([]);
         console.log('No tasks found for user');
       }
@@ -312,15 +310,7 @@ const MyTasks = () => {
     } catch (error) {
       console.error('Failed to load tasks from API:', error);
       setLoading(false);
-      
-      // Show error notification
-      if (error.response?.status === 401) {
-        // Handle authentication error
-        console.log('Authentication error - redirecting to login');
-      } else {
-        // For now, show empty tasks list on error
-        setTasks([]);
-      }
+      setTasks([]);
     }
   };
 
@@ -364,26 +354,6 @@ const MyTasks = () => {
     ? tasks 
     : tasks.filter(task => task.status === statusFilter);
 
-  const getStatusColor = (status) => {
-    const colors = {
-      TODO: 'bg-gray-100 text-gray-800',
-      IN_PROGRESS: 'bg-blue-100 text-blue-800',
-      REVIEW: 'bg-yellow-100 text-yellow-800',
-      TESTING: 'bg-purple-100 text-purple-800',
-      DONE: 'bg-green-100 text-green-800'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-800';
-  };
-
-  const getPriorityColor = (priority) => {
-    const colors = {
-      LOW: 'text-green-600 bg-green-100',
-      MEDIUM: 'text-yellow-600 bg-yellow-100',
-      HIGH: 'text-orange-600 bg-orange-100',
-      CRITICAL: 'text-red-600 bg-red-100'
-    };
-    return colors[priority] || 'text-gray-600 bg-gray-100';
-  };
 
   const isOverdue = (dueDate) => {
     return new Date(dueDate) < new Date();
@@ -563,7 +533,8 @@ const MyTasks = () => {
     // Prepare the submission data - MATCH BACKEND DTO EXACTLY
     const taskSubmissionData = {
       description: submissionData.description,
-      attachments: attachments // Array of {name, url, type, size}
+      attachments: attachments, // Array of {name, url, type, size}
+      progressPercentage: submissionData.progressPercentage || 0
     };
 
     console.log('Submitting task with data:', taskSubmissionData);
@@ -578,7 +549,8 @@ const MyTasks = () => {
         submissionCount: (t.submissionCount || 0) + 1,
         lastSubmission: new Date().toISOString().split('T')[0],
         status: 'REVIEW',
-        hasSubmission: true
+        hasSubmission: true,
+        progress: submissionData.progressPercentage || t.progress
       } : t
     ));
 
@@ -670,7 +642,11 @@ const MyTasks = () => {
             </div>
             <div className="flex items-center text-sm text-gray-600">
               <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-              <span>Start: {new Date(task.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+              <span>
+                Start: {task.startDate 
+                  ? new Date(task.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                  : "Haven't started"}
+              </span>
             </div>
             <div className="flex items-center text-sm text-gray-600">
               <Calendar className="w-4 h-4 mr-2 text-gray-400" />

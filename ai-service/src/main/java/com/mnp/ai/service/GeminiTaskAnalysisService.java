@@ -266,8 +266,8 @@ public class GeminiTaskAnalysisService {
                 {
                   "title": "Short Task Title",
                   "description": "Brief description (max 120 chars)",
-                  "priority": "HIGH|MEDIUM|LOW|CRITICAL",
-                  "type": "FEATURE|TASK|STORY|RESEARCH|DOCUMENTATION|TESTING",
+                  "priority": "LOW|MEDIUM|HIGH|URGENT",
+                  "type": "DEVELOPMENT|FRONTEND_DEVELOPMENT|BACKEND_DEVELOPMENT|DATABASE_DEVELOPMENT|MOBILE_DEVELOPMENT|TESTING|UNIT_TESTING|INTEGRATION_TESTING|RESEARCH|DOCUMENTATION|DESIGN|CODE_REVIEW|BUG_FIX|DEPLOYMENT|MAINTENANCE|PLANNING|ARCHITECTURE|SECURITY",
                   "estimatedHours": 8,
                   "tags": ["tag1", "tag2"],
                   "dependencies": [],
@@ -290,6 +290,8 @@ public class GeminiTaskAnalysisService {
             - Keep descriptions under 120 characters
             - Focus on essential development phases
             - Use realistic time estimates (4-40 hours)
+            - Use only these priorities: LOW, MEDIUM, HIGH, URGENT (NOT CRITICAL)
+            - Use specific task types like FRONTEND_DEVELOPMENT, BACKEND_DEVELOPMENT, DATABASE_DEVELOPMENT, TESTING, etc.
             - Assign appropriate priorities and roles
             - Include 1-4 relevant skills per task based on the task requirements
             - Use specific skill names (e.g., "React", "Java", "MySQL", "Docker", "Figma")
@@ -324,11 +326,17 @@ public class GeminiTaskAnalysisService {
             if (tasksNode != null && tasksNode.isArray()) {
                 for (JsonNode taskNode : tasksNode) {
                     try {
+                        // Parse priority with fallback
+                        TaskPriority priority = parseTaskPriority(getStringValue(taskNode, "priority", "MEDIUM"));
+
+                        // Parse task type with fallback
+                        TaskType type = parseTaskType(getStringValue(taskNode, "type", "DEVELOPMENT"));
+
                         TaskRecommendation task = TaskRecommendation.builder()
                                 .title(getStringValue(taskNode, "title"))
                                 .description(getStringValue(taskNode, "description"))
-                                .priority(TaskPriority.valueOf(getStringValue(taskNode, "priority", "MEDIUM")))
-                                .type(TaskType.valueOf(getStringValue(taskNode, "type", "TASK")))
+                                .priority(priority)
+                                .type(type)
                                 .estimatedHours(getIntValue(taskNode, "estimatedHours", 8))
                                 .tags(getStringList(taskNode, "tags"))
                                 .dependencies(getStringList(taskNode, "dependencies"))
@@ -484,6 +492,51 @@ public class GeminiTaskAnalysisService {
         return result;
     }
 
+    /**
+     * Safely parse TaskPriority with fallback for invalid values
+     */
+    private TaskPriority parseTaskPriority(String priorityStr) {
+        if (priorityStr == null || priorityStr.isEmpty()) {
+            return TaskPriority.MEDIUM;
+        }
+
+        // Handle old CRITICAL value by mapping to URGENT
+        if ("CRITICAL".equalsIgnoreCase(priorityStr)) {
+            log.debug("Mapping deprecated CRITICAL priority to URGENT");
+            return TaskPriority.URGENT;
+        }
+
+        try {
+            return TaskPriority.valueOf(priorityStr.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid task priority '{}', defaulting to MEDIUM", priorityStr);
+            return TaskPriority.MEDIUM;
+        }
+    }
+
+    /**
+     * Safely parse TaskType with fallback for invalid values
+     */
+    private TaskType parseTaskType(String typeStr) {
+        if (typeStr == null || typeStr.isEmpty()) {
+            return TaskType.DEVELOPMENT;
+        }
+
+        // Map old task type values to new ones
+        String mappedType = switch (typeStr.toUpperCase()) {
+            case "TASK", "FEATURE", "STORY", "EPIC" -> "DEVELOPMENT";
+            case "BUG" -> "BUG_FIX";
+            default -> typeStr.toUpperCase();
+        };
+
+        try {
+            return TaskType.valueOf(mappedType);
+        } catch (IllegalArgumentException e) {
+            log.warn("Invalid task type '{}', defaulting to DEVELOPMENT", typeStr);
+            return TaskType.DEVELOPMENT;
+        }
+    }
+
     private List<TaskRecommendation> createFallbackTasks(String content) {
         log.info("Creating fallback tasks due to Gemini service unavailability");
 
@@ -492,7 +545,7 @@ public class GeminiTaskAnalysisService {
                         .title("Project Setup and Configuration")
                         .description("Set up project structure, dependencies, and initial configuration files")
                         .priority(TaskPriority.HIGH)
-                        .type(TaskType.TASK)
+                        .type(TaskType.DEVELOPMENT)
                         .estimatedHours(6)
                         .tags(Arrays.asList("setup", "configuration", "initialization"))
                         .assigneeRole("BACKEND_DEVELOPER")
@@ -546,7 +599,7 @@ public class GeminiTaskAnalysisService {
                         .title("Database Schema Design")
                         .description("Design and implement the database schema based on requirements")
                         .priority(TaskPriority.MEDIUM)
-                        .type(TaskType.FEATURE)
+                        .type(TaskType.DATABASE_DEVELOPMENT)
                         .estimatedHours(8)
                         .tags(Arrays.asList("database", "schema", "design"))
                         .dependencies(Arrays.asList("Requirements Analysis and Documentation"))

@@ -1,5 +1,5 @@
 # ML Service Dockerfile
-FROM openjdk:17-jdk-slim
+FROM openjdk:21-jdk-slim
 
 # Install Python and required packages for ML integration
 RUN apt-get update && apt-get install -y \

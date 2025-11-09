@@ -10,6 +10,7 @@ const DashboardLayout = ({ children }) => {
   const { isAuthenticated, user } = useAuth();
   const location = useLocation();
   
+
   // Check if current route is a chat page
   const isChatPage = location.pathname.includes('/chat');
 
@@ -31,8 +32,8 @@ const DashboardLayout = ({ children }) => {
       </div>
 
       <div className={`flex ${isChatPage ? 'h-full' : ''}`}>
-        {/* Desktop Sidebar */}
-        <div className="hidden lg:block">
+        {/* Desktop Sidebar - Fixed position, full height */}
+        <div className="hidden lg:block lg:fixed lg:left-0 lg:top-0 lg:bottom-0 lg:overflow-y-auto sidebar-scrollbar w-64 h-full z-30 bg-white">
           <SidebarMenu 
             isOpen={true}
             onToggle={() => {}}
@@ -48,7 +49,7 @@ const DashboardLayout = ({ children }) => {
         />
 
         {/* Main Content */}
-        <div className={`flex-1 lg:ml-0 flex flex-col ${isChatPage ? 'h-full' : ''} min-h-0`}>
+        <div className={`flex-1 lg:ml-64 flex flex-col ${isChatPage ? 'h-full' : ''} min-h-0 w-full`}>
           {/* Beautiful Header - Ensure it's above all other content */}
           <div className="sticky top-0 z-40 flex-shrink-0">
             <DashboardHeader title="Dashboard" subtitle="Welcome back!" />

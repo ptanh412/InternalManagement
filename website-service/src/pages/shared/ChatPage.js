@@ -799,11 +799,7 @@ const ChatPage = ({ role }) => {
           message: messageContent
         };
         
-        if (chatSocketService.isSocketConnected()) {
-          chatSocketService.sendMessage(messageData);
-        } else {
-          await chatApiService.sendMessage(messageData);
-        }
+        await chatApiService.sendMessage(messageData);
       }
 
     } catch (error) {

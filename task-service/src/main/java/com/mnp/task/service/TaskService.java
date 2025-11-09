@@ -67,7 +67,15 @@ public class TaskService {
         // Create the main task
         Task task = taskMapper.toTask(request);
         task.setCreatedBy(creatorId);
-        task.setAssignedTo(request.getAssigneeId());
+
+        // Clean up empty assigneeId - convert empty string to null
+        String assigneeId = request.getAssigneeId();
+        if (assigneeId != null && assigneeId.trim().isEmpty()) {
+            assigneeId = null;
+            log.info("Converting empty assigneeId to null for task: {}", request.getTitle());
+        }
+        task.setAssignedTo(assigneeId);
+
         task.setReporterId(request.getReporterId());
 
         Task savedTask = taskRepository.save(task);
@@ -81,8 +89,9 @@ public class TaskService {
             log.error("Failed to increment totalTasks for project: {}", savedTask.getProjectId(), e);
         }
 
-        // Send notification to assigned employee
-        if (savedTask.getAssignedTo() != null) {
+        log.info("Task request {}: ", request);
+        // Send notification to assigned employee (check for both null and empty string)
+        if (savedTask.getAssignedTo() != null && !savedTask.getAssignedTo().trim().isEmpty()) {
             try {
                 String assignedByName = getCurrentUserName();
                 String dueDate = savedTask.getDueDate() != null ?
@@ -115,6 +124,8 @@ public class TaskService {
 
             // Add user to chat group for the project
             addToProjectChatGroup(savedTask.getProjectId(), savedTask.getAssignedTo());
+        } else {
+            log.info("Task created without assignee - skipping assignment notifications");
         }
 
         // Create task dependencies if provided
@@ -484,6 +495,7 @@ public class TaskService {
 
         String currentUserId = getCurrentUserId();
         log.info("Getting my tasks for user: {}", currentUserId);
+
         return taskRepository.findByAssignedTo(currentUserId).stream()
                 .map(taskMapper::toTaskResponse)
                 .toList();

@@ -19,6 +19,7 @@ const EnhancedSubmitReportModal = ({
   const [attachments, setAttachments] = useState([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [progressPercentage, setProgressPercentage] = useState(task?.progress || 0);
   const fileInputRef = useRef(null);
 
   const handleDescriptionChange = (e) => {
@@ -113,13 +114,19 @@ const EnhancedSubmitReportModal = ({
       return;
     }
 
+    if (progressPercentage < 0 || progressPercentage > 100) {
+      alert('Progress percentage must be between 0 and 100.');
+      return;
+    }
+
     setUploading(true);
     try {
       // Prepare submission data
       const submissionData = {
         taskId: task.id,
         description: reportData.description,
-        attachments: attachments
+        attachments: attachments,
+        progressPercentage: progressPercentage
       };
 
       await onSubmit(submissionData);
@@ -132,6 +139,7 @@ const EnhancedSubmitReportModal = ({
       });
       setAttachments([]);
       setReportData({ description: '' });
+      setProgressPercentage(0);
       onClose();
     } catch (error) {
       console.error('Failed to submit report:', error);
@@ -162,6 +170,55 @@ const EnhancedSubmitReportModal = ({
 
         {/* Content */}
         <div className="p-6 space-y-6 overflow-y-auto max-h-[calc(90vh-160px)]">
+          {/* Progress Percentage */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Progress Percentage <span className="text-red-500">*</span>
+            </label>
+            <div className="space-y-3">
+              <div className="flex items-center gap-4">
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  step="5"
+                  value={progressPercentage}
+                  onChange={(e) => setProgressPercentage(Number(e.target.value))}
+                  className="flex-1 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                />
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={progressPercentage}
+                    onChange={(e) => {
+                      const value = Math.min(100, Math.max(0, Number(e.target.value)));
+                      setProgressPercentage(value);
+                    }}
+                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-center focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  />
+                  <span className="text-sm font-medium text-gray-700">%</span>
+                </div>
+              </div>
+              
+              {/* Progress Bar */}
+              <div className="relative w-full h-3 bg-gray-200 rounded-full overflow-hidden">
+                <div 
+                  className={`h-full rounded-full transition-all duration-300 ${
+                    progressPercentage < 30 ? 'bg-red-500' :
+                    progressPercentage < 70 ? 'bg-orange-500' : 'bg-green-500'
+                  }`}
+                  style={{ width: `${progressPercentage}%` }}
+                />
+              </div>
+              
+              <p className="text-xs text-gray-500">
+                Update the task completion percentage based on your current progress.
+              </p>
+            </div>
+          </div>
+
           {/* Description */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

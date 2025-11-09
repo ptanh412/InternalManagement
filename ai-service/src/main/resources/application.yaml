@@ -41,8 +41,8 @@ jwt:
 google:
   gemini:
     api:
-      key: key
-    model: gemini-2.5-flash  # Correct model name - user confirmed this works with API testing
+      key: AIzaSyDmDUn9EhmYTHXmCh8nM62E5wwT2AaR4qE
+    model: gemini-2.0-flash	  # Correct model name - user confirmed this works with API testing
     max-tokens: 16384  # Increased from 8192 to allow complete task generation
     temperature: 0.3
 

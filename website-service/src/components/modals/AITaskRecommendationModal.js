@@ -53,6 +53,7 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
   };
 
   const handleAnalyze = async () => {
+    console.log('Starting AI analysis with mode:', analysisMode);
     if (analysisMode === 'text' && !textContent.trim()) {
       notify.error('Please enter some content to analyze', 'Input Required');
       return;
@@ -79,6 +80,7 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
           priority: 'MEDIUM'
         };
         response = await apiService.analyzeTextForTasks(analysisData);
+        console.log('AI Text Analysis Response:', response);
       } else {
         const formData = new FormData();
         formData.append('files', selectedFile);
@@ -95,18 +97,28 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
       if (response && response.result && response.result.recommendedTasks) {
         // Transform AI service response to expected format
         const transformedResponse = {
-          tasks: response.result.recommendedTasks.map(task => ({
-            title: task.title,
-            description: task.description,
-            priority: task.priority || 'MEDIUM',
-            type: task.taskType || 'DEVELOPMENT',
-            estimatedHours: task.estimatedHours,
-            tags: task.requiredSkills || [],
-            dependencies: [],
-            assigneeRole: 'DEVELOPER',
-            confidenceScore: task.confidenceScore,
-            requiredSkills: task.requiredSkills || []
-          })),
+          tasks: response.result.recommendedTasks.map(task => {
+            // Extract skill names from skill objects or use as-is if they're strings
+            const skills = (task.requiredSkills || []).map(skill => {
+              if (typeof skill === 'object' && skill !== null) {
+                return skill.skillName || skill.name || JSON.stringify(skill);
+              }
+              return skill;
+            });
+
+            return {
+              title: task.title,
+              description: task.description,
+              priority: task.priority || 'MEDIUM',
+              type: task.taskType || 'DEVELOPMENT',
+              estimatedHours: task.estimatedHours,
+              tags: skills,
+              dependencies: [],
+              assigneeRole: 'DEVELOPER',
+              confidenceScore: task.confidenceScore,
+              requiredSkills: skills
+            };
+          }),
           totalTasks: response.result.totalTasksGenerated || response.result.recommendedTasks.length,
           analysisType: analysisMode.toUpperCase(),
           projectSummary: `Analysis completed successfully. Found ${response.result.totalRequirementsFound || 0} requirements.`,
@@ -223,6 +235,14 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
     try {
       const tasksToCreate = Array.from(selectedTasks).map(index => {
         const task = recommendations.tasks[index];
+        // Ensure skills are strings
+        const skills = (task.requiredSkills || task.tags || []).map(skill => {
+          if (typeof skill === 'object' && skill !== null) {
+            return skill.skillName || skill.name || String(skill);
+          }
+          return String(skill);
+        });
+
         return {
           title: task.title,
           description: task.description,
@@ -230,7 +250,7 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
           status: 'TODO',
           projectId: projectId,
           estimatedHours: task.estimatedHours,
-          skills: task.requiredSkills || task.tags || [],
+          skills: skills,
           // Additional fields that might be needed
           dueDate: null,
           assigneeId: null
@@ -242,8 +262,8 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
       for (const taskData of tasksToCreate) {
         try {
           const response = await apiService.createTask(taskData);
-          if (response.result) {
-            createdTasks.push(response.result);
+          if (response) {
+            createdTasks.push(response);
           }
         } catch (error) {
           console.warn('Failed to create task:', taskData.title, error);
@@ -252,7 +272,13 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
 
       if (createdTasks.length > 0) {
         notify.success(`Successfully created ${createdTasks.length} tasks`);
-        onTasksGenerated?.(createdTasks);
+        
+        // Call onTasksGenerated callback to refresh parent data
+        if (onTasksGenerated) {
+          onTasksGenerated(createdTasks);
+        }
+        
+        // Close modal after successful creation
         handleClose();
       } else {
         notify.error('Failed to create tasks. Please try again.');
@@ -395,7 +421,7 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
               )}
 
               {/* Project Configuration */}
-              <div className="grid grid-cols-2 gap-4">
+              {/* <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-700 mb-2 block">
                     Project Type
@@ -429,7 +455,7 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
                     ))}
                   </select>
                 </div>
-              </div>
+              </div> */}
 
               {/* Analyze Button */}
               <div className="flex justify-end">

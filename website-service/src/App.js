@@ -38,7 +38,7 @@ import { AuthProvider, useAuth } from './hooks/useAuth';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { SocketIOProvider } from './contexts/SocketIOContext';
 import NotificationContainer from './components/NotificationContainer';
-import ToastContainer from './components/notifications/ToastContainer';
+// import ToastContainer from './components/notifications/ToastContainer';
 import ProfilePage from './pages/shared/ProfilePage';
 
 // Protected Route Component
@@ -90,7 +90,8 @@ const RoleDashboard = () => {
 
 // Layout wrapper component
 const Layout = ({ children }) => {
-  console.log("Children:", children);
+  
+
   const location = useLocation();
   const { isAuthenticated } = useAuth();
   const hideNavAndFooter = ['/login'].includes(location.pathname);
@@ -100,13 +101,21 @@ const Layout = ({ children }) => {
                           location.pathname.startsWith('/team-lead') ||
                           location.pathname === '/profile' ||  // Thêm dòng này
                           location.pathname.startsWith('/employee');
+                        
+    // DEBUG
+  console.log("Current pathname:", location.pathname);
+  console.log("Is authenticated:", isAuthenticated);
+
+  // DEBUG
+  console.log("Is dashboard route:", isDashboardRoute);
+  console.log("Should show DashboardLayout:", isAuthenticated && isDashboardRoute);
 
   if (hideNavAndFooter) {
     return <>{children}</>;
   }
 
   // Use DashboardLayout for authenticated dashboard routes
-  if (isAuthenticated && isDashboardRoute) {
+  if (isDashboardRoute) {
     return (
       <DashboardLayout>
         {children}
@@ -381,7 +390,7 @@ function App() {
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
             <NotificationContainer />
-            <ToastContainer />
+            {/* <ToastContainer /> */}
           </Layout>
         </Router>
         </SocketIOProvider>

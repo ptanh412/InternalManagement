@@ -32,6 +32,8 @@ public class TaskResponse {
     String assigneeId;
     String createdBy;
     LocalDateTime dueDate;
+    LocalDateTime startedAt;
+    LocalDateTime completedAt;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
 

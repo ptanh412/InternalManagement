@@ -44,7 +44,7 @@ export const useTaskTimer = (taskId, userId) => {
 
   const loadTimerStatus = async () => {
     const response = await apiService.getTimerStatus(taskId);
-    console.log(response);
+    // console.log(response);
     try {
       const response = await apiService.getTimerStatus(taskId);
       const data = response.data;

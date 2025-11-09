@@ -25,6 +25,9 @@ public interface TaskMapper {
     Task toTask(TaskCreationRequest request);
 
     @Mapping(source = "assignedTo", target = "assigneeId")
+    @Mapping(source = "startedAt", target = "startedAt") // Thêm dòng này explicit
+    @Mapping(source = "completedAt", target = "completedAt")
+    @Mapping(source = "actualHours", target = "actualHours")
     TaskResponse toTaskResponse(Task task);
 
     @Mapping(source = "assigneeId", target = "assignedTo")

@@ -20,18 +20,27 @@ import com.mnp.ai.service.FileProcessingService;
 import com.mnp.ai.service.RequirementsAnalysisEngine;
 import com.mnp.ai.service.GeminiTaskAnalysisService;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 
 @RestController
 @RequestMapping("/ai/requirements")
-@RequiredArgsConstructor
 @Slf4j
 public class RequirementImportController {
 
     private final FileProcessingService fileProcessingService;
     private final RequirementsAnalysisEngine requirementsAnalysisEngine;
     private final GeminiTaskAnalysisService geminiTaskAnalysisService;
+
+    @Autowired
+    public RequirementImportController(
+            FileProcessingService fileProcessingService,
+            RequirementsAnalysisEngine requirementsAnalysisEngine,
+            GeminiTaskAnalysisService geminiTaskAnalysisService) {
+        this.fileProcessingService = fileProcessingService;
+        this.requirementsAnalysisEngine = requirementsAnalysisEngine;
+        this.geminiTaskAnalysisService = geminiTaskAnalysisService;
+    }
 
     /**
      * Import requirements from file and generate AI task recommendations

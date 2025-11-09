@@ -746,7 +746,7 @@ const TeamLeadDashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Team Members */}
-          <div>
+          {/* <div>
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
@@ -789,10 +789,10 @@ const TeamLeadDashboard = () => {
                 </button>
               </div>
             </div>
-          </div>
+          </div> */}
 
           {/* Tasks Overview */}
-          <div className="lg:col-span-2">
+          {/* <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold text-gray-900">
@@ -847,12 +847,12 @@ const TeamLeadDashboard = () => {
                 ))}
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
 
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Activities */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+          {/* <div className="bg-white rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold text-gray-900">
                 Team Activities
@@ -886,10 +886,10 @@ const TeamLeadDashboard = () => {
                 View all activities →
               </button>
             </div>
-          </div>
+          </div> */}
 
           {/* Quick Actions */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+          {/* <div className="bg-white rounded-lg shadow-md p-6">
             <h2 className="text-xl font-semibold text-gray-900 mb-6">
               Quick Actions
             </h2>
@@ -918,7 +918,7 @@ const TeamLeadDashboard = () => {
                 <span className="text-sm font-medium text-gray-700">Team Chat</span>
               </button>
             </div>
-          </div>
+          </div> */}
         </div>
           </>
         )}
@@ -1025,7 +1025,7 @@ const TeamLeadDashboard = () => {
             </div>
 
             {/* Team Actions */}
-            <div className="bg-white rounded-lg shadow p-6">
+            {/* <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Team Actions</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors duration-200">
@@ -1045,7 +1045,7 @@ const TeamLeadDashboard = () => {
                   <span className="text-sm font-medium text-gray-700">View Reports</span>
                 </button>
               </div>
-            </div>
+            </div> */}
           </div>
         )}
       </div>

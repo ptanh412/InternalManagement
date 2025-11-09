@@ -18,7 +18,7 @@ public class ProjectProgressResponse {
     String projectName;
     String description;
     String status; // PLANNING, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED
-
+    Double completionPercentage;
     // Progress Metrics
     Double overallProgressPercentage;
     Integer totalTasks;
@@ -35,6 +35,7 @@ public class ProjectProgressResponse {
     LocalDate actualEndDate;
     Integer delayDays;
     Boolean isOnSchedule;
+    Integer daysRemaining;
 
     // Resource Allocation
     Integer totalTeamMembers;

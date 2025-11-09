@@ -38,18 +38,28 @@ public class GeminiRecommendationService {
                 task.getTaskId(), candidates.size());
 
         try {
+            // Filter candidates based on task creator's role
+            List<UserProfile> filteredCandidates = filterCandidatesByCreatorRole(task, candidates);
+
+            if (filteredCandidates.isEmpty()) {
+                log.warn("No suitable candidates found after role filtering");
+                return List.of();
+            }
+
+            log.info("Filtered to {} candidates based on creator role", filteredCandidates.size());
+
             // Create context for Gemini AI
-            String prompt = buildRecommendationPrompt(task, candidates);
+            String prompt = buildRecommendationPrompt(task, filteredCandidates);
 
             // Call Gemini AI for intelligent analysis
             String geminiResponse = callGeminiAPI(prompt);
 
             // Parse Gemini response and enhance recommendations
             List<AssignmentRecommendation> recommendations = parseGeminiRecommendations(
-                    geminiResponse, task, candidates);
+                    geminiResponse, task, filteredCandidates);
 
             // Apply team lead prioritization for High/Critical priority tasks
-            recommendations = applyTeamLeadPrioritization(recommendations, task, candidates);
+            recommendations = applyTeamLeadPrioritization(recommendations, task, filteredCandidates);
 
             log.info("Generated {} Gemini-enhanced recommendations", recommendations.size());
             return recommendations;
@@ -61,93 +71,119 @@ public class GeminiRecommendationService {
     }
 
     /**
-     * Build comprehensive prompt for Gemini AI analysis
+     * Filter candidates based on task creator's role
+     * If task is created by TEAM_LEAD, only recommend EMPLOYEE role candidates
+     */
+    private List<UserProfile> filterCandidatesByCreatorRole(TaskProfile task, List<UserProfile> candidates) {
+        // Get creator's profile to check their role
+        String creatorId = task.getCreatedBy();
+        if (creatorId == null || creatorId.isEmpty()) {
+            log.debug("No creator ID found, returning all candidates");
+            return candidates;
+        }
+
+        // Find creator in candidates list or assume they are a team lead if not in list
+        UserProfile creator = candidates.stream()
+                .filter(c -> c.getUserId().equals(creatorId))
+                .findFirst()
+                .orElse(null);
+
+        boolean creatorIsTeamLead = false;
+        if (creator != null) {
+            String role = creator.getRole();
+            creatorIsTeamLead = role != null &&
+                (role.toUpperCase().contains("TEAM_LEAD") ||
+                 role.toUpperCase().contains("MANAGER") ||
+                 role.toUpperCase().contains("LEAD"));
+        }
+
+        // If creator is team lead, filter to only EMPLOYEE role candidates
+        if (creatorIsTeamLead) {
+            log.info("Task creator is TEAM_LEAD, filtering to EMPLOYEE role candidates only");
+            return candidates.stream()
+                    .filter(c -> {
+                        String role = c.getRole();
+                        return role != null && role.toUpperCase().equals("EMPLOYEE");
+                    })
+                    .toList();
+        }
+
+        // Otherwise, return all candidates
+        log.debug("Task creator is not TEAM_LEAD, returning all candidates");
+        return candidates;
+    }
+
+    /**
+     * Build CONCISE prompt for Gemini AI analysis (optimized to avoid truncation)
      */
     private String buildRecommendationPrompt(TaskProfile task, List<UserProfile> candidates) {
         StringBuilder prompt = new StringBuilder();
 
-        prompt.append("Act as an expert project management AI assistant. Analyze the following task and team members to provide intelligent task assignment recommendations with detailed skill necessity analysis.\n\n");
+        prompt.append("You are a technical recruiter. Analyze candidates and write UNIQUE, SPECIFIC reasoning for EACH person.\n\n");
 
-        // Task information
-        prompt.append("TASK DETAILS:\n");
-        prompt.append("- Title: ").append(task.getTitle()).append("\n");
-        prompt.append("- Description: ").append(task.getDescription()).append("\n");
-        prompt.append("- Priority: ").append(task.getPriority()).append("\n");
-        prompt.append("- Type: ").append(task.getTaskType()).append("\n");
-        prompt.append("- Department: ").append(task.getDepartment()).append("\n");
-        prompt.append("- Difficulty: ").append(task.getDifficulty()).append("\n");
-        prompt.append("- Estimated Hours: ").append(task.getEstimatedHours()).append("\n");
+        // Task information - compact format
+        prompt.append("TASK: ").append(task.getTitle()).append("\n");
+        prompt.append("Priority: ").append(task.getPriority()).append(" | Type: ").append(task.getTaskType());
+        prompt.append(" | Dept: ").append(task.getDepartment()).append(" | Hours: ").append(task.getEstimatedHours()).append("\n");
 
         if (task.getRequiredSkills() != null && !task.getRequiredSkills().isEmpty()) {
-            prompt.append("- Required Skills with Minimum Levels:\n");
-            task.getRequiredSkills().forEach((skillName, skillLevel) -> {
-                prompt.append("  * ").append(skillName).append(" (Level ").append(skillLevel).append("): ");
-                // Add skill necessity explanation based on task type and description
-                prompt.append(generateSkillNecessityExplanation(skillName, task)).append("\n");
-            });
-        }
-
-        prompt.append("\nTEAM MEMBERS:\n");
-        for (int i = 0; i < candidates.size() && i < 10; i++) { // Limit to 10 candidates for token efficiency
-            UserProfile candidate = candidates.get(i);
-            prompt.append("Member ").append(i + 1).append(":\n");
-            prompt.append("  - ID: ").append(candidate.getUserId()).append("\n");
-            prompt.append("  - Name: ").append(candidate.getName()).append("\n");
-            prompt.append("  - Role: ").append(candidate.getRole()).append("\n");
-            prompt.append("  - Department: ").append(candidate.getDepartment()).append("\n");
-            prompt.append("  - Experience Years: ").append(candidate.getExperienceYears()).append("\n");
-            prompt.append("  - Performance Rating: ").append(candidate.getPerformanceRating()).append("/5.0\n");
-            prompt.append("  - Availability Score: ").append(candidate.getAvailabilityScore()).append("\n");
-            prompt.append("  - Current Workload: ").append(candidate.getCurrentWorkLoadHours()).append(" hours\n");
-
-            if (candidate.getSkills() != null && !candidate.getSkills().isEmpty()) {
-                prompt.append("  - Skills with Proficiency Levels: ");
-                candidate.getSkills().entrySet().stream()
-                    .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
-                    .limit(8)
-                    .forEach(skill -> prompt.append(skill.getKey()).append("(").append(skill.getValue()).append(") "));
-                prompt.append("\n");
-            }
+            prompt.append("Required Skills: ");
+            task.getRequiredSkills().forEach((skill, level) ->
+                prompt.append(skill).append("(min:").append(level).append(") "));
             prompt.append("\n");
         }
 
-        prompt.append("\nANALYSIS REQUIREMENTS:\n");
-        prompt.append("1. For HIGH or CRITICAL priority tasks, strongly prioritize team leads or senior members\n");
-        prompt.append("2. Provide detailed skill necessity analysis explaining WHY each required skill is important for this specific task\n");
-        prompt.append("3. Analyze skill gaps between required and candidate skill levels\n");
-        prompt.append("4. Identify bonus skills that could be beneficial but aren't strictly required\n");
-        prompt.append("5. Consider skill development opportunities for each candidate\n");
-        prompt.append("6. Consider skill matching, experience level, current workload, and availability\n");
-        prompt.append("7. Provide detailed reasoning for each recommendation\n");
-        prompt.append("8. Rank candidates from most suitable to least suitable\n\n");
+        prompt.append("\nCANDIDATES:\n");
+        for (int i = 0; i < Math.min(candidates.size(), 8); i++) {
+            UserProfile c = candidates.get(i);
+            prompt.append(i + 1).append(". ").append(c.getName()).append(" [ID:").append(c.getUserId()).append("]\n");
+            prompt.append("   Role: ").append(c.getRole());
+            prompt.append(" | Dept: ").append(c.getDepartment() != null ? c.getDepartment() : "N/A");
+            prompt.append(" | Avail: ").append(c.getAvailabilityScore());
+            prompt.append(" | Load: ").append(c.getCurrentWorkLoadHours()).append("h\n");
 
-        prompt.append("Please provide your analysis in the following JSON format:\n");
+            if (c.getSkills() != null && !c.getSkills().isEmpty()) {
+                prompt.append("   Skills: ");
+                c.getSkills().entrySet().stream()
+                    .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                    .limit(6)
+                    .forEach(s -> prompt.append(s.getKey()).append("(").append(s.getValue()).append(") "));
+                prompt.append("\n");
+            } else {
+                prompt.append("   Skills: None listed\n");
+            }
+        }
+
+        prompt.append("\nIMPORTANT INSTRUCTIONS:\n");
+        prompt.append("1. Write DIFFERENT reasoning for EACH person - DO NOT repeat generic phrases\n");
+        prompt.append("2. MENTION the person's NAME in their reasoning\n");
+        prompt.append("3. COMPARE their actual skill levels to required levels (e.g., 'Has React 5.0, exceeds requirement of 3.0' or 'Has React 2.5, below requirement of 4.0')\n");
+        prompt.append("4. MENTION specific missing or weak skills by name\n");
+        prompt.append("5. If TEAM_LEAD role and high priority: score higher; if EMPLOYEE: explain fit differently\n");
+        prompt.append("6. Keep reasoning under 120 characters but make it UNIQUE\n");
+        prompt.append("7. Score based on: skill match (50%), availability (20%), workload (15%), role fit (15%)\n\n");
+
+        prompt.append("OUTPUT FORMAT (valid JSON only, NO markdown ```json):\n");
         prompt.append("{\n");
         prompt.append("  \"recommendations\": [\n");
         prompt.append("    {\n");
-        prompt.append("      \"userId\": \"candidate_id\",\n");
+        prompt.append("      \"userId\": \"exact-user-id-from-above\",\n");
         prompt.append("      \"rank\": 1,\n");
-        prompt.append("      \"score\": 0.95,\n");
-        prompt.append("      \"reasoning\": \"Detailed explanation of why this person is recommended\",\n");
+        prompt.append("      \"score\": 0.85,\n");
+        prompt.append("      \"reasoning\": \"[NAME] has [SPECIFIC SKILL] at level X, [comparison to requirement]. [Strength/weakness].\",\n");
         prompt.append("      \"skillAnalysis\": {\n");
         prompt.append("        \"matchedSkills\": [\"skill1\", \"skill2\"],\n");
         prompt.append("        \"missingSkills\": [\"skill3\"],\n");
-        prompt.append("        \"skillGaps\": {\"skill1\": 0.2, \"skill2\": 0.0},\n");
-        prompt.append("        \"bonusSkills\": [\"additional_skill1\"],\n");
-        prompt.append("        \"skillMatchSummary\": \"Overall assessment of skill compatibility\",\n");
-        prompt.append("        \"skillDevelopmentOpportunity\": \"How this task can help candidate grow\"\n");
+        prompt.append("        \"skillMatchSummary\": \"Brief specific assessment\"\n");
         prompt.append("      },\n");
-        prompt.append("      \"strengths\": [\"list of key strengths\"],\n");
-        prompt.append("      \"risks\": [\"potential risks or concerns\"],\n");
-        prompt.append("      \"isTeamLead\": true\n");
+        prompt.append("      \"strengths\": [\"specific strength\"],\n");
+        prompt.append("      \"risks\": [\"specific concern\"],\n");
+        prompt.append("      \"isTeamLead\": false\n");
         prompt.append("    }\n");
-        prompt.append("  ],\n");
-        prompt.append("  \"taskSkillNecessity\": {\n");
-        prompt.append("    \"skill1\": \"Explanation of why skill1 is crucial for this task\",\n");
-        prompt.append("    \"skill2\": \"Explanation of why skill2 is needed\"\n");
-        prompt.append("  },\n");
-        prompt.append("  \"overallAnalysis\": \"Summary of the assignment strategy and key considerations\"\n");
-        prompt.append("}\n");
+        prompt.append("  ]\n");
+        prompt.append("}\n\n");
+        prompt.append("EXAMPLE GOOD reasoning: \"David has React 5.0/TypeScript 5.0 exceeding requirements. Perfect frontend skills but missing E2E framework experience.\"\n");
+        prompt.append("EXAMPLE BAD reasoning: \"Good skill match for this task. Currently has light workload.\" (too generic!)\n");
 
         return prompt.toString();
     }
@@ -198,9 +234,10 @@ public class GeminiRecommendationService {
                     ))
                 ),
                 "generationConfig", Map.of(
-                    "temperature", 0.3,
-                    "maxOutputTokens", 8000  // Increased from 4000 to handle larger responses
-                    // Removed responseMimeType as it may not be supported by gemini-2.5-flash
+                    "temperature", 0.2,  // Lower temperature for more focused responses
+                    "maxOutputTokens", 16000,  // Increased to handle more candidates
+                    "topP", 0.8,
+                    "topK", 10
                 )
             );
 
@@ -536,22 +573,43 @@ public class GeminiRecommendationService {
      * Remove incomplete string at the end of JSON (common truncation point)
      */
     private String removeIncompleteStringAtEnd(String json) {
-        // Find the last complete field before truncation
-        int lastCompleteField = json.lastIndexOf("\",");
-        if (lastCompleteField == -1) {
-            lastCompleteField = json.lastIndexOf("\"}");
-        }
-        if (lastCompleteField == -1) {
-            lastCompleteField = json.lastIndexOf("\"]");
+        int length = json.length();
+
+        // Find if we're in the middle of a string value
+        int lastQuote = json.lastIndexOf("\"");
+        if (lastQuote == -1) {
+            return json;
         }
 
-        if (lastCompleteField > 0) {
-            // Check if there's an incomplete string after this point
-            String afterLastField = json.substring(lastCompleteField + 1);
-            if (afterLastField.contains("\":") && !afterLastField.trim().endsWith("}")
-                && !afterLastField.trim().endsWith("]")) {
-                // Likely truncated, return up to the last complete field
-                return json.substring(0, lastCompleteField + 1);
+        // Count quotes to see if we have an odd number (incomplete string)
+        long quoteCount = json.chars().filter(ch -> ch == '"').count();
+
+        if (quoteCount % 2 != 0) {
+            // Odd number of quotes means incomplete string
+            // Find the position before the incomplete string started
+            String beforeLastQuote = json.substring(0, lastQuote);
+            int fieldStart = beforeLastQuote.lastIndexOf("\":");
+
+            if (fieldStart > 0) {
+                // Find the key name start
+                int keyStart = beforeLastQuote.lastIndexOf("\"", fieldStart - 1);
+                if (keyStart > 0) {
+                    // Check if there's content before this incomplete field
+                    String beforeField = json.substring(0, keyStart);
+                    if (beforeField.trim().endsWith(",")) {
+                        // Remove the trailing comma and return
+                        return beforeField.substring(0, beforeField.lastIndexOf(",")).trim();
+                    } else if (beforeField.trim().endsWith("{") || beforeField.trim().endsWith("[")) {
+                        // Just after opening brace/bracket, remove whole field
+                        return beforeField.trim();
+                    }
+                }
+            }
+
+            // Fallback: just remove from the last complete field
+            int lastComma = json.lastIndexOf(",\"");
+            if (lastComma > 0) {
+                return json.substring(0, lastComma);
             }
         }
 

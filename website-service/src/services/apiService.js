@@ -109,7 +109,7 @@ export const apiService = {
   getUser: (userId) => api.get(`/identity/users/${userId}`),
   getAllUsers: () => api.get('/identity/users'),
   updateProfile: (id, data) => api.put(`/identity/users/${id}`, data),
-  changePassword: (data) => api.put('/identity/users/change-password', data),
+  changePassword: (data) => api.post('/identity/users/change-password', data),
 
   // Profile management
 
@@ -231,10 +231,13 @@ export const apiService = {
   getTaskSubmissions: (taskId) => api.get(`/task/tasks/${taskId}/submissions`),
   getMySubmissions: () => api.get('/task/my-submissions'),
 
-  reviewSubmission: (taskId, submissionId, status, comments) => 
-    api.put(`/task/tasks/${taskId}/submissions/${submissionId}/review`, null, { 
-      params: { status, comments } 
-  }),
+  reviewSubmission: (taskId, submissionId, status, comments, qualityRating, taskComplexity) => 
+    api.post(`/task/tasks/${taskId}/submissions/${submissionId}/review-detailed`, {
+      status,
+      comments,
+      qualityRating,
+      taskComplexity
+    }),
   getPendingSubmissions: () => api.get('/task/submissions/pending'),
   getMyReviews: () => api.get('/task/submissions/my-reviews'),
 

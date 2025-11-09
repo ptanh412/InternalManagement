@@ -13,6 +13,8 @@ This document contains detailed use case diagrams for all main functions in the 
 
 This diagram covers Identity Service and Profile Service functionalities.
 
+### Use Case Diagram
+
 ```mermaid
 graph LR
     %% Actors
@@ -101,6 +103,794 @@ graph LR
     %% Extend Relationships
     CreateUser -.->|extends| ParseCV
     ManageSkills -.->|extends| ExtractSkills
+```
+
+### Sequence Diagrams
+
+#### 1.1. User Login and Authentication Sequence
+
+This sequence diagram shows the complete authentication flow with JWT token generation and validation.
+
+```mermaid
+sequenceDiagram
+    %% Actors and Objects
+    actor Employee as 👤 Employee
+    participant WebApp as <<boundary>><br/>Web Application
+    participant AuthController as <<control>><br/>AuthenticationController
+    participant AuthService as <<service>><br/>AuthenticationService
+    participant UserRepo as <<repository>><br/>UserRepository
+    participant Database as <<database>><br/>PostgreSQL
+    participant JWTUtil as <<utility>><br/>JWTTokenUtil
+    participant RedisCache as <<cache>><br/>Redis Cache
+    
+    %% Lifelines are implicit in mermaid sequenceDiagram
+    
+    %% LOGIN FLOW
+    rect rgb(230, 240, 255)
+        Note over Employee,RedisCache: Authentication Flow - Login
+        
+        %% Create message - User initiates login
+        Employee->>+WebApp: enterCredentials(username, password)
+        activate WebApp
+        
+        %% Synchronous message
+        WebApp->>+AuthController: POST /auth/token(credentials)
+        activate AuthController
+        Note right of AuthController: Activation Box Active
+        
+        %% Synchronous message to service
+        AuthController->>+AuthService: authenticate(username, password)
+        activate AuthService
+        
+        %% Alternative - Validation
+        alt Valid Credentials
+            %% Synchronous message to repository
+            AuthService->>+UserRepo: findByUsername(username)
+            activate UserRepo
+            
+            UserRepo->>+Database: SELECT * FROM users WHERE username = ?
+            activate Database
+            
+            %% Reply message (synchronous return)
+            Database-->>-UserRepo: User Data
+            deactivate Database
+            
+            UserRepo-->>-AuthService: User Object
+            deactivate UserRepo
+            
+            %% Password validation
+            AuthService->>AuthService: validatePassword(password, hashedPassword)
+            
+            %% Create JWT Token
+            AuthService->>+JWTUtil: generateToken(user)
+            activate JWTUtil
+            create participant Token as <<entity>><br/>JWTToken
+            JWTUtil->>Token: new(userId, roles, expiry)
+            Note right of Token: Create Message:<br/>New Token Object
+            JWTUtil-->>-AuthService: JWT Token String
+            deactivate JWTUtil
+            
+            %% Cache user session
+            AuthService->>+RedisCache: cacheUserSession(userId, token)
+            activate RedisCache
+            RedisCache-->>-AuthService: Session Cached
+            deactivate RedisCache
+            
+            %% Reply messages
+            AuthService-->>-AuthController: AuthenticationResponse(token, user)
+            deactivate AuthService
+            
+            AuthController-->>-WebApp: HTTP 200 OK + Token
+            deactivate AuthController
+            
+            WebApp-->>-Employee: Login Success + Dashboard
+            deactivate WebApp
+            
+        else Invalid Credentials
+            AuthService-->>AuthController: AuthenticationException
+            AuthController-->>WebApp: HTTP 401 Unauthorized
+            WebApp-->>Employee: Error: Invalid Credentials
+        end
+    end
+    
+    %% TOKEN VALIDATION FLOW
+    rect rgb(255, 240, 230)
+        Note over Employee,RedisCache: Token Validation Flow
+        
+        %% User makes authenticated request
+        Employee->>+WebApp: accessProtectedResource()
+        activate WebApp
+        
+        WebApp->>+AuthController: GET /api/resource<br/>(Authorization: Bearer token)
+        activate AuthController
+        
+        %% Synchronous message for validation
+        AuthController->>+AuthService: validateToken(token)
+        activate AuthService
+        
+        %% Check cache first
+        AuthService->>+RedisCache: getUserSession(token)
+        activate RedisCache
+        
+        alt Token in Cache
+            RedisCache-->>-AuthService: User Session Data
+            deactivate RedisCache
+            AuthService-->>-AuthController: Valid Token
+            deactivate AuthService
+            AuthController-->>-WebApp: Access Granted
+            deactivate AuthController
+            WebApp-->>-Employee: Resource Data
+            deactivate WebApp
+            
+        else Token Not in Cache
+            RedisCache-->>AuthService: Session Not Found
+            
+            %% Validate with JWT
+            AuthService->>+JWTUtil: validateToken(token)
+            activate JWTUtil
+            
+            alt Token Valid
+                JWTUtil-->>-AuthService: Token Valid
+                deactivate JWTUtil
+                AuthService-->>AuthController: Valid Token
+                AuthController-->>WebApp: Access Granted
+                WebApp-->>Employee: Resource Data
+                
+            else Token Invalid/Expired
+                JWTUtil-->>AuthService: Token Invalid
+                destroy Token
+                JWTUtil->>Token: ❌ Delete Token
+                Note right of Token: Delete Message:<br/>Token Destroyed
+                AuthService-->>AuthController: TokenExpiredException
+                AuthController-->>WebApp: HTTP 401 Unauthorized
+                WebApp-->>Employee: Session Expired - Please Login
+            end
+        end
+    end
+    
+    %% LOGOUT FLOW
+    rect rgb(255, 230, 230)
+        Note over Employee,RedisCache: Logout Flow
+        
+        Employee->>+WebApp: logout()
+        activate WebApp
+        
+        WebApp->>+AuthController: POST /auth/logout
+        activate AuthController
+        
+        AuthController->>+AuthService: logout(token)
+        activate AuthService
+        
+        %% Invalidate token in cache
+        AuthService->>+RedisCache: invalidateSession(token)
+        activate RedisCache
+        RedisCache->>RedisCache: DELETE session
+        RedisCache-->>-AuthService: Session Invalidated
+        deactivate RedisCache
+        
+        %% Destroy token
+        destroy Token
+        AuthService->>Token: ❌ Destroy Token
+        
+        AuthService-->>-AuthController: Logout Success
+        deactivate AuthService
+        
+        AuthController-->>-WebApp: HTTP 200 OK
+        deactivate AuthController
+        
+        WebApp-->>-Employee: Logged Out Successfully
+        deactivate WebApp
+    end
+```
+
+#### 1.2. User Profile Management Sequence
+
+This sequence diagram shows profile update, skill management, and avatar upload flows.
+
+```mermaid
+sequenceDiagram
+    %% Actors and Objects
+    actor Employee as 👤 Employee
+    participant WebApp as <<boundary>><br/>Web Application
+    participant ProfileController as <<control>><br/>ProfileController
+    participant ProfileService as <<service>><br/>ProfileService
+    participant SkillService as <<service>><br/>SkillService
+    participant FileService as <<service>><br/>FileService
+    participant ProfileRepo as <<repository>><br/>ProfileRepository
+    participant SkillRepo as <<repository>><br/>SkillRepository
+    participant Database as <<database>><br/>MySQL Database
+    participant CloudStorage as <<external>><br/>Cloud Storage
+    participant IdentityService as <<external>><br/>Identity Service
+    
+    %% UPDATE PROFILE FLOW
+    rect rgb(240, 255, 240)
+        Note over Employee,IdentityService: Update Profile Flow
+        
+        Employee->>+WebApp: updateMyProfile(profileData)
+        activate WebApp
+        
+        WebApp->>+ProfileController: PUT /profile/my-profile<br/>(profileData)
+        activate ProfileController
+        
+        ProfileController->>+ProfileService: updateProfile(userId, profileData)
+        activate ProfileService
+        
+        %% Retrieve existing profile
+        ProfileService->>+ProfileRepo: findByUserId(userId)
+        activate ProfileRepo
+        
+        ProfileRepo->>+Database: SELECT * FROM profiles WHERE user_id = ?
+        activate Database
+        Database-->>-ProfileRepo: Profile Entity
+        deactivate Database
+        
+        ProfileRepo-->>-ProfileService: Profile Object
+        deactivate ProfileRepo
+        
+        %% Update profile fields
+        ProfileService->>ProfileService: updateFields(profile, profileData)
+        
+        %% Save updated profile
+        ProfileService->>+ProfileRepo: save(profile)
+        activate ProfileRepo
+        
+        ProfileRepo->>+Database: UPDATE profiles SET ... WHERE id = ?
+        activate Database
+        Database-->>-ProfileRepo: Updated Profile
+        deactivate Database
+        
+        ProfileRepo-->>-ProfileService: Saved Profile
+        deactivate ProfileRepo
+        
+        %% Asynchronous message - Sync with Identity Service
+        ProfileService-)IdentityService: syncUserChanges(userId, profileData)
+        Note right of IdentityService: Asynchronous:<br/>Update user info
+        
+        %% Update cache asynchronously
+        ProfileService-)RedisCache: updateCachedProfile(userId, profile)
+        Note right of RedisCache: Asynchronous:<br/>Cache update
+        
+        ProfileService-->>-ProfileController: Updated Profile DTO
+        deactivate ProfileService
+        
+        ProfileController-->>-WebApp: HTTP 200 OK + Profile Data
+        deactivate ProfileController
+        
+        WebApp-->>-Employee: Profile Updated Successfully
+        deactivate WebApp
+        
+        %% Asynchronous return messages
+        IdentityService--)ProfileService: Sync Complete
+        Note left of IdentityService: Async Return:<br/>Confirmation
+    end
+    
+    %% MANAGE SKILLS FLOW
+    rect rgb(255, 250, 240)
+        Note over Employee,IdentityService: Manage Skills Flow
+        
+        Employee->>+WebApp: addSkill(skillName, proficiency)
+        activate WebApp
+        
+        WebApp->>+ProfileController: POST /profile/skills<br/>(skillData)
+        activate ProfileController
+        
+        ProfileController->>+SkillService: addSkillToProfile(userId, skillData)
+        activate SkillService
+        
+        %% Loop - Check if skill exists
+        loop For Each Skill
+            SkillService->>+SkillRepo: findByName(skillName)
+            activate SkillRepo
+            
+            SkillRepo->>+Database: SELECT * FROM skills WHERE name = ?
+            activate Database
+            
+            alt Skill Exists
+                Database-->>-SkillRepo: Skill Entity
+                deactivate Database
+                SkillRepo-->>-SkillService: Existing Skill
+                deactivate SkillRepo
+                
+            else Skill Not Found
+                Database-->>SkillRepo: Empty Result
+                
+                %% Create new skill
+                create participant NewSkill as <<entity>><br/>Skill
+                SkillService->>NewSkill: new Skill(skillName)
+                Note right of NewSkill: Create Message:<br/>New Skill Entity
+                
+                SkillService->>+SkillRepo: save(skill)
+                activate SkillRepo
+                SkillRepo->>+Database: INSERT INTO skills ...
+                activate Database
+                Database-->>-SkillRepo: Created Skill
+                deactivate Database
+                SkillRepo-->>-SkillService: Saved Skill
+                deactivate SkillRepo
+            end
+        end
+        
+        %% Associate skill with profile
+        SkillService->>+ProfileRepo: addSkillToProfile(userId, skillId, proficiency)
+        activate ProfileRepo
+        
+        ProfileRepo->>+Database: INSERT INTO user_skills ...
+        activate Database
+        Database-->>-ProfileRepo: Skill Associated
+        deactivate Database
+        
+        ProfileRepo-->>-SkillService: Success
+        deactivate ProfileRepo
+        
+        SkillService-->>-ProfileController: Skill Added Successfully
+        deactivate SkillService
+        
+        ProfileController-->>-WebApp: HTTP 201 Created
+        deactivate ProfileController
+        
+        WebApp-->>-Employee: Skill Added to Profile
+        deactivate WebApp
+    end
+    
+    %% UPLOAD AVATAR FLOW
+    rect rgb(245, 240, 255)
+        Note over Employee,CloudStorage: Upload Avatar Flow
+        
+        Employee->>+WebApp: uploadAvatar(imageFile)
+        activate WebApp
+        
+        WebApp->>+ProfileController: POST /profile/avatar<br/>(multipart/form-data)
+        activate ProfileController
+        
+        %% Group - File Validation
+        par File Validation Group
+            ProfileController->>ProfileController: validateFileType(file)
+            and
+            ProfileController->>ProfileController: validateFileSize(file)
+            and
+            ProfileController->>ProfileController: scanForVirus(file)
+        end
+        
+        ProfileController->>+FileService: uploadAvatar(userId, file)
+        activate FileService
+        
+        %% Process image
+        FileService->>FileService: compressImage(file)
+        FileService->>FileService: generateThumbnail(file)
+        
+        %% Upload to cloud storage
+        FileService->>+CloudStorage: uploadFile(processedImage)
+        activate CloudStorage
+        CloudStorage-->>-FileService: File URL + Metadata
+        deactivate CloudStorage
+        
+        FileService-->>-ProfileController: Avatar URL
+        deactivate FileService
+        
+        %% Update profile with avatar URL
+        ProfileController->>+ProfileService: updateAvatar(userId, avatarUrl)
+        activate ProfileService
+        
+        ProfileService->>+ProfileRepo: updateAvatarUrl(userId, avatarUrl)
+        activate ProfileRepo
+        
+        ProfileRepo->>+Database: UPDATE profiles SET avatar_url = ?
+        activate Database
+        Database-->>-ProfileRepo: Updated
+        deactivate Database
+        
+        ProfileRepo-->>-ProfileService: Success
+        deactivate ProfileRepo
+        
+        ProfileService-->>-ProfileController: Avatar Updated
+        deactivate ProfileService
+        
+        ProfileController-->>-WebApp: HTTP 200 OK + Avatar URL
+        deactivate ProfileController
+        
+        WebApp-->>-Employee: Avatar Uploaded Successfully
+        deactivate WebApp
+    end
+```
+
+#### 1.3. Admin User Management and CV Processing Sequence
+
+This sequence diagram shows admin creating users, CV parsing, and auto profile creation.
+
+```mermaid
+sequenceDiagram
+    %% Actors and Objects
+    actor Admin as 👨‍💼 Admin
+    participant WebApp as <<boundary>><br/>Admin Dashboard
+    participant UserController as <<control>><br/>UserController
+    participant UserService as <<service>><br/>UserService
+    participant AIController as <<control>><br/>CVParsingController
+    participant AIService as <<service>><br/>AIService
+    participant GeminiAPI as <<external>><br/>Gemini AI API
+    participant ProfileService as <<service>><br/>ProfileService
+    participant UserRepo as <<repository>><br/>UserRepository
+    participant ProfileRepo as <<repository>><br/>ProfileRepository
+    participant Database as <<database>><br/>PostgreSQL
+    participant EmailService as <<service>><br/>EmailService
+    
+    %% CREATE USER MANUALLY FLOW
+    rect rgb(255, 245, 245)
+        Note over Admin,EmailService: Manual User Creation Flow
+        
+        Admin->>+WebApp: createUser(userData)
+        activate WebApp
+        
+        WebApp->>+UserController: POST /users<br/>(userData)
+        activate UserController
+        
+        UserController->>+UserService: createUser(userData)
+        activate UserService
+        
+        %% Validate user data
+        UserService->>UserService: validateUserData(userData)
+        
+        %% Check if user exists
+        UserService->>+UserRepo: existsByEmail(email)
+        activate UserRepo
+        
+        UserRepo->>+Database: SELECT COUNT(*) FROM users WHERE email = ?
+        activate Database
+        
+        alt User Already Exists
+            Database-->>-UserRepo: Count > 0
+            deactivate Database
+            UserRepo-->>-UserService: User Exists
+            deactivate UserRepo
+            UserService-->>UserController: DuplicateUserException
+            UserController-->>WebApp: HTTP 409 Conflict
+            WebApp-->>Admin: Error: User Already Exists
+            
+        else User Does Not Exist
+            Database-->>UserRepo: Count = 0
+            UserRepo-->>UserService: User Not Found
+            
+            %% Create new user entity
+            create participant NewUser as <<entity>><br/>User
+            UserService->>NewUser: new User(userData)
+            Note right of NewUser: Create Message:<br/>New User Entity
+            
+            %% Hash password
+            UserService->>UserService: hashPassword(password)
+            
+            %% Save user
+            UserService->>+UserRepo: save(user)
+            activate UserRepo
+            
+            UserRepo->>+Database: INSERT INTO users ...
+            activate Database
+            Database-->>-UserRepo: Created User with ID
+            deactivate Database
+            
+            UserRepo-->>-UserService: Saved User
+            deactivate UserRepo
+            
+            %% Create default profile
+            UserService->>+ProfileService: createDefaultProfile(userId)
+            activate ProfileService
+            
+            create participant NewProfile as <<entity>><br/>Profile
+            ProfileService->>NewProfile: new Profile(userId)
+            Note right of NewProfile: Create Message:<br/>Profile Entity
+            
+            ProfileService->>+ProfileRepo: save(profile)
+            activate ProfileRepo
+            
+            ProfileRepo->>+Database: INSERT INTO profiles ...
+            activate Database
+            Database-->>-ProfileRepo: Created Profile
+            deactivate Database
+            
+            ProfileRepo-->>-ProfileService: Saved Profile
+            deactivate ProfileRepo
+            
+            ProfileService-->>-UserService: Profile Created
+            deactivate ProfileService
+            
+            %% Asynchronous - Send welcome email
+            UserService-)EmailService: sendWelcomeEmail(user)
+            Note right of EmailService: Async: Send Email
+            
+            UserService-->>-UserController: User Created DTO
+            deactivate UserService
+            
+            UserController-->>-WebApp: HTTP 201 Created + User Data
+            deactivate UserController
+            
+            WebApp-->>-Admin: User Created Successfully
+            deactivate WebApp
+            
+            %% Async return
+            EmailService--)UserService: Email Sent
+            Note left of EmailService: Async Return
+        end
+    end
+    
+    %% CV PARSING AND AUTO USER CREATION FLOW
+    rect rgb(240, 250, 255)
+        Note over Admin,EmailService: CV Parsing & Auto User Creation
+        
+        Admin->>+WebApp: uploadCV(cvFile)
+        activate WebApp
+        
+        WebApp->>+AIController: POST /ai/cv/parse<br/>(multipart: cvFile)
+        activate AIController
+        
+        AIController->>+AIService: parseCVFile(file)
+        activate AIService
+        
+        %% Extract text from CV
+        AIService->>AIService: extractTextFromPDF(file)
+        
+        %% Group - Parallel AI Analysis
+        par AI Analysis Group
+            %% Send to Gemini AI for parsing
+            AIService->>+GeminiAPI: analyzeCV(cvText)
+            activate GeminiAPI
+            Note right of GeminiAPI: AI Processing:<br/>Extract Information
+            GeminiAPI-->>-AIService: Parsed CV Data<br/>(name, email, skills, experience)
+            deactivate GeminiAPI
+            
+            and Extract Skills
+            AIService->>AIService: extractSkillsFromText(cvText)
+            
+            and Determine Department
+            AIService->>AIService: suggestDepartment(skills, experience)
+            
+            and Determine Position
+            AIService->>AIService: suggestPosition(experience, skills)
+        end
+        
+        %% Create structured CV data
+        create participant CVData as <<entity>><br/>CVParseResult
+        AIService->>CVData: new CVParseResult(parsedData)
+        Note right of CVData: Create Message:<br/>CV Parse Result
+        
+        AIService-->>-AIController: CVParseResult DTO
+        deactivate AIService
+        
+        AIController-->>-WebApp: HTTP 200 OK + Parsed CV Data
+        deactivate AIController
+        
+        WebApp-->>Admin: Display Parsed CV Data
+        
+        %% Admin reviews and confirms
+        Admin->>WebApp: confirmCreateUser(parsedData)
+        
+        WebApp->>+AIController: POST /ai/cv/create-user<br/>(parsedData)
+        activate AIController
+        
+        AIController->>+AIService: autoCreateUserFromCV(cvData)
+        activate AIService
+        
+        %% Alternative - Auto create or manual review
+        alt Auto Create Enabled
+            %% Create user via User Service
+            AIService->>+UserService: createUser(cvUserData)
+            activate UserService
+            
+            %% Create user entity
+            create participant AutoUser as <<entity>><br/>User
+            UserService->>AutoUser: new User(cvUserData)
+            Note right of AutoUser: Create Message:<br/>Auto User
+            
+            UserService->>+UserRepo: save(user)
+            activate UserRepo
+            
+            UserRepo->>+Database: INSERT INTO users ...
+            activate Database
+            Database-->>-UserRepo: Created User
+            deactivate Database
+            
+            UserRepo-->>-UserService: Saved User
+            deactivate UserRepo
+            
+            %% Create profile with CV data
+            UserService->>+ProfileService: createProfileFromCV(userId, cvData)
+            activate ProfileService
+            
+            create participant CVProfile as <<entity>><br/>Profile
+            ProfileService->>CVProfile: new Profile(userId, cvData)
+            Note right of CVProfile: Create Message:<br/>CV Profile
+            
+            %% Loop - Add each skill from CV
+            loop For Each Skill in CV
+                ProfileService->>+ProfileRepo: addSkill(profileId, skill, proficiency)
+                activate ProfileRepo
+                ProfileRepo->>+Database: INSERT INTO user_skills ...
+                activate Database
+                Database-->>-ProfileRepo: Skill Added
+                deactivate Database
+                ProfileRepo-->>-ProfileService: Success
+                deactivate ProfileRepo
+            end
+            
+            ProfileService->>+ProfileRepo: save(profile)
+            activate ProfileRepo
+            ProfileRepo->>+Database: INSERT INTO profiles ...
+            activate Database
+            Database-->>-ProfileRepo: Profile Saved
+            deactivate Database
+            ProfileRepo-->>-ProfileService: Saved Profile
+            deactivate ProfileRepo
+            
+            ProfileService-->>-UserService: Profile Created
+            deactivate ProfileService
+            
+            UserService-->>-AIService: User Auto-Created
+            deactivate UserService
+            
+            %% Async - Send credentials email
+            AIService-)EmailService: sendCredentialsEmail(user, tempPassword)
+            Note right of EmailService: Async: Email<br/>Login Credentials
+            
+            AIService-->>-AIController: Auto Creation Success
+            deactivate AIService
+            
+            AIController-->>-WebApp: HTTP 201 Created + User Data
+            deactivate AIController
+            
+            WebApp-->>-Admin: User Auto-Created from CV
+            deactivate WebApp
+            
+            %% Async return
+            EmailService--)AIService: Credentials Sent
+            
+        else Manual Review Required
+            AIService-->>AIController: CV Data for Review
+            AIController-->>WebApp: Review Required
+            WebApp-->>Admin: Please Review CV Data
+        end
+    end
+    
+    %% PERFORMANCE UPDATE FLOW
+    rect rgb(255, 250, 245)
+        Note over Admin,Database: Update Performance Scores
+        
+        actor TeamLead as 👨‍💼 Team Lead
+        participant PerfController as <<control>><br/>PerformanceController
+        participant PerfService as <<service>><br/>PerformanceService
+        participant PerfRepo as <<repository>><br/>PerformanceRepository
+        
+        TeamLead->>+WebApp: updatePerformance(userId, performanceData)
+        activate WebApp
+        
+        WebApp->>+PerfController: PUT /performance/{userId}<br/>(performanceData)
+        activate PerfController
+        
+        PerfController->>+PerfService: updatePerformance(userId, data)
+        activate PerfService
+        
+        %% Get current performance record
+        PerfService->>+PerfRepo: findByUserId(userId)
+        activate PerfRepo
+        
+        PerfRepo->>+Database: SELECT * FROM performance WHERE user_id = ?
+        activate Database
+        Database-->>-PerfRepo: Performance Record
+        deactivate Database
+        
+        PerfRepo-->>-PerfService: Performance Entity
+        deactivate PerfRepo
+        
+        %% Update performance metrics
+        PerfService->>PerfService: updateMetrics(performance, data)
+        PerfService->>PerfService: recalculatePerformanceScore()
+        
+        %% Save updated performance
+        PerfService->>+PerfRepo: save(performance)
+        activate PerfRepo
+        
+        PerfRepo->>+Database: UPDATE performance SET ...
+        activate Database
+        Database-->>-PerfRepo: Updated Performance
+        deactivate Database
+        
+        PerfRepo-->>-PerfService: Saved Performance
+        deactivate PerfRepo
+        
+        %% Async - Update cached scores
+        PerfService-)RedisCache: updatePerformanceCache(userId, score)
+        Note right of RedisCache: Async: Cache Update
+        
+        PerfService-->>-PerfController: Performance Updated
+        deactivate PerfService
+        
+        PerfController-->>-WebApp: HTTP 200 OK + Updated Scores
+        deactivate PerfController
+        
+        WebApp-->>-TeamLead: Performance Updated Successfully
+        deactivate WebApp
+        
+        RedisCache--)PerfService: Cache Updated
+    end
+```
+
+#### Legend: Sequence Diagram Elements
+
+```mermaid
+sequenceDiagram
+    %% Legend for all UML Sequence Diagram elements used
+    
+    actor Actor as 🎭 Actor<br/>(User/External System)
+    participant Boundary as <<boundary>><br/>Boundary Object<br/>(UI/API)
+    participant Control as <<control>><br/>Control Object<br/>(Controller)
+    participant Entity as <<entity>><br/>Entity Object<br/>(Data Model)
+    participant Service as <<service>><br/>Service Object<br/>(Business Logic)
+    participant Repository as <<repository>><br/>Repository Object<br/>(Data Access)
+    participant Database as <<database>><br/>Database
+    participant External as <<external>><br/>External System
+    
+    Note over Actor,External: All Elements Demonstrated
+    
+    rect rgb(255, 250, 240)
+        Note over Actor,Control: Synchronous Messages
+        Actor->>+Boundary: 1. Synchronous Call (solid arrow)
+        activate Boundary
+        Note right of Boundary: Activation Box:<br/>Object is active
+        Boundary->>+Control: 2. Synchronous Call
+        activate Control
+        Control-->>-Boundary: 3. Reply Message (dashed arrow)
+        deactivate Control
+        Boundary-->>-Actor: 4. Return Response
+        deactivate Boundary
+    end
+    
+    rect rgb(240, 255, 250)
+        Note over Control,Service: Asynchronous Messages
+        Control-)Service: 5. Asynchronous Call (no wait)
+        Note right of Service: Async: Processed later
+        Service--)Control: 6. Async Return (dashed, open arrow)
+        Note left of Service: Async Return:<br/>Completion signal
+    end
+    
+    rect rgb(250, 240, 255)
+        Note over Service,Entity: Create & Delete Messages
+        create participant NewObject as <<entity>><br/>New Object
+        Service->>NewObject: 7. Create Message (dashed to new object)
+        Note right of NewObject: Create Message:<br/>Object instantiation
+        
+        Service->>Entity: 8. Use Object
+        destroy Entity
+        Service->>Entity: 9. Delete/Destroy Message (X)
+        Note right of Entity: Delete Message:<br/>Object destroyed
+    end
+    
+    rect rgb(255, 245, 240)
+        Note over Repository,Database: Loop & Alternative
+        
+        loop For Each Item (Loop Frame)
+            Repository->>+Database: 10. Query in Loop
+            activate Database
+            Database-->>-Repository: Result
+            deactivate Database
+        end
+        
+        alt Condition A (Alternative Frame)
+            Repository->>Database: 11. Path A
+            Database-->>Repository: Result A
+        else Condition B
+            Repository->>Database: 12. Path B
+            Database-->>Repository: Result B
+        end
+    end
+    
+    rect rgb(245, 255, 240)
+        Note over Service,Database: Parallel/Group
+        par Group Execution (Parallel)
+            Service->>Repository: 13. Operation 1
+            Repository->>Database: Query 1
+            and
+            Service->>Repository: 14. Operation 2
+            Repository->>Database: Query 2
+        end
+    end
+    
+    Note over Actor,External: Lifeline: Vertical dashed line under each participant<br/>Activation Box: Thin rectangle showing active state<br/>Objects: <<stereotype>> notation shows object types
 ```
 
 ---
@@ -778,7 +1568,7 @@ graph LR
 
 ## 7. Workload Management Use Case
 
-This diagram covers Workload Service for capacity planning and resource optimization.
+This diagram covers Workload Service for capacity planning and resource optimization based on actual implementation.
 
 ```mermaid
 graph LR
@@ -787,313 +1577,220 @@ graph LR
     TeamLead[👨‍💼 Team Lead]
     ProjectManager[👨‍💼 Project Manager]
     Admin[👨‍💼 System Administrator]
-    ResourceManager[👨‍💼 Resource Manager]
-    HRManager[👨‍💼 HR Manager]
     
     %% System Boundary
     subgraph "Workload Management System"
-        %% Workload Monitoring
-        ViewMyWorkload((View My Workload))
-        ViewTeamWorkload((View Team Workload))
-        ViewUserCapacity((View User Capacity))
-        CheckUserAvailability((Check User Availability))
-        MonitorWorkloadTrends((Monitor Workload Trends))
+        %% User Workload Management (All Roles)
+        GetUserWorkload((Get User Workload))
+        UpdateUserCapacity((Update User Capacity))
+        GetUserAvailability((Get User Availability))
         
-        %% Capacity Management
-        SetUserCapacity((Set User Capacity))
-        UpdateCapacity((Update User Capacity))
-        DefineWorkingHours((Define Working Hours))
-        SetAvailabilitySchedule((Set Availability Schedule))
-        ManageTimeOff((Manage Time Off))
+        %% My Work Time Statistics (Employee)
+        GetMyWorkTimeStats((Get My Work Time Statistics))
+        ViewMyProductivity((View My Productivity))
+        ViewMyWeeklyHours((View My Weekly Hours))
         
-        %% Resource Optimization
-        OptimizeProjectResources((Optimize Project Resources))
-        BalanceTeamWorkload((Balance Team Workload))
-        RecommendResourceAllocation((Recommend Resource Allocation))
-        IdentifyOverallocation((Identify Overallocation))
-        SuggestWorkloadRedistribution((Suggest Workload Redistribution))
+        %% Team Workload Management (Team Lead)
+        GetTeamWorkload((Get Team Workload))
+        ViewTeamProductivity((View Team Productivity))
+        GetBatchWorkTimeStats((Get Batch Work Time Statistics))
         
-        %% Task Workload Management
+        %% Task Workload Operations (Team Lead/Project Manager)
         AddTaskToWorkload((Add Task to Workload))
+        UpdateTaskWorkload((Update Task Workload))
         RemoveTaskFromWorkload((Remove Task from Workload))
-        UpdateTaskEffort((Update Task Effort))
-        EstimateTaskDuration((Estimate Task Duration))
-        TrackTaskProgress((Track Task Progress))
         
-        %% Workload Analytics
-        GenerateWorkloadReport((Generate Workload Report))
-        ViewUtilizationMetrics((View Utilization Metrics))
-        AnalyzeProductivity((Analyze Productivity))
-        ForecastCapacityNeeds((Forecast Capacity Needs))
-        CompareTeamPerformance((Compare Team Performance))
+        %% Resource Planning (Project Manager)
+        GetAvailableUsers((Get Available Users))
+        OptimizeProjectWorkload((Optimize Project Workload))
+        ViewResourceAllocation((View Resource Allocation))
         
-        %% Availability Management
-        ViewAvailableUsers((View Available Users))
-        FindUsersBySkills((Find Users by Skills))
-        CheckSkillAvailability((Check Skill Availability))
+        %% Department Analytics (Admin)
+        GetDepartmentWorkTime((Get Department Work Time))
         ViewDepartmentCapacity((View Department Capacity))
+        MonitorOverallWorkload((Monitor Overall Workload))
         
-        %% Workload Alerts & Notifications
-        SendOverloadAlert((Send Overload Alert))
-        NotifyCapacityChange((Notify Capacity Change))
-        AlertUnderutilization((Alert Underutilization))
-        RemindCapacityUpdate((Remind Capacity Update))
+        %% Work Time Analysis
+        ViewWorkTimeStatistics((View Work Time Statistics))
+        AnalyzeMonthlyPerformance((Analyze Monthly Performance))
+        TrackProductiveHours((Track Productive Hours))
         
-        %% Resource Planning
-        PlanResourceAllocation((Plan Resource Allocation))
-        CreateCapacityPlan((Create Capacity Plan))
-        ScheduleResourceReview((Schedule Resource Review))
-        ManageResourceConflicts((Manage Resource Conflicts))
-        
-        %% Integration Features
-        SyncWithProjectTasks((Sync with Project Tasks))
-        IntegrateWithCalendar((Integrate with Calendar))
-        UpdateFromTimeTracking((Update from Time Tracking))
-        ConnectWithHRSystems((Connect with HR Systems))
-        
-        %% Reporting & Insights
-        ExportWorkloadData((Export Workload Data))
-        CreateCustomDashboard((Create Custom Dashboard))
-        SetWorkloadKPIs((Set Workload KPIs))
-        TrackResourceROI((Track Resource ROI))
+        %% Team Management (Team Lead)
+        MonitorTeamUtilization((Monitor Team Utilization))
+        IdentifyOverloaded((Identify Overloaded Members))
+        BalanceWorkload((Balance Team Workload))
     end
     
-    %% Communication Links
-    Employee --> ViewMyWorkload
-    Employee --> UpdateCapacity
-    Employee --> SetAvailabilitySchedule
-    Employee --> ManageTimeOff
-    Employee --> TrackTaskProgress
+    %% Communication Links - Employee
+    Employee --> GetUserWorkload
+    Employee --> UpdateUserCapacity
+    Employee --> GetMyWorkTimeStats
+    Employee --> ViewMyProductivity
+    Employee --> ViewMyWeeklyHours
+    Employee --> GetUserAvailability
     
-    TeamLead --> ViewTeamWorkload
-    TeamLead --> ViewUserCapacity
-    TeamLead --> BalanceTeamWorkload
+    %% Communication Links - Team Lead
+    TeamLead --> GetUserWorkload
+    TeamLead --> GetTeamWorkload
+    TeamLead --> ViewTeamProductivity
+    TeamLead --> GetBatchWorkTimeStats
     TeamLead --> AddTaskToWorkload
-    TeamLead --> UpdateTaskEffort
-    TeamLead --> ViewUtilizationMetrics
-    TeamLead --> SendOverloadAlert
-    TeamLead --> ManageResourceConflicts
+    TeamLead --> UpdateTaskWorkload
+    TeamLead --> RemoveTaskFromWorkload
+    TeamLead --> MonitorTeamUtilization
+    TeamLead --> IdentifyOverloaded
+    TeamLead --> BalanceWorkload
+    TeamLead --> GetAvailableUsers
     
-    ProjectManager --> OptimizeProjectResources
-    ProjectManager --> ViewAvailableUsers
-    ProjectManager --> FindUsersBySkills
-    ProjectManager --> RecommendResourceAllocation
-    ProjectManager --> PlanResourceAllocation
-    ProjectManager --> GenerateWorkloadReport
-    ProjectManager --> ForecastCapacityNeeds
+    %% Communication Links - Project Manager
+    ProjectManager --> GetUserWorkload
+    ProjectManager --> GetAvailableUsers
+    ProjectManager --> OptimizeProjectWorkload
+    ProjectManager --> ViewResourceAllocation
+    ProjectManager --> AddTaskToWorkload
+    ProjectManager --> UpdateTaskWorkload
+    ProjectManager --> GetTeamWorkload
+    ProjectManager --> ViewWorkTimeStatistics
     
-    ResourceManager --> SetUserCapacity
-    ResourceManager --> BalanceTeamWorkload
-    ResourceManager --> OptimizeProjectResources
-    ResourceManager --> IdentifyOverallocation
-    ResourceManager --> SuggestWorkloadRedistribution
-    ResourceManager --> CreateCapacityPlan
-    ResourceManager --> ScheduleResourceReview
-    ResourceManager --> ViewDepartmentCapacity
-    
-    Admin --> MonitorWorkloadTrends
-    Admin --> ViewUtilizationMetrics
-    Admin --> GenerateWorkloadReport
-    Admin --> ExportWorkloadData
-    Admin --> SetWorkloadKPIs
-    Admin --> CreateCustomDashboard
-    Admin --> ConnectWithHRSystems
-    
-    HRManager --> ViewDepartmentCapacity
-    HRManager --> ForecastCapacityNeeds
-    HRManager --> ManageTimeOff
-    HRManager --> CompareTeamPerformance
-    HRManager --> TrackResourceROI
+    %% Communication Links - Admin
+    Admin --> GetDepartmentWorkTime
+    Admin --> ViewDepartmentCapacity
+    Admin --> MonitorOverallWorkload
+    Admin --> ViewWorkTimeStatistics
+    Admin --> GetBatchWorkTimeStats
+    Admin --> ViewTeamProductivity
     
     %% Include Relationships
-    OptimizeProjectResources -.->|includes| ViewAvailableUsers
-    BalanceTeamWorkload -.->|includes| IdentifyOverallocation
-    AddTaskToWorkload -.->|includes| EstimateTaskDuration
-    RecommendResourceAllocation -.->|includes| CheckSkillAvailability
-    GenerateWorkloadReport -.->|includes| ViewUtilizationMetrics
-    PlanResourceAllocation -.->|includes| ForecastCapacityNeeds
+    GetUserWorkload -.->|includes| GetUserAvailability
+    GetMyWorkTimeStats -.->|includes| ViewMyProductivity
+    GetMyWorkTimeStats -.->|includes| ViewMyWeeklyHours
+    GetTeamWorkload -.->|includes| MonitorTeamUtilization
+    OptimizeProjectWorkload -.->|includes| GetAvailableUsers
+    GetDepartmentWorkTime -.->|includes| ViewDepartmentCapacity
+    ViewTeamProductivity -.->|includes| GetBatchWorkTimeStats
     
     %% Extend Relationships
-    ViewTeamWorkload -.->|extends| SendOverloadAlert
-    ViewMyWorkload -.->|extends| ManageTimeOff
-    OptimizeProjectResources -.->|extends| SuggestWorkloadRedistribution
-    ViewUtilizationMetrics -.->|extends| AlertUnderutilization
-    SetUserCapacity -.->|extends| NotifyCapacityChange
-    GenerateWorkloadReport -.->|extends| ExportWorkloadData
-    ViewAvailableUsers -.->|extends| FindUsersBySkills
+    GetUserWorkload -.->|extends| UpdateUserCapacity
+    MonitorTeamUtilization -.->|extends| IdentifyOverloaded
+    IdentifyOverloaded -.->|extends| BalanceWorkload
+    AddTaskToWorkload -.->|extends| UpdateTaskWorkload
+    ViewWorkTimeStatistics -.->|extends| AnalyzeMonthlyPerformance
+    GetMyWorkTimeStats -.->|extends| TrackProductiveHours
 ```
 
 ---
 
 ## 8. System Administration Use Case
 
-This diagram covers administrative functions across all system services.
+This diagram covers administrative functions actually implemented across all system services.
 
 ```mermaid
 graph LR
     %% Actors
-    SystemAdmin[👨‍💼 System Administrator]
-    DatabaseAdmin[👨‍💼 Database Administrator]
-    SecurityAdmin[👨‍💼 Security Administrator]
-    NetworkAdmin[👨‍💼 Network Administrator]
+    Admin[👨‍💼 System Administrator]
+    HRManager[👨‍💼 HR Manager]
     MLEngineer[👨‍💻 ML Engineer]
-    DevOps[👨‍💻 DevOps Engineer]
-    Auditor[👨‍💼 System Auditor]
     
     %% System Boundary
     subgraph "System Administration"
-        %% User & Access Management
-        ManageSystemUsers((Manage System Users))
-        ConfigureUserRoles((Configure User Roles))
-        SetSystemPermissions((Set System Permissions))
-        AuditUserAccess((Audit User Access))
-        ManageAPIKeys((Manage API Keys))
+        %% User Management (Identity Service)
+        ManageUsers((Manage Users))
+        CreateUser((Create User))
+        UpdateUser((Update User))
+        DeleteUser((Delete User))
+        UpdateUserStatus((Update User Status))
+        ChangeUserPassword((Change User Password))
         
-        %% System Configuration
-        ConfigureServices((Configure Services))
-        ManageEnvironments((Manage Environments))
-        UpdateSystemSettings((Update System Settings))
-        ConfigureIntegrations((Configure Integrations))
-        ManageServiceEndpoints((Manage Service Endpoints))
+        %% Role Management (Identity Service)
+        ManageRoles((Manage Roles))
+        CreateRole((Create Role))
+        DeleteRole((Delete Role))
         
-        %% Monitoring & Health
-        MonitorSystemHealth((Monitor System Health))
-        ViewSystemMetrics((View System Metrics))
-        CheckServiceStatus((Check Service Status))
-        MonitorPerformance((Monitor System Performance))
-        SetupHealthChecks((Setup Health Checks))
+        %% Department Management (Identity Service)
+        ManageDepartments((Manage Departments))
+        CreateDepartment((Create Department))
+        UpdateDepartment((Update Department))
+        DeleteDepartment((Delete Department))
         
-        %% Database Management
-        ManageDatabases((Manage Databases))
-        BackupDatabases((Backup Databases))
-        RestoreDatabases((Restore Databases))
-        OptimizeDatabasePerformance((Optimize Database Performance))
-        ManageDataMigration((Manage Data Migration))
+        %% Position Management (Identity Service)
+        ManagePositions((Manage Positions))
+        CreatePosition((Create Position))
+        UpdatePosition((Update Position))
+        DeletePosition((Delete Position))
         
-        %% Security & Compliance
-        ConfigureSecurity((Configure Security Settings))
-        ManageEncryption((Manage Encryption))
-        AuditSecurityLogs((Audit Security Logs))
-        ManageCompliance((Manage Compliance))
-        HandleSecurityIncidents((Handle Security Incidents))
+        %% CV Analysis & User Creation (AI Service)
+        AnalyzeCVFiles((Analyze CV Files))
+        ParseCVDocument((Parse CV Document))
+        ExtractCVData((Extract CV Data))
+        AutoCreateUserProfile((Auto Create User Profile))
+        BatchCVProcessing((Batch CV Processing))
         
-        %% System Maintenance
-        ScheduleSystemMaintenance((Schedule System Maintenance))
-        DeploySystemUpdates((Deploy System Updates))
-        ManageSystemBackups((Manage System Backups))
-        PerformSystemUpgrade((Perform System Upgrade))
-        CleanupSystemData((Cleanup System Data))
+        %% Performance Management (Identity Service)
+        ManagePerformance((Manage Performance))
+        ViewUserPerformance((View User Performance))
+        ViewDepartmentPerformance((View Department Performance))
+        UpdatePerformanceScore((Update Performance Score))
+        RecalculateScores((Recalculate Scores))
+        GeneratePerformanceReport((Generate Performance Report))
         
-        %% API Gateway Management
-        ConfigureAPIGateway((Configure API Gateway))
-        ManageRateLimiting((Manage Rate Limiting))
-        SetupLoadBalancing((Setup Load Balancing))
-        ConfigureRouting((Configure Service Routing))
-        ManageAPIVersioning((Manage API Versioning))
+        %% Profile Management (Profile Service)
+        ManageProfiles((Manage User Profiles))
+        ViewUserProfile((View User Profile))
+        SearchUserProfiles((Search User Profiles))
+        UpdateProfileData((Update Profile Data))
+        ManageUserSkills((Manage User Skills))
         
-        %% ML System Administration
-        DeployMLModels((Deploy ML Models))
-        MonitorMLPerformance((Monitor ML Performance))
-        ManageTrainingData((Manage Training Data))
-        ConfigureMLPipeline((Configure ML Pipeline))
-        ScheduleModelRetraining((Schedule Model Retraining))
-        
-        %% Logging & Analytics
-        ConfigureSystemLogging((Configure System Logging))
-        ViewSystemLogs((View System Logs))
-        AnalyzeSystemUsage((Analyze System Usage))
-        GenerateSystemReports((Generate System Reports))
-        SetupAlertSystem((Setup Alert System))
-        
-        %% Infrastructure Management
-        ManageCloudResources((Manage Cloud Resources))
-        ConfigureNetworking((Configure Networking))
-        ManageContainers((Manage Containers))
-        ScaleServices((Scale Services))
-        ConfigureAutoScaling((Configure Auto-scaling))
-        
-        %% Disaster Recovery
-        ConfigureDisasterRecovery((Configure Disaster Recovery))
-        TestBackupRecovery((Test Backup Recovery))
-        ManageFailoverSystems((Manage Failover Systems))
-        DocumentRecoveryProcedures((Document Recovery Procedures))
-        
-        %% System Integration
-        ConfigureExternalAPIs((Configure External APIs))
-        ManageThirdPartyServices((Manage Third-party Services))
-        SetupEventStreaming((Setup Event Streaming))
-        ConfigureMessageQueuing((Configure Message Queuing))
+        %% System Analytics & Reporting
+        ViewSystemStatistics((View System Statistics))
+        GenerateUserReport((Generate User Report))
+        GenerateDepartmentReport((Generate Department Report))
+        ViewSystemActivity((View System Activity))
+        MonitorUserActivity((Monitor User Activity))
     end
     
-    %% Communication Links
-    SystemAdmin --> ManageSystemUsers
-    SystemAdmin --> ConfigureServices
-    SystemAdmin --> MonitorSystemHealth
-    SystemAdmin --> ScheduleSystemMaintenance
-    SystemAdmin --> ConfigureAPIGateway
-    SystemAdmin --> GenerateSystemReports
-    SystemAdmin --> ManageThirdPartyServices
-    SystemAdmin --> SetupAlertSystem
+    %% Communication Links - Admin
+    Admin --> ManageUsers
+    Admin --> CreateUser
+    Admin --> UpdateUser
+    Admin --> DeleteUser
+    Admin --> UpdateUserStatus
     
-    DatabaseAdmin --> ManageDatabases
-    DatabaseAdmin --> BackupDatabases
-    DatabaseAdmin --> RestoreDatabases
-    DatabaseAdmin --> OptimizeDatabasePerformance
-    DatabaseAdmin --> ManageDataMigration
-    DatabaseAdmin --> TestBackupRecovery
+    Admin --> ManageRoles
+    Admin --> CreateRole
+    Admin --> DeleteRole
     
-    SecurityAdmin --> ConfigureSecurity
-    SecurityAdmin --> ManageEncryption
-    SecurityAdmin --> AuditSecurityLogs
-    SecurityAdmin --> ManageCompliance
-    SecurityAdmin --> HandleSecurityIncidents
-    SecurityAdmin --> ManageAPIKeys
-    SecurityAdmin --> AuditUserAccess
+    Admin --> ManageDepartments
+    Admin --> CreateDepartment
+    Admin --> UpdateDepartment
+    Admin --> DeleteDepartment
     
-    NetworkAdmin --> ConfigureNetworking
-    NetworkAdmin --> SetupLoadBalancing
-    NetworkAdmin --> ConfigureRouting
-    NetworkAdmin --> ManageRateLimiting
-    NetworkAdmin --> ConfigureAutoScaling
+    Admin --> ManagePositions
+    Admin --> CreatePosition
+    Admin --> UpdatePosition
+    Admin --> DeletePosition
     
-    MLEngineer --> DeployMLModels
-    MLEngineer --> MonitorMLPerformance
-    MLEngineer --> ManageTrainingData
-    MLEngineer --> ConfigureMLPipeline
-    MLEngineer --> ScheduleModelRetraining
+    Admin --> AnalyzeCVFiles
+    Admin --> BatchCVProcessing
+    Admin --> AutoCreateUserProfile
     
-    DevOps --> DeploySystemUpdates
-    DevOps --> ManageContainers
-    DevOps --> ScaleServices
-    DevOps --> ManageCloudResources
-    DevOps --> ConfigureDisasterRecovery
-    DevOps --> ManageSystemBackups
-    DevOps --> SetupEventStreaming
-    
-    Auditor --> AuditUserAccess
-    Auditor --> AuditSecurityLogs
-    Auditor --> AnalyzeSystemUsage
-    Auditor --> ViewSystemLogs
-    Auditor --> GenerateSystemReports
-    Auditor --> DocumentRecoveryProcedures
+    Admin --> ViewSystemStatistics
+    Admin --> MonitorUserActivity
     
     %% Include Relationships
-    ManageSystemUsers -.->|includes| ConfigureUserRoles
-    ConfigureServices -.->|includes| ManageServiceEndpoints
-    MonitorSystemHealth -.->|includes| CheckServiceStatus
-    DeploySystemUpdates -.->|includes| ScheduleSystemMaintenance
-    ConfigureAPIGateway -.->|includes| SetupLoadBalancing
-    HandleSecurityIncidents -.->|includes| AuditSecurityLogs
-    DeployMLModels -.->|includes| MonitorMLPerformance
+    ManageUsers -.->|includes| ViewAllUsers
+    ManageUsers -.->|includes| UpdateUserStatus
+    AnalyzeCVFiles -.->|includes| ParseCVDocument
+    AnalyzeCVFiles -.->|includes| ExtractCVData
+    AutoCreateUserProfile -.->|includes| CreateUser
+    ManageDepartments -.->|includes| ViewAllDepartments
+    ManageRoles -.->|includes| ViewAllRoles
+    ManagePerformance -.->|includes| RecalculateScores
     
     %% Extend Relationships
-    MonitorSystemHealth -.->|extends| SetupAlertSystem
-    ManageDatabases -.->|extends| OptimizeDatabasePerformance
-    ConfigureSecurity -.->|extends| ManageEncryption
-    DeploySystemUpdates -.->|extends| PerformSystemUpgrade
-    ViewSystemLogs -.->|extends| AnalyzeSystemUsage
-    ConfigureDisasterRecovery -.->|extends| TestBackupRecovery
-    ScaleServices -.->|extends| ConfigureAutoScaling
+    AnalyzeCVFiles -.->|extends| AutoCreateUserProfile
+    AnalyzeCVFiles -.->|extends| BatchCVProcessing
+    ManagePerformance -.->|extends| GeneratePerformanceReport
+    ManageUsers -.->|extends| ChangeUserPassword
 ```
 
 ---
@@ -1119,6 +1816,73 @@ Each use case diagram includes:
 - ✅ **Relationships**: Include, Extend relationships showing dependencies and optional features
 
 These diagrams provide a comprehensive view of the system's functionality for stakeholders, developers, and project documentation.
+
+## Consolidated Use Case Overview
+
+This consolidated diagram shows the 8 main system use-case areas as ovals and connects the requested actors (Employee, Project Manager, Team Lead, Admin, System) to the appropriate use cases. It also demonstrates example include/extend relationships between higher-level use cases.
+
+```mermaid
+graph LR
+    %% Actors
+    Employee[👤 Employee]
+    ProjectManager[👨‍💼 Project Manager]
+    TeamLead[👨‍💼 Team Lead]
+    Admin[👨‍💼 Admin]
+    System[🔧 System]
+
+    %% System Boundary
+    subgraph "Consolidated Internal Management System"
+        Auth((Authentication & User Management))
+        Project((Project Management))
+        Task((Task Management))
+        AI((AI & Machine Learning Services))
+        Comm((Communication & Notification))
+        Content((Content Management))
+        Workload((Workload Management))
+        AdminUC((System Administration))
+    end
+
+    %% Communication Links (actor -> use case)
+    Employee --> Auth
+    Employee --> Task
+    Employee --> Comm
+    Employee --> Content
+    Employee --> Workload
+
+    ProjectManager --> Project
+    ProjectManager --> Task
+    ProjectManager --> AI
+    ProjectManager --> Comm
+    ProjectManager --> Workload
+
+    TeamLead --> Task
+    TeamLead --> Project
+    TeamLead --> Workload
+    TeamLead --> Comm
+
+    Admin --> Auth
+    Admin --> Project
+    Admin --> Content
+    Admin --> AdminUC
+    Admin --> AI
+
+    System --> Auth
+    System --> Project
+    System --> Task
+    System --> AI
+    System --> Comm
+    System --> Content
+    System --> Workload
+    System --> AdminUC
+
+    %% Example include/extend relationships between use cases
+    Project -.->|includes| Comm
+    Task -.->|includes| Content
+    AI -.->|includes| Auth
+    Task -.->|extends| AI
+    Workload -.->|includes| Task
+    AdminUC -.->|includes| Workload
+```
 
 ---
 
@@ -1553,203 +2317,1261 @@ sequenceDiagram
 
 ## 7. Workload Management Sequence Diagram
 
-### Resource Optimization and Capacity Planning
+### Employee and Team Lead Workload Management
+
+This sequence diagram shows workload management operations for Employee and Team Lead based on the Workload Management Use Case diagram.
 
 ```mermaid
 sequenceDiagram
-    participant RM as Resource Manager
-    participant PM as Project Manager
-    participant E as Employee
-    participant W as Web App
-    participant AG as API Gateway
-    participant WS as Workload Service
-    participant TS as Task Service
-    participant PS as Profile Service
-    participant AI as AI Service
-    participant DB as Database
-
-    %% Capacity Planning Flow
-    Note over RM,DB: Resource Capacity Planning
-    RM->>W: View team capacity planning
-    W->>AG: GET /workload/team/{teamId}
-    AG->>WS: Get team workload data
-    WS->>DB: Query user capacities
-    WS->>TS: Get active task assignments
-    TS-->>WS: Task workload data
-    WS->>PS: Get user skill information
-    PS-->>WS: User skill profiles
-    WS->>WS: Calculate utilization metrics
-    WS-->>AG: Workload analytics
-    AG-->>W: Team capacity data
-    W-->>RM: Display capacity dashboard
-
-    %% Resource Optimization Flow
-    Note over PM,DB: Project Resource Optimization
-    PM->>W: Request resource optimization for project
-    W->>AG: POST /workload/optimize/{projectId}
-    AG->>WS: Optimize project resources
-    WS->>TS: Get project task requirements
-    TS-->>WS: Task complexity and skills needed
-    WS->>PS: Get available team members
-    PS-->>WS: User availability and skills
-    WS->>AI: Request optimization recommendations
-    AI->>AI: Apply optimization algorithms
-    AI-->>WS: Recommended resource allocation
-    WS->>WS: Validate capacity constraints
-    WS-->>AG: Optimization results
-    AG-->>W: Resource recommendations
-    W-->>PM: Show optimal team assignment
-
-    %% Workload Balancing Flow
-    Note over RM,DB: Automatic Workload Balancing
-    RM->>W: Trigger workload balancing
-    W->>AG: POST /workload/balance/{teamId}
-    AG->>WS: Balance team workload
-    WS->>DB: Analyze current assignments
-    WS->>WS: Identify overloaded/underutilized users
+    %% Actors and Objects
+    actor Employee as 👤 Employee
+    actor TeamLead as 👨‍💼 Team Lead
     
-    loop For Each Overloaded User
-        WS->>TS: Find reassignable tasks
-        TS-->>WS: Available tasks for transfer
-        WS->>PS: Find suitable team members
-        PS-->>WS: Available users with matching skills
-        WS->>AI: Get transfer recommendations
-        AI-->>WS: Best transfer candidates
-        WS->>TS: Execute task transfers
-        TS->>DB: Update task assignments
-        TS-->>WS: Transfer completed
+    participant WebApp as <<boundary>><br/>Web Application
+    participant WorkloadController as <<control>><br/>Workload Controller
+    participant WorkloadService as <<service>><br/>Workload Service
+    participant TaskServiceClient as <<client>><br/>Task Service Client
+    participant WorkloadRepo as <<repository>><br/>Workload Repository
+    participant Database as <<database>><br/>PostgreSQL Database
+    
+    %% ========================================
+    %% EMPLOYEE WORKFLOWS
+    %% ========================================
+    
+    rect rgb(240, 248, 255)
+        Note over Employee,Database: Employee: Get My Work Time Statistics
+        
+        activate Employee
+        Employee->>+WebApp: View my work time statistics
+        activate WebApp
+        WebApp->>+WorkloadController: GET /api/workloads/my-stats
+        activate WorkloadController
+        WorkloadController->>+WorkloadService: getMyWorkTimeStats(userId)
+        activate WorkloadService
+        
+        WorkloadService->>+WorkloadRepo: findWorkloadByUserId(userId)
+        activate WorkloadRepo
+        WorkloadRepo->>+Database: SELECT * FROM user_workloads WHERE user_id = ?
+        activate Database
+        Database-->>-WorkloadRepo: Workload data
+        deactivate Database
+        WorkloadRepo-->>-WorkloadService: UserWorkload entity
+        deactivate WorkloadRepo
+        
+        WorkloadService->>WorkloadService: Calculate productivity metrics
+        Note right of WorkloadService: - Total hours worked<br/>- Tasks completed<br/>- Completion rate<br/>- Average task time
+        
+        WorkloadService-->>-WorkloadController: WorkTimeStatsDTO
+        deactivate WorkloadService
+        WorkloadController-->>-WebApp: 200 OK (Work time statistics)
+        deactivate WorkloadController
+        WebApp-->>-Employee: Display my productivity dashboard
+        deactivate WebApp
+        deactivate Employee
     end
     
-    WS->>DB: Update workload allocations
-    WS-->>AG: Balancing completed
-    AG-->>W: Balancing results
-    W-->>RM: Show rebalanced workloads
-
-    %% Employee Self-Service Flow
-    Note over E,DB: Employee Workload Self-Management
-    E->>W: Update my availability
-    W->>AG: PUT /workload/capacity
-    AG->>WS: Update user capacity
-    WS->>DB: Store capacity changes
-    WS->>WS: Check impact on current assignments
-    alt Capacity Reduced - Overallocation Detected
-        WS->>TS: Flag potential conflicts
-        WS->>AI: Get reallocation suggestions
-        AI-->>WS: Alternative assignments
-        WS->>WS: Generate workload alerts
+    rect rgb(255, 250, 240)
+        Note over Employee,Database: Employee: View My Weekly Hours
+        
+        activate Employee
+        Employee->>+WebApp: View my weekly hours
+        activate WebApp
+        WebApp->>+WorkloadController: GET /api/workloads/weekly-hours
+        activate WorkloadController
+        WorkloadController->>+WorkloadService: getMyWeeklyHours(userId)
+        activate WorkloadService
+        
+        WorkloadService->>+WorkloadRepo: findWeeklyHours(userId, weekStart, weekEnd)
+        activate WorkloadRepo
+        WorkloadRepo->>+Database: SELECT weekly data
+        activate Database
+        Database-->>-WorkloadRepo: Weekly hours data
+        deactivate Database
+        WorkloadRepo-->>-WorkloadService: Weekly statistics
+        deactivate WorkloadRepo
+        
+        WorkloadService-->>-WorkloadController: WeeklyHoursDTO
+        deactivate WorkloadService
+        WorkloadController-->>-WebApp: 200 OK (Weekly hours breakdown)
+        deactivate WorkloadController
+        WebApp-->>-Employee: Show weekly hours chart
+        deactivate WebApp
+        deactivate Employee
     end
-    WS-->>AG: Capacity updated
-    AG-->>W: Update confirmation
-    W-->>E: Availability updated successfully
+    
+    rect rgb(245, 255, 250)
+        Note over Employee,Database: Employee: Update User Capacity
+        
+        activate Employee
+        Employee->>+WebApp: Update my capacity settings
+        Note right of Employee: Change weekly hours<br/>or availability
+        activate WebApp
+        WebApp->>+WorkloadController: PUT /api/workloads/capacity
+        activate WorkloadController
+        WorkloadController->>+WorkloadService: updateUserCapacity(userId, capacityDTO)
+        activate WorkloadService
+        
+        WorkloadService->>+WorkloadRepo: findByUserId(userId)
+        activate WorkloadRepo
+        WorkloadRepo->>+Database: SELECT workload
+        activate Database
+        Database-->>-WorkloadRepo: Current workload
+        deactivate Database
+        WorkloadRepo-->>-WorkloadService: UserWorkload entity
+        deactivate WorkloadRepo
+        
+        WorkloadService->>WorkloadService: Update capacity settings
+        WorkloadService->>WorkloadService: Recalculate utilization
+        Note right of WorkloadService: Check if new capacity<br/>causes overallocation
+        
+        alt Capacity causes overallocation
+            WorkloadService->>WorkloadService: Flag warning
+            Note right of WorkloadService: User is overallocated<br/>with new capacity
+        end
+        
+        WorkloadService->>+WorkloadRepo: save(updatedWorkload)
+        activate WorkloadRepo
+        WorkloadRepo->>+Database: UPDATE user_workloads
+        activate Database
+        Database-->>-WorkloadRepo: Update confirmed
+        deactivate Database
+        WorkloadRepo-->>-WorkloadService: Updated entity
+        deactivate WorkloadRepo
+        
+        WorkloadService-->>-WorkloadController: UpdatedWorkloadDTO
+        deactivate WorkloadService
+        WorkloadController-->>-WebApp: 200 OK (Capacity updated)
+        deactivate WorkloadController
+        WebApp-->>-Employee: Capacity updated successfully
+        deactivate WebApp
+        deactivate Employee
+    end
+    
+    %% ========================================
+    %% TEAM LEAD WORKFLOWS
+    %% ========================================
+    
+    rect rgb(255, 245, 250)
+        Note over TeamLead,Database: Team Lead: Get User Workload
+        
+        activate TeamLead
+        TeamLead->>+WebApp: View team member workload
+        activate WebApp
+        WebApp->>+WorkloadController: GET /api/workloads/{userId}
+        activate WorkloadController
+        WorkloadController->>+WorkloadService: getUserWorkload(userId)
+        activate WorkloadService
+        
+        WorkloadService->>+WorkloadRepo: findWorkloadByUserId(userId)
+        activate WorkloadRepo
+        WorkloadRepo->>+Database: SELECT workload data
+        activate Database
+        Database-->>-WorkloadRepo: Workload record
+        deactivate Database
+        WorkloadRepo-->>-WorkloadService: UserWorkload entity
+        deactivate WorkloadRepo
+        
+        WorkloadService->>+TaskServiceClient: GET /api/tasks/user/{userId}/active
+        activate TaskServiceClient
+        TaskServiceClient-->>-WorkloadService: Active tasks list
+        deactivate TaskServiceClient
+        
+        WorkloadService->>WorkloadService: Calculate current utilization
+        Note right of WorkloadService: - Capacity hours<br/>- Estimated hours<br/>- Utilization %<br/>- Availability
+        
+        WorkloadService-->>-WorkloadController: UserWorkloadDTO
+        deactivate WorkloadService
+        WorkloadController-->>-WebApp: 200 OK (User workload details)
+        deactivate WorkloadController
+        WebApp-->>-TeamLead: Display user workload dashboard
+        deactivate WebApp
+        deactivate TeamLead
+    end
+    
+    rect rgb(250, 245, 255)
+        Note over TeamLead,Database: Team Lead: Get Batch Work Time Statistics
+        
+        activate TeamLead
+        TeamLead->>+WebApp: View team statistics
+        activate WebApp
+        WebApp->>+WorkloadController: POST /api/workloads/batch-stats
+        Note right of TeamLead: Request stats for<br/>multiple team members
+        activate WorkloadController
+        WorkloadController->>+WorkloadService: getBatchWorkTimeStats(userIds)
+        activate WorkloadService
+        
+        loop For each user in team
+            WorkloadService->>+WorkloadRepo: findWorkloadByUserId(userId)
+            activate WorkloadRepo
+            WorkloadRepo->>+Database: SELECT user workload
+            activate Database
+            Database-->>-WorkloadRepo: User data
+            deactivate Database
+            WorkloadRepo-->>-WorkloadService: UserWorkload
+            deactivate WorkloadRepo
+            
+            WorkloadService->>WorkloadService: Calculate individual stats
+        end
+        
+        WorkloadService->>WorkloadService: Aggregate team statistics
+        Note right of WorkloadService: - Team total hours<br/>- Average utilization<br/>- Productivity trends<br/>- Bottlenecks
+        
+        WorkloadService-->>-WorkloadController: List<WorkTimeStatsDTO>
+        deactivate WorkloadService
+        WorkloadController-->>-WebApp: 200 OK (Team statistics)
+        deactivate WorkloadController
+        WebApp-->>-TeamLead: Show team analytics dashboard
+        deactivate WebApp
+        deactivate TeamLead
+    end
+    
+    rect rgb(255, 250, 245)
+        Note over TeamLead,Database: Team Lead: Identify Overloaded Members
+        
+        activate TeamLead
+        TeamLead->>+WebApp: Check team workload balance
+        activate WebApp
+        WebApp->>+WorkloadController: GET /api/workloads/team/overloaded
+        activate WorkloadController
+        WorkloadController->>+WorkloadService: identifyOverloadedMembers(teamId)
+        activate WorkloadService
+        
+        WorkloadService->>+WorkloadRepo: findByTeamId(teamId)
+        activate WorkloadRepo
+        WorkloadRepo->>+Database: SELECT team workloads
+        activate Database
+        Database-->>-WorkloadRepo: Team workload data
+        deactivate Database
+        WorkloadRepo-->>-WorkloadService: List<UserWorkload>
+        deactivate WorkloadRepo
+        
+        WorkloadService->>WorkloadService: Analyze utilization rates
+        Note right of WorkloadService: Filter users with:<br/>- Utilization > 90%<br/>- Overtime hours<br/>- Late deliveries
+        
+        WorkloadService-->>-WorkloadController: List<OverloadedUserDTO>
+        deactivate WorkloadService
+        WorkloadController-->>-WebApp: 200 OK (Overloaded members)
+        deactivate WorkloadController
+        WebApp-->>-TeamLead: Highlight overloaded team members
+        deactivate WebApp
+        deactivate TeamLead
+    end
+    
+    rect rgb(245, 250, 255)
+        Note over TeamLead,Database: Team Lead: Add Task to Workload
+        
+        activate TeamLead
+        TeamLead->>+WebApp: Assign task to team member
+        activate WebApp
+        WebApp->>+WorkloadController: POST /api/workloads/tasks
+        Note right of TeamLead: taskId: TASK-123<br/>userId: USER-456<br/>estimatedHours: 8
+        activate WorkloadController
+        WorkloadController->>+WorkloadService: addTaskToWorkload(taskId, userId, hours)
+        activate WorkloadService
+        
+        WorkloadService->>+WorkloadRepo: findByUserId(userId)
+        activate WorkloadRepo
+        WorkloadRepo->>+Database: SELECT user workload
+        activate Database
+        Database-->>-WorkloadRepo: Current workload
+        deactivate Database
+        WorkloadRepo-->>-WorkloadService: UserWorkload entity
+        deactivate WorkloadRepo
+        
+        WorkloadService->>WorkloadService: Check capacity availability
+        Note right of WorkloadService: Validate:<br/>- Available hours<br/>- Skill match<br/>- Current utilization
+        
+        alt User has capacity
+            WorkloadService->>WorkloadService: Add task hours to total
+            WorkloadService->>WorkloadService: Recalculate utilization
+            
+            WorkloadService->>+WorkloadRepo: save(updatedWorkload)
+            activate WorkloadRepo
+            WorkloadRepo->>+Database: UPDATE user_workloads
+            activate Database
+            Database-->>-WorkloadRepo: Update confirmed
+            deactivate Database
+            WorkloadRepo-->>-WorkloadService: Updated entity
+            deactivate WorkloadRepo
+            
+            WorkloadService-->>WorkloadController: TaskAddedSuccessfully
+        else User over capacity
+            WorkloadService-->>WorkloadController: CapacityExceededException
+            Note right of WorkloadService: Suggest alternative:<br/>- Reduce other tasks<br/>- Assign to another user
+        end
+        
+        WorkloadService-->>-WorkloadController: WorkloadUpdateResult
+        deactivate WorkloadService
+        WorkloadController-->>-WebApp: 200 OK or 409 Conflict
+        deactivate WorkloadController
+        WebApp-->>-TeamLead: Task assignment result
+        deactivate WebApp
+        deactivate TeamLead
+    end
+    
+    rect rgb(255, 248, 245)
+        Note over TeamLead,Database: Team Lead: Balance Team Workload
+        
+        activate TeamLead
+        TeamLead->>+WebApp: Request workload balancing
+        activate WebApp
+        WebApp->>+WorkloadController: POST /api/workloads/balance-team
+        activate WorkloadController
+        WorkloadController->>+WorkloadService: balanceTeamWorkload(teamId)
+        activate WorkloadService
+        
+        WorkloadService->>+WorkloadRepo: findByTeamId(teamId)
+        activate WorkloadRepo
+        WorkloadRepo->>+Database: SELECT all team workloads
+        activate Database
+        Database-->>-WorkloadRepo: Team data
+        deactivate Database
+        WorkloadRepo-->>-WorkloadService: List<UserWorkload>
+        deactivate WorkloadRepo
+        
+        WorkloadService->>WorkloadService: Identify overloaded users
+        WorkloadService->>WorkloadService: Identify underutilized users
+        Note right of WorkloadService: Balance algorithm:<br/>1. Find overloaded (>90%)<br/>2. Find available (<70%)<br/>3. Match by skills<br/>4. Suggest transfers
+        
+        loop For each overloaded user
+            WorkloadService->>+TaskServiceClient: GET /api/tasks/user/{userId}/transferable
+            activate TaskServiceClient
+            TaskServiceClient-->>-WorkloadService: Transferable tasks
+            deactivate TaskServiceClient
+            
+            WorkloadService->>WorkloadService: Find best recipient
+            Note right of WorkloadService: Match by:<br/>- Available capacity<br/>- Required skills<br/>- Task priority
+            
+            WorkloadService->>+WorkloadRepo: updateTaskAssignment(taskId, newUserId)
+            activate WorkloadRepo
+            WorkloadRepo->>+Database: UPDATE workloads
+            activate Database
+            Database-->>-WorkloadRepo: Updates confirmed
+            deactivate Database
+            WorkloadRepo-->>-WorkloadService: Transfer completed
+            deactivate WorkloadRepo
+        end
+        
+        WorkloadService->>WorkloadService: Recalculate all utilizations
+        
+        WorkloadService-->>-WorkloadController: BalancingResultDTO
+        deactivate WorkloadService
+        Note right of WorkloadService: Result includes:<br/>- Tasks transferred<br/>- New utilizations<br/>- Balance improvement
+        
+        WorkloadController-->>-WebApp: 200 OK (Balancing completed)
+        deactivate WorkloadController
+        WebApp-->>-TeamLead: Show rebalanced team workloads
+        deactivate WebApp
+        deactivate TeamLead
+    end
+    
+    rect rgb(250, 255, 245)
+        Note over TeamLead,Database: Team Lead: Get Available Users
+        
+        activate TeamLead
+        TeamLead->>+WebApp: Find available team members
+        Note right of TeamLead: For new task assignment
+        activate WebApp
+        WebApp->>+WorkloadController: GET /api/workloads/available?capacity=8&skills=Java,React
+        activate WorkloadController
+        WorkloadController->>+WorkloadService: getAvailableUsers(requiredHours, skills)
+        activate WorkloadService
+        
+        WorkloadService->>+WorkloadRepo: findUsersWithCapacity(requiredHours)
+        activate WorkloadRepo
+        WorkloadRepo->>+Database: SELECT users WHERE available_hours >= ?
+        activate Database
+        Database-->>-WorkloadRepo: Available users
+        deactivate Database
+        WorkloadRepo-->>-WorkloadService: List<UserWorkload>
+        deactivate WorkloadRepo
+        
+        WorkloadService->>WorkloadService: Filter by skill match
+        WorkloadService->>WorkloadService: Sort by availability %
+        Note right of WorkloadService: Prioritize:<br/>1. Low utilization<br/>2. Skill expertise<br/>3. Past performance
+        
+        WorkloadService-->>-WorkloadController: List<AvailableUserDTO>
+        deactivate WorkloadService
+        WorkloadController-->>-WebApp: 200 OK (Available users)
+        deactivate WorkloadController
+        WebApp-->>-TeamLead: Display available team members
+        deactivate WebApp
+        deactivate TeamLead
+    end
+    
+    rect rgb(255, 245, 245)
+        Note over TeamLead,Database: Team Lead: Remove Task from Workload
+        
+        activate TeamLead
+        TeamLead->>+WebApp: Unassign task from user
+        Note right of TeamLead: Task completed or<br/>reassigned to another user
+        activate WebApp
+        WebApp->>+WorkloadController: DELETE /api/workloads/tasks/{taskId}
+        activate WorkloadController
+        WorkloadController->>+WorkloadService: removeTaskFromWorkload(taskId, userId)
+        activate WorkloadService
+        
+        WorkloadService->>+WorkloadRepo: findByUserId(userId)
+        activate WorkloadRepo
+        WorkloadRepo->>+Database: SELECT user workload
+        activate Database
+        Database-->>-WorkloadRepo: Current workload
+        deactivate Database
+        WorkloadRepo-->>-WorkloadService: UserWorkload entity
+        deactivate WorkloadRepo
+        
+        WorkloadService->>+TaskServiceClient: GET /api/tasks/{taskId}
+        activate TaskServiceClient
+        TaskServiceClient-->>-WorkloadService: Task details (estimated hours)
+        deactivate TaskServiceClient
+        
+        WorkloadService->>WorkloadService: Subtract task hours from total
+        WorkloadService->>WorkloadService: Recalculate utilization %
+        Note right of WorkloadService: Free up capacity:<br/>- Reduce total hours<br/>- Update utilization<br/>- Increase availability
+        
+        WorkloadService->>+WorkloadRepo: save(updatedWorkload)
+        activate WorkloadRepo
+        WorkloadRepo->>+Database: UPDATE user_workloads
+        activate Database
+        Database-->>-WorkloadRepo: Update confirmed
+        deactivate Database
+        WorkloadRepo-->>-WorkloadService: Updated entity
+        deactivate WorkloadRepo
+        
+        WorkloadService-->>-WorkloadController: TaskRemovedSuccessfully
+        deactivate WorkloadService
+        WorkloadController-->>-WebApp: 200 OK (Task removed)
+        deactivate WorkloadController
+        WebApp-->>-TeamLead: Workload updated
+        deactivate WebApp
+        deactivate TeamLead
+    end
 ```
 
 ---
 
 ## 8. System Administration Sequence Diagram
 
-### System Monitoring and Management Operations
+### Admin User and System Management Operations
+
+This sequence diagram shows all administrative operations performed by the Admin actor based on the System Administration Use Case diagram.
 
 ```mermaid
 sequenceDiagram
-    participant SA as System Admin
-    participant DA as Database Admin
-    participant DO as DevOps Engineer
-    participant W as Admin Dashboard
-    participant AG as API Gateway
-    participant Monitor as Monitoring Service
-    participant All as All Microservices
-    participant DB as Databases
-    participant Cloud as Cloud Infrastructure
-    participant Alert as Alert System
-
-    %% System Health Monitoring Flow
-    Note over SA,Alert: System Health Monitoring
-    SA->>W: Access system dashboard
-    W->>AG: GET /admin/system/health
-    AG->>Monitor: Get system health status
+    %% Actors and Objects
+    actor Admin as 👨‍💼 Admin
     
-    par Health Check All Services
-        Monitor->>All: Health check requests
-        All-->>Monitor: Service status responses
-    and Database Health Check
-        Monitor->>DB: Database connectivity tests
-        DB-->>Monitor: Database status
-    and Infrastructure Check
-        Monitor->>Cloud: Infrastructure metrics
-        Cloud-->>Monitor: Resource utilization
+    participant WebApp as <<boundary>><br/>Admin Dashboard
+    participant IdentityController as <<control>><br/>Identity Controller
+    participant UserService as <<service>><br/>User Service
+    participant DepartmentService as <<service>><br/>Department Service
+    participant RoleService as <<service>><br/>Role Service
+    participant PositionService as <<service>><br/>Position Service
+    participant AIService as <<service>><br/>AI Service
+    participant CVParser as <<service>><br/>CV Parser
+    participant UserRepository as <<repository>><br/>User Repository
+    participant Database as <<database>><br/>PostgreSQL/Neo4j
+    
+    %% ========================================
+    %% USER MANAGEMENT WORKFLOWS
+    %% ========================================
+    
+    rect rgb(240, 248, 255)
+        Note over Admin,Database: Admin: Manage Users - View All Users
+        
+        activate Admin
+        Admin->>+WebApp: Access user management
+        activate WebApp
+        WebApp->>+IdentityController: GET /api/identity/users
+        activate IdentityController
+        IdentityController->>+UserService: getAllUsers()
+        activate UserService
+        
+        UserService->>+UserRepository: findAll()
+        activate UserRepository
+        UserRepository->>+Database: SELECT * FROM users
+        activate Database
+        Database-->>-UserRepository: User records
+        deactivate Database
+        UserRepository-->>-UserService: List<User>
+        deactivate UserRepository
+        
+        UserService->>UserService: Map to UserDTO
+        UserService-->>-IdentityController: List<UserDTO>
+        deactivate UserService
+        IdentityController-->>-WebApp: 200 OK (Users list)
+        deactivate IdentityController
+        WebApp-->>-Admin: Display users table
+        deactivate WebApp
+        deactivate Admin
     end
     
-    Monitor->>Monitor: Aggregate health data
-    Monitor-->>AG: System health report
-    AG-->>W: Health dashboard data
-    W-->>SA: Display system status
-
-    %% Database Management Flow
-    Note over DA,Alert: Database Administration
-    DA->>W: Initiate database backup
-    W->>AG: POST /admin/database/backup
-    AG->>Monitor: Execute backup procedure
-    Monitor->>DB: Create database snapshots
-    DB-->>Monitor: Backup completion status
-    Monitor->>Cloud: Store backups in cloud
-    Cloud-->>Monitor: Backup storage confirmed
-    Monitor->>Alert: Send backup notification
-    Alert-->>DA: Backup completion alert
-    Monitor-->>AG: Backup operation result
-    AG-->>W: Backup status response
-    W-->>DA: Backup completed successfully
-
-    %% Service Deployment Flow
-    Note over DO,Alert: Service Deployment & Scaling
-    DO->>W: Deploy system update
-    W->>AG: POST /admin/deploy/update
-    AG->>Monitor: Initiate deployment
-    Monitor->>Monitor: Validate deployment package
-    Monitor->>All: Rolling update deployment
-    
-    loop For Each Service
-        Monitor->>All: Deploy new version
-        All->>All: Update service instance
-        All-->>Monitor: Deployment status
-        Monitor->>Monitor: Validate service health
-        alt Deployment Failed
-            Monitor->>All: Rollback to previous version
-            Monitor->>Alert: Send deployment failure alert
-            Alert-->>DO: Deployment failed notification
+    rect rgb(255, 250, 240)
+        Note over Admin,Database: Admin: Create User
+        
+        activate Admin
+        Admin->>+WebApp: Fill create user form
+        Note right of Admin: Enter user details:<br/>- Email, Full Name<br/>- Department, Position<br/>- Role, Status
+        activate WebApp
+        WebApp->>+IdentityController: POST /api/identity/users/create
+        activate IdentityController
+        IdentityController->>+UserService: createUser(userRequest)
+        activate UserService
+        
+        UserService->>UserService: Validate user data
+        Note right of UserService: Check:<br/>- Email not exists<br/>- Required fields<br/>- Valid department/role
+        
+        alt Validation fails
+            UserService-->>IdentityController: ValidationException
+            IdentityController-->>WebApp: 400 Bad Request
+            WebApp-->>Admin: Show validation errors
+        else Validation succeeds
+            UserService->>UserService: Generate temporary password
+            UserService->>UserService: Hash password
+            
+            create participant NewUser as <<entity>><br/>User Entity
+            UserService->>NewUser: new User()
+            Note right of NewUser: Create User object<br/>with initial data
+            
+            UserService->>+UserRepository: save(user)
+            activate UserRepository
+            UserRepository->>+Database: INSERT INTO users
+            activate Database
+            Database-->>-UserRepository: User created
+            deactivate Database
+            UserRepository-->>-UserService: Saved user entity
+            deactivate UserRepository
+            
+            UserService->>UserService: Send welcome email
+            Note right of UserService: Email contains:<br/>- Username<br/>- Temp password<br/>- Login link
+            
+            UserService-->>-IdentityController: UserDTO
+            deactivate UserService
+            IdentityController-->>-WebApp: 201 Created
+            deactivate IdentityController
+            WebApp-->>-Admin: User created successfully
+            deactivate WebApp
         end
+        deactivate Admin
     end
     
-    Monitor->>Cloud: Update load balancer configuration
-    Monitor-->>AG: Deployment completed
-    AG-->>W: Deployment results
-    W-->>DO: System updated successfully
-
-    %% Security Audit Flow
-    Note over SA,Alert: Security Audit & Compliance
-    SA->>W: Run security audit
-    W->>AG: POST /admin/security/audit
-    AG->>Monitor: Execute security scan
-    
-    par Security Checks
-        Monitor->>All: Check service security configurations
-        All-->>Monitor: Security status reports
-    and Access Audit
-        Monitor->>DB: Audit user access patterns
-        DB-->>Monitor: Access logs and permissions
-    and Vulnerability Scan
-        Monitor->>Cloud: Infrastructure vulnerability scan
-        Cloud-->>Monitor: Security assessment results
+    rect rgb(245, 255, 250)
+        Note over Admin,Database: Admin: Update User
+        
+        activate Admin
+        Admin->>+WebApp: Edit user details
+        activate WebApp
+        WebApp->>+IdentityController: PUT /api/identity/users/{userId}
+        activate IdentityController
+        IdentityController->>+UserService: updateUser(userId, updateRequest)
+        activate UserService
+        
+        UserService->>+UserRepository: findById(userId)
+        activate UserRepository
+        UserRepository->>+Database: SELECT user WHERE id = ?
+        activate Database
+        Database-->>-UserRepository: User record
+        deactivate Database
+        UserRepository-->>-UserService: User entity
+        deactivate UserRepository
+        
+        UserService->>UserService: Update user fields
+        Note right of UserService: Update allowed fields:<br/>- Full name<br/>- Department<br/>- Position<br/>- Role
+        
+        UserService->>+UserRepository: save(updatedUser)
+        activate UserRepository
+        UserRepository->>+Database: UPDATE users SET ...
+        activate Database
+        Database-->>-UserRepository: Update confirmed
+        deactivate Database
+        UserRepository-->>-UserService: Updated entity
+        deactivate UserRepository
+        
+        UserService-->>-IdentityController: UserDTO
+        deactivate UserService
+        IdentityController-->>-WebApp: 200 OK
+        deactivate IdentityController
+        WebApp-->>-Admin: User updated successfully
+        deactivate WebApp
+        deactivate Admin
     end
     
-    Monitor->>Monitor: Compile security report
-    alt Security Issues Found
-        Monitor->>Alert: Trigger security alerts
-        Alert-->>SA: Critical security notification
-        Monitor->>Monitor: Generate remediation plan
+    rect rgb(255, 245, 250)
+        Note over Admin,Database: Admin: Update User Status (includes Delete User)
+        
+        activate Admin
+        Admin->>+WebApp: Change user status
+        Note right of Admin: Actions:<br/>- Activate<br/>- Deactivate<br/>- Suspend<br/>- Delete (soft)
+        activate WebApp
+        WebApp->>+IdentityController: PUT /api/identity/users/{userId}/status
+        activate IdentityController
+        IdentityController->>+UserService: updateUserStatus(userId, status)
+        activate UserService
+        
+        UserService->>+UserRepository: findById(userId)
+        activate UserRepository
+        UserRepository->>+Database: SELECT user
+        activate Database
+        Database-->>-UserRepository: User record
+        deactivate Database
+        UserRepository-->>-UserService: User entity
+        deactivate UserRepository
+        
+        UserService->>UserService: Change status
+        Note right of UserService: Status options:<br/>- ACTIVE<br/>- INACTIVE<br/>- SUSPENDED<br/>- DELETED
+        
+        alt Status = DELETED
+            UserService->>UserService: Soft delete user
+            Note right of UserService: Set deleted flag<br/>Keep data for audit
+        end
+        
+        UserService->>+UserRepository: save(user)
+        activate UserRepository
+        UserRepository->>+Database: UPDATE users SET status = ?
+        activate Database
+        Database-->>-UserRepository: Update confirmed
+        deactivate Database
+        UserRepository-->>-UserService: Updated entity
+        deactivate UserRepository
+        
+        UserService-->>-IdentityController: StatusUpdateResult
+        deactivate UserService
+        IdentityController-->>-WebApp: 200 OK
+        deactivate IdentityController
+        WebApp-->>-Admin: Status updated successfully
+        deactivate WebApp
+        deactivate Admin
     end
-    Monitor-->>AG: Security audit results
-    AG-->>W: Security report data
-    W-->>SA: Display security compliance status
+    
+    rect rgb(250, 245, 255)
+        Note over Admin,Database: Admin: Change User Password
+        
+        activate Admin
+        Admin->>+WebApp: Reset user password
+        activate WebApp
+        WebApp->>+IdentityController: PUT /api/identity/users/{userId}/password
+        activate IdentityController
+        IdentityController->>+UserService: changeUserPassword(userId)
+        activate UserService
+        
+        UserService->>UserService: Generate new temporary password
+        UserService->>UserService: Hash new password
+        Note right of UserService: Use BCrypt<br/>with salt rounds
+        
+        UserService->>+UserRepository: findById(userId)
+        activate UserRepository
+        UserRepository->>+Database: SELECT user
+        activate Database
+        Database-->>-UserRepository: User record
+        deactivate Database
+        UserRepository-->>-UserService: User entity
+        deactivate UserRepository
+        
+        UserService->>UserService: Update password field
+        UserService->>UserService: Set password reset flag
+        
+        UserService->>+UserRepository: save(user)
+        activate UserRepository
+        UserRepository->>+Database: UPDATE users SET password = ?, must_change = true
+        activate Database
+        Database-->>-UserRepository: Update confirmed
+        deactivate Database
+        UserRepository-->>-UserService: Updated entity
+        deactivate UserRepository
+        
+        UserService->>UserService: Send password reset email
+        Note right of UserService: Email with:<br/>- New temp password<br/>- Change password link
+        
+        UserService-->>-IdentityController: PasswordChangeResult
+        deactivate UserService
+        IdentityController-->>-WebApp: 200 OK
+        deactivate IdentityController
+        WebApp-->>-Admin: Password reset successfully
+        deactivate WebApp
+        deactivate Admin
+    end
+    
+    %% ========================================
+    %% PROFILE MANAGEMENT WORKFLOWS
+    %% ========================================
+    
+    rect rgb(255, 250, 245)
+        Note over Admin,Database: Admin: Manage User Profiles
+        
+        activate Admin
+        Admin->>+WebApp: View user profiles
+        activate WebApp
+        WebApp->>+IdentityController: GET /api/profile/users
+        activate IdentityController
+        IdentityController->>+UserService: getAllUserProfiles()
+        activate UserService
+        
+        UserService->>+UserRepository: findAllProfiles()
+        activate UserRepository
+        UserRepository->>+Database: SELECT profiles with skills, experience
+        activate Database
+        Database-->>-UserRepository: Profile records
+        deactivate Database
+        UserRepository-->>-UserService: List<UserProfile>
+        deactivate UserRepository
+        
+        UserService->>UserService: Enrich with statistics
+        Note right of UserService: Add:<br/>- Task completion rate<br/>- Performance score<br/>- Current workload
+        
+        UserService-->>-IdentityController: List<UserProfileDTO>
+        deactivate UserService
+        IdentityController-->>-WebApp: 200 OK (Profiles)
+        deactivate IdentityController
+        WebApp-->>-Admin: Display profiles dashboard
+        deactivate WebApp
+        deactivate Admin
+    end
+    
+    %% ========================================
+    %% CV PROCESSING WORKFLOWS
+    %% ========================================
+    
+    rect rgb(245, 250, 255)
+        Note over Admin,Database: Admin: Analyze CV Files (Parse CV Document)
+        
+        activate Admin
+        Admin->>+WebApp: Upload CV file
+        Note right of Admin: File types:<br/>- PDF<br/>- DOCX<br/>- DOC
+        activate WebApp
+        WebApp->>+IdentityController: POST /api/identity/cv/analyze
+        activate IdentityController
+        IdentityController->>+AIService: analyzeCVFile(file)
+        activate AIService
+        
+        AIService->>+CVParser: parseCVDocument(file)
+        activate CVParser
+        CVParser->>CVParser: Extract text from PDF/DOCX
+        Note right of CVParser: Use Apache POI<br/>or PDFBox library
+        
+        CVParser->>CVParser: Parse personal information
+        Note right of CVParser: Extract:<br/>- Name, Email, Phone<br/>- Address<br/>- LinkedIn, GitHub
+        
+        CVParser->>CVParser: Extract education
+        Note right of CVParser: Parse:<br/>- Degrees<br/>- Universities<br/>- Graduation years
+        
+        CVParser->>CVParser: Extract work experience
+        Note right of CVParser: Parse:<br/>- Company names<br/>- Positions<br/>- Durations<br/>- Responsibilities
+        
+        CVParser->>CVParser: Extract skills
+        Note right of CVParser: Identify:<br/>- Technical skills<br/>- Soft skills<br/>- Certifications
+        
+        CVParser-->>-AIService: CVParseResult
+        deactivate CVParser
+        
+        AIService->>AIService: Analyze with AI
+        Note right of AIService: AI processing:<br/>- Skill categorization<br/>- Experience level<br/>- Department suggestion<br/>- Position suggestion
+        
+        AIService-->>-IdentityController: CVAnalysisDTO
+        deactivate AIService
+        IdentityController-->>-WebApp: 200 OK (CV Analysis)
+        deactivate IdentityController
+        WebApp-->>-Admin: Display parsed CV data
+        deactivate WebApp
+        deactivate Admin
+    end
+    
+    rect rgb(255, 248, 245)
+        Note over Admin,Database: Admin: Auto Create User Profile (extends Analyze CV)
+        
+        activate Admin
+        Admin->>+WebApp: Confirm auto-create from CV
+        Note right of Admin: Review parsed data<br/>and confirm creation
+        activate WebApp
+        WebApp->>+IdentityController: POST /api/identity/cv/auto-create
+        activate IdentityController
+        IdentityController->>+AIService: autoCreateProfileFromCV(cvData)
+        activate AIService
+        
+        AIService->>AIService: Map CV data to user fields
+        Note right of AIService: Auto-fill:<br/>- Personal info<br/>- Skills list<br/>- Experience<br/>- Education
+        
+        AIService->>+UserService: createUserWithProfile(userData)
+        activate UserService
+        
+        UserService->>UserService: Validate auto-generated data
+        UserService->>UserService: Generate credentials
+        
+        create participant AutoUser as <<entity>><br/>User + Profile
+        UserService->>AutoUser: new User() + new Profile()
+        
+        UserService->>+UserRepository: saveUserWithProfile(user, profile)
+        activate UserRepository
+        UserRepository->>+Database: BEGIN TRANSACTION
+        activate Database
+        Database->>Database: INSERT INTO users
+        Database->>Database: INSERT INTO user_profiles
+        Database->>Database: INSERT INTO user_skills
+        Database->>Database: COMMIT
+        Database-->>-UserRepository: Transaction success
+        deactivate Database
+        UserRepository-->>-UserService: Created user + profile
+        deactivate UserRepository
+        
+        UserService->>UserService: Send welcome email
+        UserService-->>-AIService: UserCreationResult
+        deactivate UserService
+        
+        AIService-->>-IdentityController: AutoCreateResult
+        deactivate AIService
+        IdentityController-->>-WebApp: 201 Created
+        deactivate IdentityController
+        WebApp-->>-Admin: User created from CV successfully
+        deactivate WebApp
+        deactivate Admin
+    end
+    
+    %% ========================================
+    %% DEPARTMENT MANAGEMENT WORKFLOWS
+    %% ========================================
+    
+    rect rgb(250, 255, 245)
+        Note over Admin,Database: Admin: Manage Departments
+        
+        activate Admin
+        Admin->>+WebApp: View departments
+        activate WebApp
+        WebApp->>+IdentityController: GET /api/identity/departments
+        activate IdentityController
+        IdentityController->>+DepartmentService: getAllDepartments()
+        activate DepartmentService
+        
+        DepartmentService->>+UserRepository: findAllDepartments()
+        activate UserRepository
+        UserRepository->>+Database: SELECT * FROM departments
+        activate Database
+        Database-->>-UserRepository: Department records
+        deactivate Database
+        UserRepository-->>-DepartmentService: List<Department>
+        deactivate UserRepository
+        
+        DepartmentService->>DepartmentService: Count users per department
+        
+        DepartmentService-->>-IdentityController: List<DepartmentDTO>
+        deactivate DepartmentService
+        IdentityController-->>-WebApp: 200 OK
+        deactivate IdentityController
+        WebApp-->>-Admin: Display departments list
+        deactivate WebApp
+        deactivate Admin
+    end
+    
+    rect rgb(255, 245, 245)
+        Note over Admin,Database: Admin: Update Department
+        
+        activate Admin
+        Admin->>+WebApp: Edit department
+        activate WebApp
+        WebApp->>+IdentityController: PUT /api/identity/departments/{deptId}
+        activate IdentityController
+        IdentityController->>+DepartmentService: updateDepartment(deptId, updateRequest)
+        activate DepartmentService
+        
+        DepartmentService->>+UserRepository: findDepartmentById(deptId)
+        activate UserRepository
+        UserRepository->>+Database: SELECT department
+        activate Database
+        Database-->>-UserRepository: Department record
+        deactivate Database
+        UserRepository-->>-DepartmentService: Department entity
+        deactivate UserRepository
+        
+        DepartmentService->>DepartmentService: Update department info
+        Note right of DepartmentService: Update:<br/>- Department name<br/>- Description<br/>- Manager
+        
+        DepartmentService->>+UserRepository: save(department)
+        activate UserRepository
+        UserRepository->>+Database: UPDATE departments
+        activate Database
+        Database-->>-UserRepository: Update confirmed
+        deactivate Database
+        UserRepository-->>-DepartmentService: Updated entity
+        deactivate UserRepository
+        
+        DepartmentService-->>-IdentityController: DepartmentDTO
+        deactivate DepartmentService
+        IdentityController-->>-WebApp: 200 OK
+        deactivate IdentityController
+        WebApp-->>-Admin: Department updated
+        deactivate WebApp
+        deactivate Admin
+    end
+    
+    rect rgb(245, 245, 255)
+        Note over Admin,Database: Admin: Delete Department
+        
+        activate Admin
+        Admin->>+WebApp: Delete department
+        activate WebApp
+        WebApp->>+IdentityController: DELETE /api/identity/departments/{deptId}
+        activate IdentityController
+        IdentityController->>+DepartmentService: deleteDepartment(deptId)
+        activate DepartmentService
+        
+        DepartmentService->>+UserRepository: findUsersByDepartment(deptId)
+        activate UserRepository
+        UserRepository->>+Database: SELECT COUNT(*) FROM users WHERE dept_id = ?
+        activate Database
+        Database-->>-UserRepository: User count
+        deactivate Database
+        UserRepository-->>-DepartmentService: Number of users
+        deactivate UserRepository
+        
+        alt Department has users
+            DepartmentService-->>IdentityController: CannotDeleteException
+            Note right of DepartmentService: Cannot delete dept<br/>with active users
+            IdentityController-->>WebApp: 409 Conflict
+            WebApp-->>Admin: Error: Department has users
+        else Department is empty
+            DepartmentService->>+UserRepository: delete(deptId)
+            activate UserRepository
+            UserRepository->>+Database: DELETE FROM departments WHERE id = ?
+            activate Database
+            
+            destroy participant DeletedDept as <<entity>><br/>Department
+            Database->>DeletedDept: Delete record
+            
+            Database-->>-UserRepository: Delete confirmed
+            deactivate Database
+            UserRepository-->>-DepartmentService: Deletion successful
+            deactivate UserRepository
+            
+            DepartmentService-->>IdentityController: DeletionResult
+            IdentityController-->>WebApp: 200 OK
+            WebApp-->>Admin: Department deleted
+        end
+        
+        DepartmentService-->>-IdentityController: Result
+        deactivate DepartmentService
+        IdentityController-->>-WebApp: Response
+        deactivate IdentityController
+        WebApp-->>-Admin: Result message
+        deactivate WebApp
+        deactivate Admin
+    end
+    
+    %% ========================================
+    %% POSITION MANAGEMENT WORKFLOWS
+    %% ========================================
+    
+    rect rgb(255, 250, 250)
+        Note over Admin,Database: Admin: Manage Positions
+        
+        activate Admin
+        Admin->>+WebApp: View positions
+        activate WebApp
+        WebApp->>+IdentityController: GET /api/identity/positions
+        activate IdentityController
+        IdentityController->>+PositionService: getAllPositions()
+        activate PositionService
+        
+        PositionService->>+UserRepository: findAllPositions()
+        activate UserRepository
+        UserRepository->>+Database: SELECT * FROM positions
+        activate Database
+        Database-->>-UserRepository: Position records
+        deactivate Database
+        UserRepository-->>-PositionService: List<Position>
+        deactivate UserRepository
+        
+        PositionService-->>-IdentityController: List<PositionDTO>
+        deactivate PositionService
+        IdentityController-->>-WebApp: 200 OK
+        deactivate IdentityController
+        WebApp-->>-Admin: Display positions list
+        deactivate WebApp
+        deactivate Admin
+    end
+    
+    rect rgb(250, 250, 255)
+        Note over Admin,Database: Admin: Update Position
+        
+        activate Admin
+        Admin->>+WebApp: Edit position
+        activate WebApp
+        WebApp->>+IdentityController: PUT /api/identity/positions/{positionId}
+        activate IdentityController
+        IdentityController->>+PositionService: updatePosition(positionId, request)
+        activate PositionService
+        
+        PositionService->>+UserRepository: findPositionById(positionId)
+        activate UserRepository
+        UserRepository->>+Database: SELECT position
+        activate Database
+        Database-->>-UserRepository: Position record
+        deactivate Database
+        UserRepository-->>-PositionService: Position entity
+        deactivate UserRepository
+        
+        PositionService->>PositionService: Update position details
+        
+        PositionService->>+UserRepository: save(position)
+        activate UserRepository
+        UserRepository->>+Database: UPDATE positions
+        activate Database
+        Database-->>-UserRepository: Update confirmed
+        deactivate Database
+        UserRepository-->>-PositionService: Updated entity
+        deactivate UserRepository
+        
+        PositionService-->>-IdentityController: PositionDTO
+        deactivate PositionService
+        IdentityController-->>-WebApp: 200 OK
+        deactivate IdentityController
+        WebApp-->>-Admin: Position updated
+        deactivate WebApp
+        deactivate Admin
+    end
+    
+    rect rgb(255, 255, 245)
+        Note over Admin,Database: Admin: Delete Position
+        
+        activate Admin
+        Admin->>+WebApp: Delete position
+        activate WebApp
+        WebApp->>+IdentityController: DELETE /api/identity/positions/{positionId}
+        activate IdentityController
+        IdentityController->>+PositionService: deletePosition(positionId)
+        activate PositionService
+        
+        PositionService->>+UserRepository: checkPositionUsage(positionId)
+        activate UserRepository
+        UserRepository->>+Database: SELECT COUNT(*) FROM users WHERE position_id = ?
+        activate Database
+        Database-->>-UserRepository: User count
+        deactivate Database
+        UserRepository-->>-PositionService: Usage count
+        deactivate UserRepository
+        
+        alt Position in use
+            PositionService-->>IdentityController: CannotDeleteException
+            IdentityController-->>WebApp: 409 Conflict
+            WebApp-->>Admin: Error: Position in use
+        else Position not in use
+            PositionService->>+UserRepository: delete(positionId)
+            activate UserRepository
+            UserRepository->>+Database: DELETE FROM positions
+            activate Database
+            Database-->>-UserRepository: Delete confirmed
+            deactivate Database
+            UserRepository-->>-PositionService: Deletion successful
+            deactivate UserRepository
+            
+            PositionService-->>IdentityController: DeletionResult
+            IdentityController-->>WebApp: 200 OK
+            WebApp-->>Admin: Position deleted
+        end
+        
+        PositionService-->>-IdentityController: Result
+        deactivate PositionService
+        IdentityController-->>-WebApp: Response
+        deactivate IdentityController
+        WebApp-->>-Admin: Result message
+        deactivate WebApp
+        deactivate Admin
+    end
+    
+    %% ========================================
+    %% ROLE MANAGEMENT WORKFLOWS
+    %% ========================================
+    
+    rect rgb(248, 255, 245)
+        Note over Admin,Database: Admin: Manage Roles
+        
+        activate Admin
+        Admin->>+WebApp: View roles
+        activate WebApp
+        WebApp->>+IdentityController: GET /api/identity/roles
+        activate IdentityController
+        IdentityController->>+RoleService: getAllRoles()
+        activate RoleService
+        
+        RoleService->>+UserRepository: findAllRoles()
+        activate UserRepository
+        UserRepository->>+Database: SELECT * FROM roles
+        activate Database
+        Database-->>-UserRepository: Role records
+        deactivate Database
+        UserRepository-->>-RoleService: List<Role>
+        deactivate UserRepository
+        
+        RoleService->>RoleService: Include permissions for each role
+        
+        RoleService-->>-IdentityController: List<RoleDTO>
+        deactivate RoleService
+        IdentityController-->>-WebApp: 200 OK
+        deactivate IdentityController
+        WebApp-->>-Admin: Display roles and permissions
+        deactivate WebApp
+        deactivate Admin
+    end
+    
+    rect rgb(245, 255, 255)
+        Note over Admin,Database: Admin: Update Role
+        
+        activate Admin
+        Admin->>+WebApp: Edit role permissions
+        activate WebApp
+        WebApp->>+IdentityController: PUT /api/identity/roles/{roleId}
+        activate IdentityController
+        IdentityController->>+RoleService: updateRole(roleId, request)
+        activate RoleService
+        
+        RoleService->>+UserRepository: findRoleById(roleId)
+        activate UserRepository
+        UserRepository->>+Database: SELECT role
+        activate Database
+        Database-->>-UserRepository: Role record
+        deactivate Database
+        UserRepository-->>-RoleService: Role entity
+        deactivate UserRepository
+        
+        RoleService->>RoleService: Update role permissions
+        Note right of RoleService: Update:<br/>- Role name<br/>- Description<br/>- Permissions list
+        
+        RoleService->>+UserRepository: save(role)
+        activate UserRepository
+        UserRepository->>+Database: UPDATE roles, role_permissions
+        activate Database
+        Database-->>-UserRepository: Update confirmed
+        deactivate Database
+        UserRepository-->>-RoleService: Updated entity
+        deactivate UserRepository
+        
+        RoleService-->>-IdentityController: RoleDTO
+        deactivate RoleService
+        IdentityController-->>-WebApp: 200 OK
+        deactivate IdentityController
+        WebApp-->>-Admin: Role updated
+        deactivate WebApp
+        deactivate Admin
+    end
+    
+    rect rgb(255, 245, 255)
+        Note over Admin,Database: Admin: Delete Role
+        
+        activate Admin
+        Admin->>+WebApp: Delete role
+        activate WebApp
+        WebApp->>+IdentityController: DELETE /api/identity/roles/{roleId}
+        activate IdentityController
+        IdentityController->>+RoleService: deleteRole(roleId)
+        activate RoleService
+        
+        RoleService->>RoleService: Check if system role
+        Note right of RoleService: Cannot delete:<br/>- ADMIN<br/>- TEAM_LEAD<br/>- EMPLOYEE
+        
+        alt System role
+            RoleService-->>IdentityController: CannotDeleteSystemRoleException
+            IdentityController-->>WebApp: 403 Forbidden
+            WebApp-->>Admin: Error: Cannot delete system role
+        else Custom role
+            RoleService->>+UserRepository: checkRoleUsage(roleId)
+            activate UserRepository
+            UserRepository->>+Database: SELECT COUNT(*) FROM users WHERE role_id = ?
+            activate Database
+            Database-->>-UserRepository: User count
+            deactivate Database
+            UserRepository-->>-RoleService: Usage count
+            deactivate UserRepository
+            
+            alt Role in use
+                RoleService-->>IdentityController: RoleInUseException
+                IdentityController-->>WebApp: 409 Conflict
+                WebApp-->>Admin: Error: Role assigned to users
+            else Role not in use
+                RoleService->>+UserRepository: delete(roleId)
+                activate UserRepository
+                UserRepository->>+Database: DELETE FROM roles
+                activate Database
+                Database-->>-UserRepository: Delete confirmed
+                deactivate Database
+                UserRepository-->>-RoleService: Deletion successful
+                deactivate UserRepository
+                
+                RoleService-->>IdentityController: DeletionResult
+                IdentityController-->>WebApp: 200 OK
+                WebApp-->>Admin: Role deleted
+            end
+        end
+        
+        RoleService-->>-IdentityController: Result
+        deactivate RoleService
+        IdentityController-->>-WebApp: Response
+        deactivate IdentityController
+        WebApp-->>-Admin: Result message
+        deactivate WebApp
+        deactivate Admin
+    end
+    
+    %% ========================================
+    %% SYSTEM STATISTICS WORKFLOWS
+    %% ========================================
+    
+    rect rgb(250, 255, 250)
+        Note over Admin,Database: Admin: View System Statistics
+        
+        activate Admin
+        Admin->>+WebApp: Access system dashboard
+        activate WebApp
+        WebApp->>+IdentityController: GET /api/identity/statistics
+        activate IdentityController
+        IdentityController->>+UserService: getSystemStatistics()
+        activate UserService
+        
+        par Get User Statistics
+            UserService->>+UserRepository: countTotalUsers()
+            activate UserRepository
+            UserRepository->>+Database: SELECT COUNT(*) FROM users
+            activate Database
+            Database-->>-UserRepository: Total count
+            deactivate Database
+            UserRepository-->>-UserService: User count
+            deactivate UserRepository
+        and Get Active Users
+            UserService->>+UserRepository: countActiveUsers()
+            activate UserRepository
+            UserRepository->>+Database: SELECT COUNT(*) WHERE status = 'ACTIVE'
+            activate Database
+            Database-->>-UserRepository: Active count
+            deactivate Database
+            UserRepository-->>-UserService: Active count
+            deactivate UserRepository
+        and Get Department Stats
+            UserService->>+UserRepository: getUsersPerDepartment()
+            activate UserRepository
+            UserRepository->>+Database: SELECT dept, COUNT(*) GROUP BY dept
+            activate Database
+            Database-->>-UserRepository: Department distribution
+            deactivate Database
+            UserRepository-->>-UserService: Dept stats
+            deactivate UserRepository
+        and Get Role Distribution
+            UserService->>+UserRepository: getUsersPerRole()
+            activate UserRepository
+            UserRepository->>+Database: SELECT role, COUNT(*) GROUP BY role
+            activate Database
+            Database-->>-UserRepository: Role distribution
+            deactivate Database
+            UserRepository-->>-UserService: Role stats
+            deactivate UserRepository
+        end
+        
+        UserService->>UserService: Compile statistics
+        Note right of UserService: Statistics include:<br/>- Total users<br/>- Active users<br/>- Dept distribution<br/>- Role distribution<br/>- Growth trends
+        
+        UserService-->>-IdentityController: SystemStatisticsDTO
+        deactivate UserService
+        IdentityController-->>-WebApp: 200 OK
+        deactivate IdentityController
+        WebApp-->>-Admin: Display statistics dashboard
+        deactivate WebApp
+        deactivate Admin
+    end
 ```
 
 ---

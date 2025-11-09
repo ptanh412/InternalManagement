@@ -634,8 +634,9 @@ const TaskManagement = () => {
             isOpen={showCreateModal}
             onClose={() => setShowCreateModal(false)}
             onTaskCreated={(newTask) => {
-              setTasks([...tasks, newTask]);
-              setShowCreateModal(false);
+              // Reload tasks to get the latest data including the newly created task
+              loadTasks();
+              loadTaskStats();
             }}
             projects={projects}
           />
