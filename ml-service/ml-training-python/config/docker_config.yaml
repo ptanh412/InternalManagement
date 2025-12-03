@@ -1,0 +1,115 @@
+# Database Configuration for Docker Environment
+database:
+  postgres:
+    host: ml-postgres
+    port: 5432
+    database: ml_training_db
+    username: ml_user
+    password: ml_password
+
+  neo4j:
+    uri: bolt://host.docker.internal:7687
+    username: neo4j
+    password: "12345678"
+
+  mongodb:
+    uri: mongodb://host.docker.internal:27017
+    database: ai_service
+
+  mysql:
+    host: host.docker.internal
+    port: 3306
+    username: root
+    password: "123456"
+
+    # Multiple MySQL databases configuration
+    databases:
+      identity:
+        database: identity
+        description: "Identity service - user authentication and authorization data"
+
+      project:
+        database: project
+        description: "Project service - project information and management data"
+
+      task:
+        database: task
+        description: "Task service - task assignments and tracking data"
+
+      workload:
+        database: workload
+        description: "Workload service - user workload and capacity tracking data"
+
+# Kafka Configuration
+kafka:
+  bootstrap_servers:
+    - kafka:9092
+  topics:
+    ml_events: "ml-events"
+    task_completed: "task-completed-events"
+    task_assigned: "task-assigned-events"
+    user_activity: "user-activity-events"
+
+  consumer_group: "ml-data-collector"
+
+# Model Configuration
+model:
+  recommendation:
+    algorithm: "hybrid"
+    content_weight: 0.6
+    collaborative_weight: 0.4
+    min_training_samples: 100
+    retrain_frequency_days: 7
+
+  performance_prediction:
+    algorithm: "random_forest"
+    n_estimators: 200
+    max_depth: 15
+    min_samples_split: 5
+
+  skill_matching:
+    similarity_threshold: 0.7
+    experience_weight: 0.3
+    skill_weight: 0.7
+
+# Training Configuration
+training:
+  test_size: 0.2
+  validation_size: 0.2
+  random_state: 42
+  cross_validation_folds: 5
+
+  hyperparameter_tuning:
+    enabled: true
+    method: "grid_search"
+    scoring_metric: "f1_weighted"
+
+# Data Collection
+data_collection:
+  batch_size: 1000
+  max_records_per_collection: 10000
+  collection_frequency_hours: 24
+
+  synthetic_data:
+    enabled: true
+    num_users: 300
+    num_tasks: 1500
+    num_interactions: 3000
+
+# Continuous Learning
+continuous_learning:
+  enabled: true
+  min_accuracy_improvement: 0.01
+  min_data_size: 500
+  performance_degradation_threshold: 0.05
+
+# Logging
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+
+# API Configuration
+api:
+  host: "0.0.0.0"
+  port: 8000
+  reload: false

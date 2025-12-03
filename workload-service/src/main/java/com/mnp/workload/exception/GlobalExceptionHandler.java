@@ -1,6 +1,6 @@
 package com.mnp.workload.exception;
 
-import com.devteria.identity.dto.request.ApiResponse;
+import com.mnp.workload.dto.request.ApiResponse;
 import jakarta.validation.ConstraintViolation;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;

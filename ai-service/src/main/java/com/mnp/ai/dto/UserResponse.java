@@ -21,25 +21,25 @@ public class UserResponse {
     String employeeId;
     String phoneNumber;
     Double performanceScore;
-    
+
     // Role information
     String roleName;
     String roleDescription;
-    
+
     // Department information
     String departmentName;
-    
+
     // Position information
     String positionTitle;
     String seniorityLevel;
-    
+
     // Status and timestamps
     boolean isActive;
     boolean online;
     LocalDateTime lastLogin;
     LocalDateTime createdAt;
     LocalDateTime updatedAt;
-    
+
     // Legacy fields for backward compatibility
     LocalDateTime createdDate;
     LocalDateTime lastModifiedDate;

@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ml-training-python"
+version = "1.0.0"
+description = "ML Training and Recommendation System"
+authors = [
+    {name = "Internal Management", email = "admin@company.com"}
+]
+requires-python = ">=3.8"
+dependencies = [
+    "scikit-learn==1.3.0",
+    "pandas==2.0.3",
+    "numpy==1.24.3",
+    "scipy==1.11.1",
+    "joblib==1.3.1",
+    "tensorflow-macos==2.14.0",
+    "tensorflow-metal==1.1.0",
+    "torch==2.1.0",
+    "psycopg2-binary==2.9.7",
+    "sqlalchemy==2.0.19",
+    "pymongo==4.4.1",
+    "neo4j==5.11.0",
+    "mysql-connector-python==8.1.0",
+    "kafka-python==2.0.2",
+    "fastapi==0.104.1",
+    "uvicorn==0.24.0",
+    "pydantic==2.4.2",
+    "pydantic-core==2.10.1",
+    "typing-extensions==4.8.0",
+    "pyyaml==6.0.1",
+    "python-dotenv==1.0.0",
+    "matplotlib==3.8.0",
+    "seaborn==0.12.2",
+    "plotly==5.17.0",
+    "scikit-plot==0.3.7",
+    "requests==2.31.0",
+    "aiohttp==3.8.5",
+    "structlog==23.1.0",
+    "schedule==1.2.0"
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

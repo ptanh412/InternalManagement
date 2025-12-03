@@ -58,6 +58,7 @@ public class TaskService {
     ChatServiceClient chatServiceClient; // Add chat service client
     private final RealTimeNotificationClient realTimeNotificationClient; // Add real-time notification client
     IdentityClient identityClient;
+    WorkloadIntegrationService workloadIntegrationService; // Add workload integration service
 
 
     @Transactional
@@ -164,7 +165,19 @@ public class TaskService {
             );
         }
 
-        return taskMapper.toTaskResponse(savedTask);
+        // **ADD TASK TO WORKLOAD SERVICE**
+        // Add task to workload if it has an assignee
+        if (savedTask.getAssignedTo() != null && !savedTask.getAssignedTo().trim().isEmpty()) {
+            try {
+                workloadIntegrationService.addTaskToWorkload(savedTask);
+                log.info("Added task {} to workload service for user {}", savedTask.getId(), savedTask.getAssignedTo());
+            } catch (Exception e) {
+                log.error("Failed to add task {} to workload service: {}", savedTask.getId(), e.getMessage());
+                // Don't fail task creation if workload service is down
+            }
+        }
+
+        return enrichTaskResponseWithSkills(savedTask);
     }
 
     /**
@@ -239,13 +252,39 @@ public class TaskService {
 
         String oldAssigneeId = task.getAssignedTo();
         String oldAssigneeName = getUserFullName(oldAssigneeId);
+
+        // Capture old values for workload updates
+        Integer oldEstimatedHours = task.getEstimatedHours();
+        Integer oldActualHours = task.getActualHours();
+        Double oldProgress = task.getProgressPercentage();
+
         taskMapper.updateTask(task, request);
         Task updatedTask = taskRepository.save(task);
+
+        // **UPDATE WORKLOAD SERVICE FOR TASK CHANGES**
+        // Update workload if task properties changed (but not reassignment - that's handled separately)
+        if (updatedTask.getAssignedTo() != null && updatedTask.getAssignedTo().equals(oldAssigneeId)) {
+            try {
+                workloadIntegrationService.updateTaskWorkload(updatedTask, oldEstimatedHours, oldActualHours, oldProgress);
+                log.info("Updated workload service for task changes: {}", updatedTask.getId());
+            } catch (Exception e) {
+                log.error("Failed to update workload service for task changes: {}", e.getMessage());
+            }
+        }
 
         // Handle task reassignment logic
         if (updatedTask.getAssignedTo() != null &&!updatedTask.getAssignedTo().equals(oldAssigneeId)) {
 
             String newAssigneeId = updatedTask.getAssignedTo();
+
+            // **UPDATE WORKLOAD SERVICE FOR REASSIGNMENT**
+            try {
+                workloadIntegrationService.handleTaskReassignment(updatedTask, oldAssigneeId, newAssigneeId);
+                log.info("Updated workload service for task reassignment: {} -> {} (task: {})",
+                        oldAssigneeId, newAssigneeId, updatedTask.getId());
+            } catch (Exception e) {
+                log.error("Failed to update workload service for task reassignment: {}", e.getMessage());
+            }
             try {
                 String assignedByName = getUserFullName(newAssigneeId);
                 String dueDate = updatedTask.getDueDate() != null ?
@@ -317,7 +356,7 @@ public class TaskService {
 
         log.info("Task updated with ID: {}", updatedTask.getId());
 
-        return taskMapper.toTaskResponse(updatedTask);
+        return enrichTaskResponseWithSkills(updatedTask);
     }
 
     @Transactional
@@ -350,18 +389,13 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new AppException(ErrorCode.TASK_NOT_FOUND));
 
-        // Get the basic task response
-        TaskResponse taskResponse = taskMapper.toTaskResponse(task);
+        // Get the basic task response with required skills populated
+        TaskResponse taskResponse = enrichTaskResponseWithSkills(task);
 
-        // Fetch and add required skills
+        // Fetch required skills for inference
         List<TaskRequiredSkill> requiredSkills = taskRequiredSkillRepository.findByTaskId(taskId);
-        if (!requiredSkills.isEmpty()) {
-            List<String> skillNames = requiredSkills.stream()
-                    .map(TaskRequiredSkill::getSkillName)
-                    .collect(Collectors.toList());
-            taskResponse.setRequiredSkills(skillNames);
-        }
 
+        // Add AI recommendation metadata
         taskResponse.setTaskType(inferTaskType(task));
         taskResponse.setDepartment(inferDepartment(task, requiredSkills));
         taskResponse.setDifficulty(inferDifficulty(task, requiredSkills));
@@ -475,19 +509,19 @@ public class TaskService {
 
     public List<TaskResponse> getAllTasks() {
         return taskRepository.findAll().stream()
-                .map(taskMapper::toTaskResponse)
+                .map(this::enrichTaskResponseWithSkills)
                 .toList();
     }
 
     public List<TaskResponse> getTasksByAssignee(String assigneeId) {
         return taskRepository.findByAssignedTo(assigneeId).stream()
-                .map(taskMapper::toTaskResponse)
+                .map(this::enrichTaskResponseWithSkills)
                 .toList();
     }
 
     public List<TaskResponse> getTasksByCreator(String creatorId) {
         return taskRepository.findByCreatedBy(creatorId).stream()
-                .map(taskMapper::toTaskResponse)
+                .map(this::enrichTaskResponseWithSkills)
                 .toList();
     }
 
@@ -497,7 +531,7 @@ public class TaskService {
         log.info("Getting my tasks for user: {}", currentUserId);
 
         return taskRepository.findByAssignedTo(currentUserId).stream()
-                .map(taskMapper::toTaskResponse)
+                .map(this::enrichTaskResponseWithSkills)
                 .toList();
     }
 
@@ -523,7 +557,7 @@ public class TaskService {
 
             // Get all tasks from these projects
             return taskRepository.findByProjectIdIn(projectIds).stream()
-                    .map(taskMapper::toTaskResponse)
+                    .map(this::enrichTaskResponseWithSkills)
                     .toList();
         } catch (Exception e) {
             log.error("Failed to fetch tasks for team lead {}: {}", teamLeadId, e.getMessage());
@@ -562,7 +596,7 @@ public class TaskService {
         }
 
         return tasks.stream()
-                .map(taskMapper::toTaskResponse)
+                .map(this::enrichTaskResponseWithSkills)
                 .toList();
     }
 
@@ -618,7 +652,20 @@ public class TaskService {
         Task updatedTask = taskRepository.save(task);
         log.info("Task status updated: {} -> {} for task ID: {}", oldStatus, request.getStatus(), taskId);
 
-        return taskMapper.toTaskResponse(updatedTask);
+        // **UPDATE WORKLOAD SERVICE FOR STATUS CHANGE**
+        try {
+            workloadIntegrationService.updateTaskStatusInWorkload(updatedTask, oldStatus, request.getStatus());
+
+            // Remove task from workload if completed or cancelled
+            if (request.getStatus() == TaskStatus.DONE || request.getStatus() == TaskStatus.CANCELLED) {
+                workloadIntegrationService.removeTaskFromWorkload(updatedTask);
+                log.info("Removed completed/cancelled task {} from workload service", taskId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to update workload service for status change: {}", e.getMessage());
+        }
+
+        return enrichTaskResponseWithSkills(updatedTask);
     }
 
     @Transactional
@@ -634,6 +681,17 @@ public class TaskService {
         Task updatedTask = taskRepository.save(task);
 
         log.info("Task assigned to user {} for task ID: {}", userId, taskId);
+
+        // **UPDATE WORKLOAD SERVICE FOR TASK ASSIGNMENT**
+        if (!userId.equals(previousAssignedTo)) {
+            try {
+                workloadIntegrationService.handleTaskReassignment(updatedTask, previousAssignedTo, userId);
+                log.info("Updated workload service for task assignment: {} (old: {}, new: {})",
+                        taskId, previousAssignedTo, userId);
+            } catch (Exception e) {
+                log.error("Failed to update workload service for task assignment: {}", e.getMessage());
+            }
+        }
 
         // If this is a new assignment (not just updating existing assignment)
         if (!userId.equals(previousAssignedTo)) {
@@ -652,7 +710,7 @@ public class TaskService {
             }
         }
 
-        TaskResponse taskResponse = taskMapper.toTaskResponse(updatedTask);
+        TaskResponse taskResponse = enrichTaskResponseWithSkills(updatedTask);
 
         // Send real-time Socket.IO notification for task assignment
         try {
@@ -838,6 +896,29 @@ public class TaskService {
                 .build();
     }
 
+    /**
+     * Enrich TaskResponse with required skills from TaskRequiredSkill table
+     */
+    private TaskResponse enrichTaskResponseWithSkills(Task task) {
+        TaskResponse response = taskMapper.toTaskResponse(task);
+
+        // Fetch and populate required skills
+        List<TaskRequiredSkill> skills = taskRequiredSkillRepository.findByTaskId(task.getId());
+        List<String> requiredSkills = skills.stream()
+                .map(TaskRequiredSkill::getSkillName)
+                .toList();
+
+        log.info("Required skills for task {}: {}", task.getId(), requiredSkills);
+        response.setRequiredSkills(requiredSkills);
+
+        // ✅ ADD: Populate AI recommendation metadata
+        response.setTaskType(inferTaskType(task));
+        response.setDepartment(inferDepartment(task, skills));
+        response.setDifficulty(inferDifficulty(task, skills));
+
+        return response;
+    }
+
     private TaskSubmissionResponse mapToTaskSubmissionResponse(TaskSubmission submission) {
         Task task = taskRepository.findById(submission.getTaskId()).orElse(null);
 
@@ -886,6 +967,11 @@ public class TaskService {
         // Use the existing mapper and enhance with additional data
         TaskResponse response = taskMapper.toTaskResponse(task);
 
+        // Convert skills to skill names for requiredSkills field
+        List<String> skillNames = skills.stream()
+                .map(TaskRequiredSkill::getSkillName)
+                .toList();
+
         // Add dependencies and skills to the response (assuming TaskResponse has these fields)
         // Note: You may need to modify TaskResponse to include these fields
         return TaskResponse.builder()
@@ -905,9 +991,12 @@ public class TaskService {
                 .estimatedHours(task.getEstimatedHours())
                 .actualHours(task.getActualHours())
                 .dueDate(task.getDueDate())
+                .startedAt(task.getStartedAt())
+                .completedAt(task.getCompletedAt())
                 .createdAt(task.getCreatedAt())
                 .updatedAt(task.getUpdatedAt())
                 .dependencies(dependencyResponses.toArray(new TaskDependencyResponse[0]))
+                .requiredSkills(skillNames)
                 .build();
     }
 
@@ -1034,7 +1123,20 @@ public class TaskService {
         Task updatedTask = taskRepository.save(task);
         log.info("Task progress updated: {}% for task ID: {}", request.getProgressPercentage(), taskId);
 
-        return taskMapper.toTaskResponse(updatedTask);
+        // **UPDATE WORKLOAD SERVICE FOR PROGRESS UPDATE**
+        try {
+            workloadIntegrationService.updateTaskWorkload(updatedTask, null, null, null);
+
+            // Remove task from workload if completed (100% progress)
+            if (request.getProgressPercentage() == 100) {
+                workloadIntegrationService.removeTaskFromWorkload(updatedTask);
+                log.info("Removed completed task {} from workload service", taskId);
+            }
+        } catch (Exception e) {
+            log.error("Failed to update workload service for progress update: {}", e.getMessage());
+        }
+
+        return enrichTaskResponseWithSkills(updatedTask);
     }
 
     /**

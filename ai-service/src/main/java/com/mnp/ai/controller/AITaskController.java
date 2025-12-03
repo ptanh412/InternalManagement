@@ -1,15 +1,18 @@
 package com.mnp.ai.controller;
 
+import jakarta.validation.Valid;
+
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
+
 import com.mnp.ai.dto.request.TaskAnalysisRequest;
 import com.mnp.ai.dto.response.TaskAnalysisResponse;
 import com.mnp.ai.service.AITaskRecommendationService;
 import com.mnp.ai.service.FileProcessingService;
-import jakarta.validation.Valid;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/ai/tasks")
@@ -23,7 +26,9 @@ public class AITaskController {
 
     @PostMapping("/analyze-text")
     public ResponseEntity<TaskAnalysisResponse> analyzeText(@Valid @RequestBody TaskAnalysisRequest request) {
-        log.info("Received text analysis request for content length: {}", request.getContent().length());
+        log.info(
+                "Received text analysis request for content length: {}",
+                request.getContent().length());
 
         try {
             TaskAnalysisResponse response = aiTaskService.analyzeTextContent(request);
@@ -41,8 +46,7 @@ public class AITaskController {
             @RequestParam(value = "projectType", required = false) String projectType,
             @RequestParam(value = "methodology", required = false, defaultValue = "AGILE") String methodology) {
 
-        log.info("Received file analysis request for file: {} ({})",
-                file.getOriginalFilename(), file.getSize());
+        log.info("Received file analysis request for file: {} ({})", file.getOriginalFilename(), file.getSize());
 
         // Validate file
         if (file.isEmpty()) {
@@ -67,7 +71,7 @@ public class AITaskController {
 
     @GetMapping("/supported-formats")
     public ResponseEntity<String[]> getSupportedFormats() {
-        return ResponseEntity.ok(new String[]{"pdf", "docx", "doc", "txt", "md"});
+        return ResponseEntity.ok(new String[] {"pdf", "docx", "doc", "txt", "md"});
     }
 
     @GetMapping("/health")

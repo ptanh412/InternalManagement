@@ -1,6 +1,5 @@
 package com.mnp.workload.exception;
 
-import com.devteria.identity.exception.ErrorCode;
 
 public class AppException extends RuntimeException {
 

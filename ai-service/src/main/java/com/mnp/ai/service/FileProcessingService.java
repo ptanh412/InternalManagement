@@ -1,17 +1,18 @@
 package com.mnp.ai.service;
 
-import lombok.extern.slf4j.Slf4j;
+import java.io.IOException;
+import java.io.InputStream;
+
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
 import org.apache.poi.hwpf.HWPFDocument;
 import org.apache.poi.hwpf.extractor.WordExtractor;
-import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.apache.poi.xwpf.extractor.XWPFWordExtractor;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.io.IOException;
-import java.io.InputStream;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
@@ -51,7 +52,7 @@ public class FileProcessingService {
 
     private String extractFromDocx(InputStream inputStream) throws IOException {
         try (XWPFDocument document = new XWPFDocument(inputStream);
-             XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
+                XWPFWordExtractor extractor = new XWPFWordExtractor(document)) {
             String text = extractor.getText();
             log.info("Successfully extracted {} characters from DOCX", text.length());
             return text;
@@ -60,7 +61,7 @@ public class FileProcessingService {
 
     private String extractFromDoc(InputStream inputStream) throws IOException {
         try (HWPFDocument document = new HWPFDocument(inputStream);
-             WordExtractor extractor = new WordExtractor(document)) {
+                WordExtractor extractor = new WordExtractor(document)) {
             String text = extractor.getText();
             log.info("Successfully extracted {} characters from DOC", text.length());
             return text;

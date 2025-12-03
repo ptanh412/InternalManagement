@@ -3,6 +3,7 @@ package com.mnp.chat.dto.response;
 import java.time.Instant;
 import java.util.List;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.mnp.chat.entity.ParticipantInfo;
 
@@ -25,12 +26,19 @@ public class ChatMessageResponse {
     ParticipantInfo reader; // Keep for backward compatibility with direct conversations
     List<ParticipantInfo> readers; // List of users who have read the message in group conversations
     ParticipantInfo sender;
+
+    @JsonFormat(shape = JsonFormat.Shape.NUMBER) // ✅ Serialize as epoch
     Instant createdDate;
+
+    @JsonFormat(shape = JsonFormat.Shape.NUMBER) // ✅ Serialize as epoch
+    Instant modifiedDate;
+
     String replyToMessageId; // ID of the message being replied to
     ChatMessageResponse replyToMessage; // Full reply message object
     List<ReactionSummaryResponse> reactions; // Message reactions summary
 
     boolean isPinned; // Whether the message is pinned
+    Instant pinnedDate;
 
     // Recall-related fields
     @JsonProperty("isRecalled")

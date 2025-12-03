@@ -1,13 +1,7 @@
 package com.mnp.ai.controller;
 
-import com.mnp.ai.dto.request.UserCreatedRequest;
-import com.mnp.ai.dto.response.*;
-import com.mnp.ai.entity.CVAnalysisHistory;
-import com.mnp.ai.service.CVAnalysisHistoryService;
-import com.mnp.ai.service.FileProcessingService;
-import com.mnp.ai.service.GeminiCVAnalysisService;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.*;
+
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,8 +9,15 @@ import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
-import java.util.*;
+import com.mnp.ai.dto.request.UserCreatedRequest;
+import com.mnp.ai.dto.response.*;
+import com.mnp.ai.entity.CVAnalysisHistory;
+import com.mnp.ai.service.CVAnalysisHistoryService;
+import com.mnp.ai.service.FileProcessingService;
+import com.mnp.ai.service.GeminiCVAnalysisService;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequestMapping("/ai/cv")
@@ -81,18 +82,15 @@ public class CVAnalysisController {
             String uploadedBy = jwt != null ? jwt.getSubject() : "SYSTEM";
             // Lấy username từ JWT
             CVAnalysisHistory savedHistory = historyService.saveAnalysisHistory(
-                    fileName,
-                    file.getSize(),
-                    file.getContentType(),
-                    analysisResult,
-                    uploadedBy
-            );
+                    fileName, file.getSize(), file.getContentType(), analysisResult, uploadedBy);
 
             analysisResult.setHistoryId(savedHistory.getId());
 
-
-            log.info("CV analysis completed for {} in {}ms with confidence: {}",
-                    fileName, processingTime, analysisResult.getConfidence());
+            log.info(
+                    "CV analysis completed for {} in {}ms with confidence: {}",
+                    fileName,
+                    processingTime,
+                    analysisResult.getConfidence());
 
             return ApiResponse.<CVAnalysisResult>builder()
                     .code(1000)
@@ -106,12 +104,7 @@ public class CVAnalysisController {
             try {
                 String uploadedBy = jwt != null ? jwt.getSubject() : "SYSTEM";
                 historyService.saveFailedAnalysis(
-                        file.getOriginalFilename(),
-                        file.getSize(),
-                        file.getContentType(),
-                        e.getMessage(),
-                        uploadedBy
-                );
+                        file.getOriginalFilename(), file.getSize(), file.getContentType(), e.getMessage(), uploadedBy);
             } catch (Exception historyEx) {
                 log.error("Failed to save error history: {}", historyEx.getMessage());
             }
@@ -170,11 +163,14 @@ public class CVAnalysisController {
 
             long totalProcessingTime = System.currentTimeMillis() - startTime;
 
-            log.info("Batch CV analysis completed: {} successful, {} errors, {}ms total",
-                    results.size(), errors.size(), totalProcessingTime);
+            log.info(
+                    "Batch CV analysis completed: {} successful, {} errors, {}ms total",
+                    results.size(),
+                    errors.size(),
+                    totalProcessingTime);
 
-            String message = String.format("Batch analysis completed: %d successful, %d failed",
-                    results.size(), errors.size());
+            String message =
+                    String.format("Batch analysis completed: %d successful, %d failed", results.size(), errors.size());
 
             if (!errors.isEmpty()) {
                 message += ". Errors: " + String.join("; ", errors);
@@ -196,16 +192,15 @@ public class CVAnalysisController {
         }
     }
 
-
     private boolean isValidCVFileType(String fileName) {
         if (fileName == null) return false;
 
         String lowerFileName = fileName.toLowerCase();
-        return lowerFileName.endsWith(".pdf") ||
-               lowerFileName.endsWith(".doc") ||
-               lowerFileName.endsWith(".docx") ||
-               lowerFileName.endsWith(".txt") ||
-               lowerFileName.endsWith(".rtf");
+        return lowerFileName.endsWith(".pdf")
+                || lowerFileName.endsWith(".doc")
+                || lowerFileName.endsWith(".docx")
+                || lowerFileName.endsWith(".txt")
+                || lowerFileName.endsWith(".rtf");
     }
 
     @GetMapping("/history")
@@ -243,9 +238,7 @@ public class CVAnalysisController {
      */
     @PutMapping("/history/{historyId}/user-created")
     @PreAuthorize("hasRole('ADMIN')")
-    public ApiResponse<Void> markUserCreated(
-            @PathVariable String historyId,
-            @RequestBody UserCreatedRequest request) {
+    public ApiResponse<Void> markUserCreated(@PathVariable String historyId, @RequestBody UserCreatedRequest request) {
         historyService.updateHistoryWithCreatedUser(historyId, request);
         return ApiResponse.<Void>builder()
                 .message("History updated successfully")

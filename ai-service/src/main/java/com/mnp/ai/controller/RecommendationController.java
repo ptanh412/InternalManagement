@@ -28,7 +28,13 @@ public class RecommendationController {
         log.info("Received request for task recommendations for taskId: {}", taskId);
 
         List<AssignmentRecommendation> recommendations =
-                aiRecommendationService.generateTaskAssignmentRecommendations(taskId);
+                aiRecommendationService.recommendCandidates(taskId);
+
+        if (!recommendations.isEmpty()) {
+            log.info("Generated {} task recommendations. First: {}", recommendations.size(), recommendations.getFirst());
+        } else {
+            log.warn("No task recommendations generated for taskId: {}", taskId);
+        }
 
         return ApiResponse.<List<AssignmentRecommendation>>builder()
                 .result(recommendations)
@@ -44,7 +50,7 @@ public class RecommendationController {
         log.info("Received request for emergency recommendations for taskId: {}", taskId);
 
         List<AssignmentRecommendation> recommendations =
-                aiRecommendationService.generateEmergencyRecommendations(taskId);
+                aiRecommendationService.recommendCandidates(taskId);
 
         return ApiResponse.<List<AssignmentRecommendation>>builder()
                 .result(recommendations)
@@ -61,7 +67,7 @@ public class RecommendationController {
         log.info("Received request for team recommendations for taskId: {} and teamId: {}", taskId, teamId);
 
         List<AssignmentRecommendation> recommendations =
-                aiRecommendationService.generateTeamBasedRecommendations(taskId, teamId);
+                aiRecommendationService.recommendCandidates(taskId);
 
         return ApiResponse.<List<AssignmentRecommendation>>builder()
                 .result(recommendations)

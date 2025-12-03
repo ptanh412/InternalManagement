@@ -2,6 +2,8 @@ package com.mnp.profile.service;
 
 import java.util.List;
 
+import com.mnp.profile.dto.response.TaskMetricsResponse;
+import com.mnp.profile.repository.httpclient.TaskServiceClient;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,7 @@ public class UserProfileService {
     FileClient fileClient;
     IdentityClient identityClient;
     UserProfileMapper userProfileMapper;
+    TaskServiceClient taskServiceClient;
 
     public UserProfileResponse createProfile(ProfileCreationRequest request) {
         log.info("Creating profile for userId: {}", request.getUserId());
@@ -90,13 +93,12 @@ public class UserProfileService {
 
         // Sort by updatedAt to get the most recent profile
         var profile = profiles.stream()
-                .sorted((p1, p2) -> {
+                .min((p1, p2) -> {
                     if (p1.getUpdatedAt() == null && p2.getUpdatedAt() == null) return 0;
                     if (p1.getUpdatedAt() == null) return 1;
                     if (p2.getUpdatedAt() == null) return -1;
                     return p2.getUpdatedAt().compareTo(p1.getUpdatedAt());
                 })
-                .findFirst()
                 .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_EXISTED));
 
         return buildUserProfileResponse(profile);
@@ -192,7 +194,63 @@ public class UserProfileService {
             response.setUser(createFallbackUserResponse(userProfile.getUserId()));
         }
 
+        // Enrich with task metrics from task-service
+        enrichWithTaskMetrics(userProfile, response);
+
         return response;
+    }
+
+    /**
+     * Enrich UserProfile with real-time task metrics from task-service
+     */
+    private void enrichWithTaskMetrics(UserProfile userProfile, UserProfileResponse response) {
+        try {
+            var metricsResponse = taskServiceClient.getUserTaskMetrics(userProfile.getUserId());
+
+            if (metricsResponse != null && metricsResponse.getResult() != null) {
+                TaskMetricsResponse metrics = metricsResponse.getResult();
+
+                // Update the response with real task metrics
+                response.setTotalTasksCompleted(metrics.getCompletedTasks());
+
+                // Calculate completion rate based on completed vs total tasks
+                if (metrics.getTotalTasks() > 0) {
+                    double completionRate = (double) metrics.getCompletedTasks() / metrics.getTotalTasks();
+                    response.setAverageTaskCompletionRate(completionRate);
+                } else {
+                    response.setAverageTaskCompletionRate(0.0);
+                }
+
+                // Update the entity if values have changed (for persistence)
+                boolean needsUpdate = false;
+
+                if (metrics.getCompletedTasks() != userProfile.getTotalTasksCompleted()) {
+                    userProfile.setTotalTasksCompleted(metrics.getCompletedTasks());
+                    needsUpdate = true;
+                }
+
+                double newCompletionRate = metrics.getTotalTasks() > 0
+                    ? (double) metrics.getCompletedTasks() / metrics.getTotalTasks()
+                    : 0.0;
+
+                if (Double.compare(newCompletionRate, userProfile.getAverageTaskCompletionRate()) != 0) {
+                    userProfile.setAverageTaskCompletionRate(newCompletionRate);
+                    needsUpdate = true;
+                }
+
+                // Save updated metrics back to database
+                if (needsUpdate) {
+                    userProfile.onUpdate();
+                    userProfileRepository.save(userProfile);
+                    log.info("Updated task metrics for user {}: completedTasks={}, completionRate={}",
+                        userProfile.getUserId(), metrics.getCompletedTasks(), newCompletionRate);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to fetch task metrics for user {}: {}",
+                userProfile.getUserId(), e.getMessage());
+            // Don't fail the entire request, just use existing profile data
+        }
     }
 
     private UserResponse createFallbackUserResponse(String userId) {
@@ -297,7 +355,7 @@ public class UserProfileService {
         var profiles = userProfileRepository.findAll();
         return profiles.stream()
                 .map(this::buildUserProfileResponse)
-                .filter(profile -> profile != null) // Basic filter for valid profiles
+                .filter(java.util.Objects::nonNull) // Basic filter for valid profiles
                 .toList();
     }
 

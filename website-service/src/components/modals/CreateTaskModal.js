@@ -278,7 +278,7 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
         description: formData.description,
         projectId: formData.projectId,
         assigneeId: formData.assigneeId || null,
-        reporterId: user.id,
+        reporterId: null,
         type: formData.type,
         priority: formData.priority,
         status: formData.status,

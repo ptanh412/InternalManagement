@@ -118,9 +118,42 @@ comprehensive_data = collector.collect_comprehensive_training_data()
 
 **Data Sources:**
 - **MySQL**: Task, project, identity, and workload data (identity-service, task-service, project-service, workload-service)
+  - Multiple database support: `identity`, `project`, `task`, `sys`
+  - See [MySQL Database Configuration Guide](ml-training-python/MYSQL_DATABASE_CONFIGURATION.md)
 - **Neo4j**: User profiles (profile-service)  
 - **MongoDB**: AI predictions, chat, notifications, and files (ai-service, chat-service, notification-service, file-service)
 - **PostgreSQL**: Consolidated ML training data
+
+#### Configuring MySQL Databases
+
+The ML service supports connecting to multiple MySQL databases simultaneously. Update the configuration in `ml-training-python/config/model_config.yaml`:
+
+```yaml
+mysql:
+  host: localhost
+  port: 3306
+  username: root          # Your MySQL username
+  password: "your_pass"   # Your MySQL password
+  
+  databases:
+    identity:
+      database: identity
+      description: "User authentication data"
+    project:
+      database: project
+      description: "Project management data"
+    task:
+      database: task
+      description: "Task tracking data"
+```
+
+**Test your database connections:**
+```bash
+cd ml-training-python
+python test_mysql_connections.py
+```
+
+For detailed setup instructions, see [MYSQL_DATABASE_CONFIGURATION.md](ml-training-python/MYSQL_DATABASE_CONFIGURATION.md)
 
 ### Continuous Learning Pipeline
 

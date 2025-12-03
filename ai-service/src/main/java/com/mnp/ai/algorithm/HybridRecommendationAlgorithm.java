@@ -5,9 +5,14 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
+import com.mnp.ai.client.WorkloadServiceClient;
+import com.mnp.ai.dto.ApiResponse;
+import com.mnp.ai.dto.UserAvailabilityResponse;
+import com.mnp.ai.dto.UserWorkloadResponse;
 import com.mnp.ai.model.AssignmentRecommendation;
 import com.mnp.ai.model.TaskProfile;
 import com.mnp.ai.model.UserProfile;
+import com.mnp.ai.service.GeminiRecommendationService;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -15,16 +20,24 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class HybridRecommendationAlgorithm {
 
+    private final WorkloadServiceClient workloadServiceClient;
+    private final GeminiRecommendationService geminiRecommendationService;
+
+    public HybridRecommendationAlgorithm(
+            WorkloadServiceClient workloadServiceClient, GeminiRecommendationService geminiRecommendationService) {
+        this.workloadServiceClient = workloadServiceClient;
+        this.geminiRecommendationService = geminiRecommendationService;
+    }
+
     // Weights for hybrid approach
     private static final double CONTENT_BASED_WEIGHT = 0.6;
     private static final double COLLABORATIVE_FILTERING_WEIGHT = 0.4;
 
     // Individual criteria weights for content-based filtering
-    private static final double SKILL_MATCH_WEIGHT = 0.35;
-    private static final double PERFORMANCE_WEIGHT = 0.25;
-    private static final double AVAILABILITY_WEIGHT = 0.20;
-    private static final double WORKLOAD_WEIGHT = 0.15;
-    private static final double COLLABORATION_WEIGHT = 0.05;
+    private static final double SKILL_MATCH_WEIGHT = 0.40; // 40%
+    private static final double PERFORMANCE_WEIGHT = 0.20; // 20%
+    private static final double AVAILABILITY_WEIGHT = 0.15; // 15%
+    private static final double WORKLOAD_WEIGHT = 0.25; // 25%
 
     /**
      * Generate hybrid recommendations combining content-based and collaborative filtering
@@ -69,14 +82,13 @@ public class HybridRecommendationAlgorithm {
             recommendation.setHybridScore(hybridScore);
             recommendation.setOverallScore(hybridScore);
 
-            // Calculate individual criteria scores for transparency
+            // Calculate individual criteria scores for transparency (using enhanced methods)
             recommendation.setSkillMatchScore(calculateSkillMatchScore(task, candidate));
             recommendation.setPerformanceScore(calculatePerformanceScore(candidate));
-            recommendation.setAvailabilityScore(candidate.getAvailabilityScore());
+            recommendation.setAvailabilityScore(calculateEnhancedAvailabilityScore(candidate));
             recommendation.setWorkloadScore(calculateWorkloadScore(candidate));
-            recommendation.setCollaborationScore(calculateCollaborationScore(candidate));
 
-            // Generate recommendation reason
+            // Set initial template reason - will be enhanced with Gemini for top candidates later
             recommendation.setRecommendationReason(generateRecommendationReason(recommendation, task, candidate));
 
             recommendations.add(recommendation);
@@ -97,6 +109,10 @@ public class HybridRecommendationAlgorithm {
             recommendations.get(i).setRank(i + 1);
         }
 
+        // **BATCH PROCESS GEMINI REASONS FOR TOP CANDIDATES**
+        // For better efficiency, generate Gemini reasons for only the top candidates
+        enhanceTopRecommendationsWithGeminiReasons(task, uniqueCandidates, recommendations);
+
         // Limit to top 10 recommendations to avoid overwhelming results
         List<AssignmentRecommendation> topRecommendations =
                 recommendations.stream().limit(10).collect(Collectors.toList());
@@ -111,15 +127,14 @@ public class HybridRecommendationAlgorithm {
     private double calculateContentBasedScore(TaskProfile task, UserProfile candidate) {
         double skillMatchScore = calculateSkillMatchScore(task, candidate);
         double performanceScore = calculatePerformanceScore(candidate);
-        double availabilityScore = candidate.getAvailabilityScore() != null ? candidate.getAvailabilityScore() : 0.5;
+        double availabilityScore = calculateEnhancedAvailabilityScore(candidate);
         double workloadScore = calculateWorkloadScore(candidate);
-        double collaborationScore = calculateCollaborationScore(candidate);
 
         return (SKILL_MATCH_WEIGHT * skillMatchScore)
                 + (PERFORMANCE_WEIGHT * performanceScore)
                 + (AVAILABILITY_WEIGHT * availabilityScore)
-                + (WORKLOAD_WEIGHT * workloadScore)
-                + (COLLABORATION_WEIGHT * collaborationScore);
+                + (WORKLOAD_WEIGHT * workloadScore);
+        // Removed COLLABORATION_WEIGHT since it's now 0%
     }
 
     /**
@@ -594,30 +609,340 @@ public class HybridRecommendationAlgorithm {
     }
 
     /**
-     * Calculate workload score (higher score for lower current workload)
+     * Calculate workload score using real workload data from workload-service
+     * Higher score for lower current workload (more availability)
      */
     private double calculateWorkloadScore(UserProfile candidate) {
-        Double workloadCapacity = candidate.getWorkloadCapacity();
-        return workloadCapacity != null ? Math.max(0.0, 1.0 - workloadCapacity) : 0.5;
-    }
+        try {
+            // Get real-time workload data from workload-service
+            ApiResponse<UserWorkloadResponse> workloadResponse =
+                    workloadServiceClient.getUserWorkload(candidate.getUserId());
 
-    /**
-     * Calculate collaboration score based on team interaction history
-     */
-    private double calculateCollaborationScore(UserProfile candidate) {
-        Map<String, Double> collaborationHistory = candidate.getCollaborationHistory();
-        if (collaborationHistory == null || collaborationHistory.isEmpty()) {
-            return 0.5; // Default neutral score
+            if (workloadResponse != null && workloadResponse.getResult() != null) {
+                UserWorkloadResponse workload = workloadResponse.getResult();
+
+                // Calculate score based on availability percentage
+                // availabilityPercentage: 100% = fully available, 0% = overloaded
+                Double availabilityPercentage = workload.getAvailabilityPercentage();
+                if (availabilityPercentage != null) {
+                    // Convert availability percentage to score (0.0 - 1.0)
+                    double score = Math.max(0.0, Math.min(1.0, availabilityPercentage / 100.0));
+
+                    log.debug(
+                            "Workload score for user {}: {}% availability = {} score",
+                            candidate.getUserId(), availabilityPercentage, score);
+                    return score;
+                }
+
+                // Fallback: Calculate from utilization if availability not available
+                Double utilizationPercentage = workload.getUtilizationPercentage();
+                if (utilizationPercentage != null) {
+                    // Higher utilization = lower availability = lower score
+                    double score = Math.max(0.0, (100.0 - Math.min(100.0, utilizationPercentage)) / 100.0);
+
+                    log.debug(
+                            "Workload score for user {} (from utilization): {}% utilization = {} score",
+                            candidate.getUserId(), utilizationPercentage, score);
+                    return score;
+                }
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to get workload data for user {}, using fallback: {}",
+                    candidate.getUserId(),
+                    e.getMessage());
         }
 
-        return collaborationHistory.values().stream()
-                .mapToDouble(Double::doubleValue)
-                .average()
-                .orElse(0.5);
+        // Fallback to UserProfile workload data if service unavailable
+        Double workloadCapacity = candidate.getWorkloadCapacity();
+        if (workloadCapacity != null) {
+            return Math.max(0.0, 1.0 - workloadCapacity);
+        }
+
+        // Default score if no workload data available
+        log.debug("No workload data available for user {}, using default score 0.5", candidate.getUserId());
+        return 0.5;
     }
 
     /**
-     * Generate human-readable recommendation reason
+     * Calculate enhanced availability score using workload service data
+     * Combines availability status with current workload metrics
+     */
+    private double calculateEnhancedAvailabilityScore(UserProfile candidate) {
+        try {
+            // Get availability data from workload-service
+            ApiResponse<UserAvailabilityResponse> availabilityResponse =
+                    workloadServiceClient.getUserAvailability(candidate.getUserId());
+
+            if (availabilityResponse != null && availabilityResponse.getResult() != null) {
+                UserAvailabilityResponse availability = availabilityResponse.getResult();
+
+                // Base score from availability percentage
+                Double availabilityPercentage = availability.getAvailabilityPercentage();
+                double baseScore = availabilityPercentage != null ? availabilityPercentage / 100.0 : 0.5;
+
+                // Adjust based on availability status
+                Boolean isAvailable = availability.getIsAvailable();
+                if (isAvailable != null && !isAvailable) {
+                    baseScore *= 0.3; // Significant penalty if marked as unavailable
+                }
+
+                // Consider current task count (more tasks = less availability for new assignments)
+                Integer currentTasks = availability.getCurrentTasksCount();
+                if (currentTasks != null && currentTasks > 0) {
+                    // Penalty based on task count (logarithmic to avoid extreme penalties)
+                    double taskPenalty = Math.min(0.5, Math.log(currentTasks + 1) / 10.0);
+                    baseScore = Math.max(0.1, baseScore - taskPenalty);
+                }
+
+                log.debug(
+                        "Enhanced availability score for user {}: {}% availability, {} tasks = {} score",
+                        candidate.getUserId(), availabilityPercentage, currentTasks, baseScore);
+
+                return Math.max(0.0, Math.min(1.0, baseScore));
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to get availability data for user {}, using fallback: {}",
+                    candidate.getUserId(),
+                    e.getMessage());
+        }
+
+        // Fallback to UserProfile availability data
+        Double profileAvailabilityScore = candidate.getAvailabilityScore();
+        if (profileAvailabilityScore != null) {
+            return profileAvailabilityScore;
+        }
+
+        // Parse availability status from profile
+        String availabilityStatus = candidate.getAvailabilityStatus();
+        if (availabilityStatus != null) {
+            switch (availabilityStatus.toUpperCase()) {
+                case "AVAILABLE":
+                    return 0.9;
+                case "BUSY":
+                    return 0.4;
+                case "UNAVAILABLE":
+                    return 0.1;
+                default:
+                    return 0.5;
+            }
+        }
+
+        return 0.5; // Default neutral score
+    }
+
+    /**
+     * Enhance top recommendations with Gemini AI-powered personalized reasons
+     * This is more efficient than individual calls for each candidate
+     */
+    private void enhanceTopRecommendationsWithGeminiReasons(
+            TaskProfile task, List<UserProfile> candidates, List<AssignmentRecommendation> recommendations) {
+        try {
+            // Only enhance top 5 recommendations to save API calls and processing time
+            List<AssignmentRecommendation> topRecommendations =
+                    recommendations.stream().limit(5).collect(Collectors.toList());
+
+            log.info(
+                    "Enhancing top {} recommendations with Gemini AI reasons for task: {}",
+                    topRecommendations.size(),
+                    task.getTaskId());
+
+            for (AssignmentRecommendation recommendation : topRecommendations) {
+                UserProfile candidate = findCandidateById(recommendation.getUserId(), candidates);
+                if (candidate != null) {
+                    String personalizedReason =
+                            generatePersonalizedRecommendationReason(recommendation, task, candidate);
+                    if (personalizedReason != null && !personalizedReason.trim().isEmpty()) {
+                        recommendation.setRecommendationReason(personalizedReason);
+                        recommendation.setGeminiReasoning(personalizedReason); // Store original Gemini reason
+                        log.debug(
+                                "Enhanced recommendation for user {} with Gemini reason: {}",
+                                candidate.getUserId(),
+                                personalizedReason.substring(0, Math.min(50, personalizedReason.length())) + "...");
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            log.warn("Failed to enhance recommendations with Gemini reasons: {}", e.getMessage());
+            // Continue with template reasons if Gemini enhancement fails
+        }
+    }
+
+    /**
+     * Find candidate by ID in the candidates list
+     */
+    private UserProfile findCandidateById(String userId, List<UserProfile> candidates) {
+        return candidates.stream()
+                .filter(candidate -> candidate.getUserId().equals(userId))
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
+     * Generate personalized recommendation reason using Gemini AI
+     * This provides unique, contextual explanations for each candidate
+     */
+    private String generatePersonalizedRecommendationReason(
+            AssignmentRecommendation recommendation, TaskProfile task, UserProfile candidate) {
+        try {
+            // Build detailed prompt for Gemini to analyze this specific user for this specific task
+            String prompt = buildPersonalizedReasonPrompt(recommendation, task, candidate);
+
+            // Call Gemini AI for intelligent reasoning
+            String geminiReason = callGeminiForPersonalizedReason(prompt);
+
+            if (geminiReason != null && !geminiReason.trim().isEmpty()) {
+                log.debug("Generated Gemini-powered reason for user {}: {}", candidate.getUserId(), geminiReason);
+                return geminiReason.trim();
+            }
+        } catch (Exception e) {
+            log.warn(
+                    "Failed to generate Gemini-powered reason for user {}, falling back to template: {}",
+                    candidate.getUserId(),
+                    e.getMessage());
+        }
+
+        // Fallback to template-based reason if Gemini fails
+        return generateRecommendationReason(recommendation, task, candidate);
+    }
+
+    /**
+     * Build personalized prompt for Gemini AI to analyze this specific candidate for this task
+     */
+    private String buildPersonalizedReasonPrompt(
+            AssignmentRecommendation recommendation, TaskProfile task, UserProfile candidate) {
+        StringBuilder prompt = new StringBuilder();
+
+        prompt.append(
+                "You are an expert technical recruiter. Analyze why this specific person should be assigned to this task.\n\n");
+
+        // Task context
+        prompt.append("TASK DETAILS:\n");
+        prompt.append("- Title: ").append(task.getTitle()).append("\n");
+        prompt.append("- Type: ").append(task.getTaskType()).append("\n");
+        prompt.append("- Priority: ").append(task.getPriority()).append("\n");
+        prompt.append("- Department: ").append(task.getDepartment()).append("\n");
+        prompt.append("- Estimated Hours: ").append(task.getEstimatedHours()).append("\n");
+
+        if (task.getRequiredSkills() != null && !task.getRequiredSkills().isEmpty()) {
+            prompt.append("- Required Skills: ");
+            task.getRequiredSkills().forEach((skill, level) -> prompt.append(skill)
+                    .append(" (min level: ")
+                    .append(level)
+                    .append("), "));
+            prompt.append("\n");
+        }
+
+        if (task.getDescription() != null && !task.getDescription().trim().isEmpty()) {
+            prompt.append("- Description: ").append(task.getDescription()).append("\n");
+        }
+
+        // Candidate context
+        prompt.append("\nCANDIDATE PROFILE:\n");
+        prompt.append("- Name: ").append(candidate.getName()).append("\n");
+        prompt.append("- Role: ").append(candidate.getRole()).append("\n");
+        prompt.append("- Department: ").append(candidate.getDepartment()).append("\n");
+        prompt.append("- Experience Years: ")
+                .append(candidate.getExperienceYears())
+                .append("\n");
+
+        if (candidate.getSkills() != null && !candidate.getSkills().isEmpty()) {
+            prompt.append("- Skills: ");
+            candidate.getSkills().entrySet().stream()
+                    .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                    .limit(8)
+                    .forEach(skill -> prompt.append(skill.getKey())
+                            .append(" (")
+                            .append(String.format("%.1f", skill.getValue()))
+                            .append("), "));
+            prompt.append("\n");
+        }
+
+        // Performance metrics
+        prompt.append("- Task Completion Rate: ")
+                .append(String.format(
+                        "%.1f%%",
+                        (candidate.getAverageTaskCompletionRate() != null
+                                ? candidate.getAverageTaskCompletionRate() * 100
+                                : 0)))
+                .append("\n");
+        prompt.append("- Total Tasks Completed: ")
+                .append(candidate.getTotalTasksCompleted())
+                .append("\n");
+        prompt.append("- Performance Rating: ")
+                .append(String.format(
+                        "%.1f/5.0", candidate.getPerformanceRating() != null ? candidate.getPerformanceRating() : 0))
+                .append("\n");
+
+        // Current workload and availability
+        prompt.append("- Current Workload: ")
+                .append(candidate.getCurrentWorkLoadHours())
+                .append(" hours\n");
+        prompt.append("- Availability Status: ")
+                .append(candidate.getAvailabilityStatus())
+                .append("\n");
+        prompt.append("- Availability Score: ")
+                .append(String.format("%.1f%%", (recommendation.getAvailabilityScore() * 100)))
+                .append("\n");
+
+        // Algorithm scores for context
+        prompt.append("\nALGORITHM ANALYSIS:\n");
+        prompt.append("- Overall Score: ")
+                .append(String.format("%.1f%%", recommendation.getOverallScore() * 100))
+                .append("\n");
+        prompt.append("- Skill Match: ")
+                .append(String.format("%.1f%%", recommendation.getSkillMatchScore() * 100))
+                .append("\n");
+        prompt.append("- Workload Balance: ")
+                .append(String.format("%.1f%%", recommendation.getWorkloadScore() * 100))
+                .append("\n");
+        prompt.append("- Performance Score: ")
+                .append(String.format("%.1f%%", recommendation.getPerformanceScore() * 100))
+                .append("\n");
+        prompt.append("- Recommendation Rank: #")
+                .append(recommendation.getRank())
+                .append("\n");
+
+        prompt.append("\nPROVIDE A UNIQUE, SPECIFIC 2-3 SENTENCE EXPLANATION of why this person is ");
+
+        if (recommendation.getOverallScore() > 0.8) {
+            prompt.append("an EXCELLENT choice");
+        } else if (recommendation.getOverallScore() > 0.6) {
+            prompt.append("a STRONG choice");
+        } else {
+            prompt.append("a SUITABLE choice");
+        }
+
+        prompt.append(" for this task. Focus on:\n");
+        prompt.append("1. Specific skill alignments with task requirements\n");
+        prompt.append("2. Their workload capacity and availability\n");
+        prompt.append("3. Past performance relevance to this task type\n");
+        prompt.append("4. Any unique strengths they bring\n\n");
+        prompt.append(
+                "Be specific, concise, and avoid generic phrases. Make it personal to this candidate and task.\n");
+        prompt.append("Response should be 2-3 sentences maximum.");
+
+        return prompt.toString();
+    }
+
+    /**
+     * Call Gemini AI API to generate personalized reasoning
+     */
+    private String callGeminiForPersonalizedReason(String prompt) {
+        try {
+            // Use the existing Gemini service but with a simpler call for just reasoning
+            // We'll create a simple wrapper method in GeminiRecommendationService for this
+            return geminiRecommendationService.generatePersonalizedReason(prompt);
+        } catch (Exception e) {
+            log.error("Failed to call Gemini API for personalized reason: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Generate human-readable recommendation reason (FALLBACK METHOD)
      */
     private String generateRecommendationReason(
             AssignmentRecommendation recommendation, TaskProfile task, UserProfile candidate) {
@@ -648,9 +973,24 @@ public class HybridRecommendationAlgorithm {
             reason.append("Good availability. ");
         }
 
-        // Analyze workload
-        if (recommendation.getWorkloadScore() > 0.7) {
-            reason.append("Optimal current workload. ");
+        // Analyze workload with detailed information
+        double workloadScore = recommendation.getWorkloadScore();
+        if (workloadScore > 0.8) {
+            reason.append("Excellent workload capacity (")
+                    .append(String.format("%.0f%%", workloadScore * 100))
+                    .append(" availability). ");
+        } else if (workloadScore > 0.6) {
+            reason.append("Good workload balance (")
+                    .append(String.format("%.0f%%", workloadScore * 100))
+                    .append(" availability). ");
+        } else if (workloadScore > 0.3) {
+            reason.append("Moderate workload (")
+                    .append(String.format("%.0f%%", workloadScore * 100))
+                    .append(" availability). ");
+        } else {
+            reason.append("High current workload (")
+                    .append(String.format("%.0f%%", workloadScore * 100))
+                    .append(" availability) - may need rebalancing. ");
         }
 
         // Overall assessment

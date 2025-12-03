@@ -2,6 +2,7 @@ package com.mnp.ai.dto.response;
 
 import com.mnp.ai.enums.ProficiencyLevel;
 import com.mnp.ai.enums.SkillType;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;

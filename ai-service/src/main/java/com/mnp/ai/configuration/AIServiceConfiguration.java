@@ -1,10 +1,11 @@
 package com.mnp.ai.configuration;
 
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class AIServiceConfiguration {
@@ -17,5 +18,10 @@ public class AIServiceConfiguration {
         // Disable writing dates as timestamps to use ISO format instead
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
         return mapper;
+    }
+
+    @Bean
+    public org.springframework.web.client.RestTemplate restTemplate() {
+        return new org.springframework.web.client.RestTemplate();
     }
 }

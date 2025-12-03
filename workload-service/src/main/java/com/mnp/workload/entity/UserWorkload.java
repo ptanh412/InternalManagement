@@ -39,19 +39,13 @@ public class UserWorkload {
     @PrePersist
     private void onCreate() {
         lastUpdated = LocalDateTime.now();
-        calculateAvailability();
+        if (availabilityPercentage == null) {
+            availabilityPercentage = 100.0; // Default value
+        }
     }
 
     @PreUpdate
     private void onUpdate() {
         lastUpdated = LocalDateTime.now();
-        calculateAvailability();
-    }
-
-    private void calculateAvailability() {
-        if (weeklyCapacityHours > 0) {
-            availabilityPercentage = Math.max(0.0,
-                    100.0 - ((double) totalEstimateHours / weeklyCapacityHours * 100.0));
-        }
     }
 }

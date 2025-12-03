@@ -12,4 +12,3 @@ public class AIServiceConfig {
     // Configuration class to ensure proper component scanning
     // This helps IntelliJ IDEA's autowiring detection
 }
-

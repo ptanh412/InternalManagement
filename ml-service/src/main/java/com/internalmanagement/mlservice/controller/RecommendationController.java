@@ -14,7 +14,7 @@ import java.util.List;
  * REST controller for ML recommendation endpoints
  */
 @RestController
-@RequestMapping("/api/ml/recommendations")
+@RequestMapping("/ml/recommendations")
 @RequiredArgsConstructor
 @Slf4j
 @CrossOrigin(origins = "*")

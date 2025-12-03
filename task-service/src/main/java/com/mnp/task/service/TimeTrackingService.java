@@ -31,6 +31,7 @@ public class TimeTrackingService {
 
     TaskTimeLogRepository timeLogRepository;
     TaskRepository taskRepository;
+    WorkloadIntegrationService workloadIntegrationService;
 
     /**
      * Bắt đầu timer cho task
@@ -202,10 +203,19 @@ public class TimeTrackingService {
 
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new RuntimeException("Task not found"));
+
+        Integer oldActualHours = task.getActualHours();
         task.setActualHours(actualHours);
         taskRepository.save(task);
 
         log.debug("Updated actualHours for task {}: {} hours", taskId, actualHours);
+
+        // **UPDATE WORKLOAD SERVICE FOR TIME TRACKING CHANGES**
+        try {
+            workloadIntegrationService.updateTaskWorkload(task, null, oldActualHours, null);
+        } catch (Exception e) {
+            log.error("Failed to update workload service for time tracking: {}", e.getMessage());
+        }
     }
 
     private TimerStatusResponse buildTimerStatusResponse(TaskTimeLog runningTimer, String taskId, String userId) {

@@ -15,6 +15,8 @@ import {
   StarIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth';
+import WorkloadSummaryCard from '../../components/workload/WorkloadSummaryCard';
+import { apiService } from '../../services/apiService';
 
 const TeamManagement = () => {
   const { user } = useAuth();
@@ -27,6 +29,7 @@ const TeamManagement = () => {
   const [roleFilter, setRoleFilter] = useState('all');
   const [showAddMemberModal, setShowAddMemberModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
+  const [workloadData, setWorkloadData] = useState({}); // Store workload data for all members
 
   // Project roles from the controller
   const PROJECT_ROLES = ['DEVELOPER', 'DESIGNER', 'TESTER', 'ANALYST', 'ARCHITECT', 'LEAD'];
@@ -42,21 +45,35 @@ const TeamManagement = () => {
     }
   }, [selectedProject]);
 
+  const fetchWorkloadForMember = async (userId) => {
+    try {
+      const response = await apiService.workload.getUserWorkload(userId);
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to load workload for user ${userId}:`, error);
+      return null;
+    }
+  };
+
+  const refreshWorkload = async (userId) => {
+    const workload = await fetchWorkloadForMember(userId);
+    if (workload) {
+      setWorkloadData(prev => ({
+        ...prev,
+        [userId]: workload
+      }));
+    }
+  };
+
   const loadProjects = async () => {
     try {
-      // Simulate API call to /projects with user filtering
-      await new Promise(resolve => setTimeout(resolve, 800));
-      
-      const mockProjects = [
-        { id: 'proj-1', name: 'Mobile Banking App' },
-        { id: 'proj-2', name: 'E-commerce Platform' },
-        { id: 'proj-3', name: 'IoT Monitoring System' },
-        { id: 'proj-4', name: 'Healthcare Management System' }
-      ];
+      // Call actual API to get projects
+      const response = await apiService.getProjectsForUser(user.id, user.role);
+      const projects = response.result || [];
 
-      setProjects(mockProjects);
-      if (mockProjects.length > 0) {
-        setSelectedProject(mockProjects[0].id);
+      setProjects(projects);
+      if (projects.length > 0) {
+        setSelectedProject(projects[0].id);
       }
     } catch (error) {
       console.error('Failed to load projects:', error);
@@ -65,34 +82,11 @@ const TeamManagement = () => {
 
   const loadAllUsers = async () => {
     try {
-      // Simulate API call to identity service to get available users
-      await new Promise(resolve => setTimeout(resolve, 600));
-      
-      const mockUsers = [
-        {
-          id: 'user-1',
-          name: 'Alice Johnson',
-          email: 'alice.johnson@company.com',
-          phone: '+1 (555) 123-4567',
-          department: 'Frontend Development',
-          skills: ['React', 'JavaScript', 'CSS', 'UI/UX'],
-          experienceLevel: 'Senior',
-          availability: 'Available'
-        },
-        {
-          id: 'user-2',
-          name: 'Bob Smith',
-          email: 'bob.smith@company.com',
-          phone: '+1 (555) 234-5678',
-          department: 'Backend Development',
-          skills: ['Java', 'Spring Boot', 'PostgreSQL', 'AWS'],
-          experienceLevel: 'Mid-Level',
-          availability: 'Available'
-        },
-        // Add more users as needed
-      ];
-
-      setAllUsers(mockUsers);
+      // Call actual API to get all available users
+      const response = await apiService.getAllUsers();
+      const users = response.result || [];
+      console.log("All users loaded:", users);
+      setAllUsers(users);
     } catch (error) {
       console.error('Failed to load users:', error);
     }
@@ -101,102 +95,28 @@ const TeamManagement = () => {
   const loadTeamMembers = async (projectId) => {
     try {
       setLoading(true);
-      // Simulate API call to /project-members/projects/{projectId}
-      await new Promise(resolve => setTimeout(resolve, 1000));
       
-      const mockMembers = [
-        {
-          id: 'pm-1',
-          userId: 'user-1',
-          projectId: projectId,
-          role: 'LEAD',
-          joinedDate: '2024-09-01',
-          user: {
-            name: 'John Smith',
-            email: 'john.smith@company.com',
-            phone: '+1 (555) 123-4567',
-            department: 'Engineering',
-            skills: ['React Native', 'Node.js', 'Team Leadership'],
-            experienceLevel: 'Senior',
-            avatar: null
-          },
-          performance: {
-            tasksCompleted: 15,
-            tasksAssigned: 18,
-            efficiency: 85,
-            qualityScore: 92
-          }
-        },
-        {
-          id: 'pm-2',
-          userId: 'user-2',
-          projectId: projectId,
-          role: 'DEVELOPER',
-          joinedDate: '2024-09-05',
-          user: {
-            name: 'Sarah Johnson',
-            email: 'sarah.johnson@company.com',
-            phone: '+1 (555) 234-5678',
-            department: 'Frontend',
-            skills: ['React', 'JavaScript', 'CSS'],
-            experienceLevel: 'Mid-Level',
-            avatar: null
-          },
-          performance: {
-            tasksCompleted: 12,
-            tasksAssigned: 15,
-            efficiency: 80,
-            qualityScore: 88
-          }
-        },
-        {
-          id: 'pm-3',
-          userId: 'user-3',
-          projectId: projectId,
-          role: 'DESIGNER',
-          joinedDate: '2024-09-10',
-          user: {
-            name: 'Mike Chen',
-            email: 'mike.chen@company.com',
-            phone: '+1 (555) 345-6789',
-            department: 'Design',
-            skills: ['UI/UX', 'Figma', 'Prototyping'],
-            experienceLevel: 'Senior',
-            avatar: null
-          },
-          performance: {
-            tasksCompleted: 8,
-            tasksAssigned: 10,
-            efficiency: 90,
-            qualityScore: 95
-          }
-        },
-        {
-          id: 'pm-4',
-          userId: 'user-4',
-          projectId: projectId,
-          role: 'TESTER',
-          joinedDate: '2024-09-15',
-          user: {
-            name: 'Emily Davis',
-            email: 'emily.davis@company.com',
-            phone: '+1 (555) 456-7890',
-            department: 'QA',
-            skills: ['Test Automation', 'Selenium', 'API Testing'],
-            experienceLevel: 'Mid-Level',
-            avatar: null
-          },
-          performance: {
-            tasksCompleted: 20,
-            tasksAssigned: 22,
-            efficiency: 95,
-            qualityScore: 89
-          }
-        }
-      ];
+      // Call actual API to get project members
+      const response = await apiService.getProjectMembers(projectId);
+      const members = response.result || [];
 
-      setTeamMembers(mockMembers);
+      setTeamMembers(members);
       setLoading(false);
+
+      // Fetch workload data for all team members
+      const workloadPromises = members.map(member => 
+        fetchWorkloadForMember(member.userId)
+      );
+      const workloads = await Promise.all(workloadPromises);
+      
+      const workloadMap = {};
+      members.forEach((member, index) => {
+        if (workloads[index]) {
+          workloadMap[member.userId] = workloads[index];
+        }
+      });
+      setWorkloadData(workloadMap);
+      
     } catch (error) {
       console.error('Failed to load team members:', error);
       setLoading(false);
@@ -204,14 +124,32 @@ const TeamManagement = () => {
   };
 
   const filteredMembers = teamMembers.filter(member => {
-    const matchesSearch = member.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         member.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         member.user.department.toLowerCase().includes(searchTerm.toLowerCase());
+    // Find the corresponding user from allUsers based on userId
+    const userDetails = allUsers.find(u => u.id === member.userId);
+    
+    if (!userDetails) {
+      console.log("No user details found for member:", member);
+      return false;
+    }
+    
+    const matchesSearch = userDetails.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         userDetails.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         userDetails.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         userDetails.departmentName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         `${userDetails.firstName} ${userDetails.lastName}`.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesRole = roleFilter === 'all' || member.role === roleFilter;
     
     return matchesSearch && matchesRole;
+  }).map(member => {
+    // Enrich team member with user details
+    const userDetails = allUsers.find(u => u.id === member.userId);
+    return {
+      ...member,
+      user: userDetails || {}
+    };
   });
+
 
   const getRoleColor = (role) => {
     const colors = {
@@ -227,6 +165,10 @@ const TeamManagement = () => {
 
   const getExperienceColor = (level) => {
     const colors = {
+      'JUNIOR': 'text-green-600',
+      'MID_LEVEL': 'text-yellow-600',
+      'SENIOR': 'text-blue-600',
+      'LEAD': 'text-purple-600',
       'Junior': 'text-green-600',
       'Mid-Level': 'text-yellow-600',
       'Senior': 'text-blue-600',
@@ -250,12 +192,13 @@ const TeamManagement = () => {
     if (window.confirm(`Are you sure you want to remove ${member.user.name} from this project?`)) {
       try {
         // API call to DELETE /project-members/projects/{projectId}/users/{userId}
-        console.log('Removing member:', member.userId, 'from project:', selectedProject);
+        await apiService.removeProjectMember(selectedProject, member.userId);
         
         // Update local state
         setTeamMembers(teamMembers.filter(m => m.id !== member.id));
       } catch (error) {
         console.error('Failed to remove member:', error);
+        alert('Failed to remove team member. Please try again.');
       }
     }
   };
@@ -263,7 +206,7 @@ const TeamManagement = () => {
   const handleUpdateMemberRole = async (member, newRole) => {
     try {
       // API call to PUT /project-members/projects/{projectId}/users/{userId}
-      console.log('Updating member role:', member.userId, 'to:', newRole);
+      await apiService.updateProjectMemberRole(selectedProject, member.userId, { role: newRole });
       
       // Update local state
       setTeamMembers(teamMembers.map(m => 
@@ -271,6 +214,7 @@ const TeamManagement = () => {
       ));
     } catch (error) {
       console.error('Failed to update member role:', error);
+      alert('Failed to update member role. Please try again.');
     }
   };
 
@@ -329,13 +273,16 @@ const TeamManagement = () => {
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-primary-600">
-                  {teamMembers.filter(m => m.role === 'LEAD').length}
+                  {teamMembers.filter(m => m.role === 'TEAM_LEAD' || m.role === 'LEAD').length}
                 </div>
                 <div className="text-gray-600">Team Leads</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">
-                  {Math.round(teamMembers.reduce((acc, m) => acc + m.performance.efficiency, 0) / teamMembers.length || 0)}%
+                  {teamMembers.length > 0 && teamMembers.some(m => m.performance?.efficiency)
+                    ? Math.round(teamMembers.reduce((acc, m) => acc + (m.performance?.efficiency || 0), 0) / teamMembers.length)
+                    : 'N/A'}
+                  {teamMembers.length > 0 && teamMembers.some(m => m.performance?.efficiency) && '%'}
                 </div>
                 <div className="text-gray-600">Avg Efficiency</div>
               </div>
@@ -380,125 +327,144 @@ const TeamManagement = () => {
 
         {/* Team Members Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredMembers.map((member) => (
-            <div key={member.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
-              {/* Member Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
-                    {member.user.name.split(' ').map(n => n[0]).join('')}
+          {filteredMembers.map((member) => {
+            const userName = `${member.user.firstName || ''} ${member.user.lastName || ''}`.trim() || 'Unknown User';
+            const userInitials = `${member.user.firstName?.[0] || ''}${member.user.lastName?.[0] || ''}`.toUpperCase() || '??';
+            
+            return (
+              <div key={member.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
+                {/* Member Header */}
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
+                      {userInitials}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900">{userName}</h3>
+                      <p className="text-sm text-gray-600">{member.user.departmentName || 'N/A'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{member.user.name}</h3>
-                    <p className="text-sm text-gray-600">{member.user.department}</p>
-                  </div>
-                </div>
-                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(member.role)}`}>
-                  {member.role}
-                </span>
-              </div>
-
-              {/* Contact Info */}
-              <div className="space-y-2 mb-4">
-                <div className="flex items-center text-sm text-gray-600">
-                  <EnvelopeIcon className="h-4 w-4 mr-2" />
-                  {member.user.email}
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <PhoneIcon className="h-4 w-4 mr-2" />
-                  {member.user.phone}
-                </div>
-                <div className="flex items-center text-sm text-gray-600">
-                  <CalendarDaysIcon className="h-4 w-4 mr-2" />
-                  Joined {new Date(member.joinedDate).toLocaleDateString()}
-                </div>
-              </div>
-
-              {/* Experience Level */}
-              <div className="mb-4">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-gray-600">Experience</span>
-                  <span className={`font-medium ${getExperienceColor(member.user.experienceLevel)}`}>
-                    {member.user.experienceLevel}
-                  </span>
-                </div>
-              </div>
-
-              {/* Performance Metrics */}
-              <div className="space-y-3 mb-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Tasks Completed</span>
-                  <span className="text-sm font-medium">
-                    {member.performance.tasksCompleted}/{member.performance.tasksAssigned}
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${getRoleColor(member.role)}`}>
+                    {member.role}
                   </span>
                 </div>
 
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Efficiency</span>
-                  <span className={`text-sm font-medium ${getPerformanceColor(member.performance.efficiency)}`}>
-                    {member.performance.efficiency}%
-                  </span>
+                {/* Contact Info */}
+                <div className="space-y-2 mb-4">
+                  <div className="flex items-center text-sm text-gray-600">
+                    <EnvelopeIcon className="h-4 w-4 mr-2" />
+                    {member.user.email || 'N/A'}
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <PhoneIcon className="h-4 w-4 mr-2" />
+                    {member.user.phoneNumber || 'N/A'}
+                  </div>
+                  <div className="flex items-center text-sm text-gray-600">
+                    <CalendarDaysIcon className="h-4 w-4 mr-2" />
+                    Joined {member.joinedDate ? new Date(member.joinedDate).toLocaleDateString() : 'N/A'}
+                  </div>
                 </div>
 
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Quality Score</span>
-                  <div className="flex items-center">
-                    <StarIcon className="h-4 w-4 text-yellow-500 mr-1" />
-                    <span className={`text-sm font-medium ${getPerformanceColor(member.performance.qualityScore)}`}>
-                      {member.performance.qualityScore}%
+                {/* Experience Level */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600">Experience</span>
+                    <span className={`font-medium ${getExperienceColor(member.user.seniorityLevel)}`}>
+                      {member.user.seniorityLevel || 'N/A'}
                     </span>
                   </div>
                 </div>
-              </div>
 
-              {/* Skills */}
-              <div className="mb-4">
-                <div className="flex flex-wrap gap-1">
-                  {member.user.skills.slice(0, 3).map((skill, index) => (
-                    <span key={index} className="px-2 py-1 text-xs bg-primary-100 text-primary-700 rounded">
-                      {skill}
-                    </span>
-                  ))}
-                  {member.user.skills.length > 3 && (
-                    <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
-                      +{member.user.skills.length - 3} more
-                    </span>
-                  )}
+                {/* Performance Metrics */}
+                {member.performance && (
+                  <div className="space-y-3 mb-4">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Tasks Completed</span>
+                      <span className="text-sm font-medium">
+                        {member.performance.tasksCompleted || 0}/{member.performance.tasksAssigned || 0}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Efficiency</span>
+                      <span className={`text-sm font-medium ${getPerformanceColor(member.performance.efficiency || 0)}`}>
+                        {member.performance.efficiency || 0}%
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-gray-600">Quality Score</span>
+                      <div className="flex items-center">
+                        <StarIcon className="h-4 w-4 text-yellow-500 mr-1" />
+                        <span className={`text-sm font-medium ${getPerformanceColor(member.performance.qualityScore || 0)}`}>
+                          {member.performance.qualityScore || 0}%
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Skills */}
+                {member.user.skills && member.user.skills.length > 0 && (
+                  <div className="mb-4">
+                    <div className="flex flex-wrap gap-1">
+                      {member.user.skills.slice(0, 3).map((skill, index) => (
+                        <span key={index} className="px-2 py-1 text-xs bg-primary-100 text-primary-700 rounded">
+                          {skill}
+                        </span>
+                      ))}
+                      {member.user.skills.length > 3 && (
+                        <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+                          +{member.user.skills.length - 3} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Workload Summary */}
+                <div className="mb-4">
+                  <WorkloadSummaryCard
+                    workloadData={workloadData[member.userId]}
+                    compact={true}
+                    onRefresh={() => refreshWorkload(member.userId)}
+                    className="w-full"
+                  />
                 </div>
-              </div>
 
-              {/* Actions */}
-              <div className="flex justify-between pt-4 border-t border-gray-200">
-                <div className="relative">
-                  <select
-                    value={member.role}
-                    onChange={(e) => handleUpdateMemberRole(member, e.target.value)}
-                    className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-primary-500"
+                {/* Actions */}
+                <div className="flex justify-between pt-4 border-t border-gray-200">
+                  <div className="relative">
+                    <select
+                      value={member.role}
+                      onChange={(e) => handleUpdateMemberRole(member, e.target.value)}
+                      className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-primary-500"
+                    >
+                      {PROJECT_ROLES.map(role => (
+                        <option key={role} value={role}>
+                          {role}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <button
+                    onClick={() => setSelectedMember(member)}
+                    className="flex items-center text-primary-600 hover:text-primary-500 text-sm font-medium"
                   >
-                    {PROJECT_ROLES.map(role => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </select>
+                    <PencilSquareIcon className="h-4 w-4 mr-1" />
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleRemoveMember(member)}
+                    className="flex items-center text-red-600 hover:text-red-500 text-sm font-medium"
+                  >
+                    <UserMinusIcon className="h-4 w-4 mr-1" />
+                    Remove
+                  </button>
                 </div>
-                <button
-                  onClick={() => setSelectedMember(member)}
-                  className="flex items-center text-primary-600 hover:text-primary-500 text-sm font-medium"
-                >
-                  <PencilSquareIcon className="h-4 w-4 mr-1" />
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleRemoveMember(member)}
-                  className="flex items-center text-red-600 hover:text-red-500 text-sm font-medium"
-                >
-                  <UserMinusIcon className="h-4 w-4 mr-1" />
-                  Remove
-                </button>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Empty State */}

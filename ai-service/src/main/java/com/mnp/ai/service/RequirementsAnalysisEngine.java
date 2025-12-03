@@ -173,65 +173,77 @@ public class RequirementsAnalysisEngine {
         List<String> detectedIntents = new ArrayList<>();
 
         // Performance-related requirements
-        if (lowerText.contains("fast") || lowerText.contains("quickly") ||
-            lowerText.contains("smooth") || lowerText.contains("performance")) {
+        if (lowerText.contains("fast")
+                || lowerText.contains("quickly")
+                || lowerText.contains("smooth")
+                || lowerText.contains("performance")) {
             detectedIntents.add("PERFORMANCE");
-            extractedRequirements.add(projectContext +
-                ": Implement performance optimization to ensure fast response times and smooth user experience");
+            extractedRequirements.add(projectContext
+                    + ": Implement performance optimization to ensure fast response times and smooth user experience");
         }
 
         // Booking/Reservation functionality
-        if (lowerText.contains("book") || lowerText.contains("reservation") ||
-            lowerText.contains("reserve") || lowerText.contains("schedule")) {
+        if (lowerText.contains("book")
+                || lowerText.contains("reservation")
+                || lowerText.contains("reserve")
+                || lowerText.contains("schedule")) {
             detectedIntents.add("BOOKING");
-            extractedRequirements.add(projectContext +
-                ": Develop booking/reservation functionality allowing users to make bookings easily");
+            extractedRequirements.add(projectContext
+                    + ": Develop booking/reservation functionality allowing users to make bookings easily");
         }
 
         // Accessibility requirements (anytime, anywhere)
-        if (lowerText.contains("anytime") || lowerText.contains("anywhere") ||
-            lowerText.contains("24/7") || lowerText.contains("accessible")) {
+        if (lowerText.contains("anytime")
+                || lowerText.contains("anywhere")
+                || lowerText.contains("24/7")
+                || lowerText.contains("accessible")) {
             detectedIntents.add("ACCESSIBILITY");
-            extractedRequirements.add(projectContext +
-                ": Ensure 24/7 accessibility with mobile-responsive design for access from anywhere");
+            extractedRequirements.add(projectContext
+                    + ": Ensure 24/7 accessibility with mobile-responsive design for access from anywhere");
         }
 
         // Car/Vehicle related
-        if (lowerText.contains("car") || lowerText.contains("vehicle") ||
-            lowerText.contains("ride") || lowerText.contains("driver")) {
+        if (lowerText.contains("car")
+                || lowerText.contains("vehicle")
+                || lowerText.contains("ride")
+                || lowerText.contains("driver")) {
             detectedIntents.add("VEHICLE_MANAGEMENT");
-            extractedRequirements.add(projectContext +
-                ": Implement vehicle/car management system with real-time availability tracking");
+            extractedRequirements.add(
+                    projectContext + ": Implement vehicle/car management system with real-time availability tracking");
         }
 
         // Payment functionality
         if (lowerText.contains("payment") || lowerText.contains("pay") || lowerText.contains("checkout")) {
             detectedIntents.add("PAYMENT");
-            extractedRequirements.add(projectContext +
-                ": Integrate secure payment processing system for booking transactions");
+            extractedRequirements.add(
+                    projectContext + ": Integrate secure payment processing system for booking transactions");
         }
 
         // User management
         if (lowerText.contains("customer") || lowerText.contains("user") || lowerText.contains("account")) {
             detectedIntents.add("USER_MANAGEMENT");
-            extractedRequirements.add(projectContext +
-                ": Develop user account management with registration and profile features");
+            extractedRequirements.add(
+                    projectContext + ": Develop user account management with registration and profile features");
         }
 
         // Location/GPS features
-        if (lowerText.contains("location") || lowerText.contains("gps") ||
-            lowerText.contains("map") || lowerText.contains("tracking")) {
+        if (lowerText.contains("location")
+                || lowerText.contains("gps")
+                || lowerText.contains("map")
+                || lowerText.contains("tracking")) {
             detectedIntents.add("LOCATION");
-            extractedRequirements.add(projectContext +
-                ": Implement location-based services with GPS tracking and map integration");
+            extractedRequirements.add(
+                    projectContext + ": Implement location-based services with GPS tracking and map integration");
         }
 
         // Notification system
-        if (lowerText.contains("notification") || lowerText.contains("alert") ||
-            lowerText.contains("reminder") || lowerText.contains("notify")) {
+        if (lowerText.contains("notification")
+                || lowerText.contains("alert")
+                || lowerText.contains("reminder")
+                || lowerText.contains("notify")) {
             detectedIntents.add("NOTIFICATION");
-            extractedRequirements.add(projectContext +
-                ": Create notification system for booking confirmations and status updates");
+            extractedRequirements.add(
+                    projectContext + ": Create notification system for booking confirmations and status updates");
         }
 
         // If no specific intents detected, create generic requirements based on keywords
@@ -239,19 +251,19 @@ public class RequirementsAnalysisEngine {
             extractedRequirements.add(projectContext + ": " + text);
 
             // Add common requirements for any application
-            extractedRequirements.add(projectContext + ": Implement core application functionality with user-friendly interface");
+            extractedRequirements.add(
+                    projectContext + ": Implement core application functionality with user-friendly interface");
             extractedRequirements.add(projectContext + ": Ensure system reliability and data security");
         } else {
             // Add supporting requirements
-            if (!detectedIntents.contains("USER_MANAGEMENT") &&
-                (detectedIntents.contains("BOOKING") || detectedIntents.contains("PAYMENT"))) {
-                extractedRequirements.add(projectContext +
-                    ": Implement user authentication and authorization system");
+            if (!detectedIntents.contains("USER_MANAGEMENT")
+                    && (detectedIntents.contains("BOOKING") || detectedIntents.contains("PAYMENT"))) {
+                extractedRequirements.add(projectContext + ": Implement user authentication and authorization system");
             }
 
             if (detectedIntents.contains("BOOKING") && !detectedIntents.contains("NOTIFICATION")) {
-                extractedRequirements.add(projectContext +
-                    ": Add booking confirmation and status notification features");
+                extractedRequirements.add(
+                        projectContext + ": Add booking confirmation and status notification features");
             }
         }
 
@@ -285,22 +297,22 @@ public class RequirementsAnalysisEngine {
 
         // Check for functional requirement indicators
         return lowerSection.contains("user")
-            || lowerSection.contains("system")
-            || lowerSection.contains("application")
-            || lowerSection.contains("booking")
-            || lowerSection.contains("payment")
-            || lowerSection.contains("search")
-            || lowerSection.contains("management")
-            || lowerSection.contains("registration")
-            || lowerSection.contains("login")
-            || lowerSection.contains("profile")
-            || lowerSection.contains("notification")
-            || lowerSection.contains("location")
-            || lowerSection.contains("communication")
-            || lowerSection.contains("feature")
-            || lowerSection.contains("functionality")
-            || section.contains("-") // bullet points likely contain requirements
-            || FUNCTIONAL_KEYWORDS.matcher(section).find();
+                || lowerSection.contains("system")
+                || lowerSection.contains("application")
+                || lowerSection.contains("booking")
+                || lowerSection.contains("payment")
+                || lowerSection.contains("search")
+                || lowerSection.contains("management")
+                || lowerSection.contains("registration")
+                || lowerSection.contains("login")
+                || lowerSection.contains("profile")
+                || lowerSection.contains("notification")
+                || lowerSection.contains("location")
+                || lowerSection.contains("communication")
+                || lowerSection.contains("feature")
+                || lowerSection.contains("functionality")
+                || section.contains("-") // bullet points likely contain requirements
+                || FUNCTIONAL_KEYWORDS.matcher(section).find();
     }
 
     private List<String> extractBulletPointRequirements(String section) {
@@ -339,22 +351,22 @@ public class RequirementsAnalysisEngine {
 
         // Check if the text contains actual requirement content, not just formatting
         return !text.matches("^#+\\s*.*") // Not just a header
-            && !text.matches("^\\d+\\.\\s*$") // Not just a number
-            && (lowerText.contains("user")
-                || lowerText.contains("system")
-                || lowerText.contains("application")
-                || lowerText.contains("shall")
-                || lowerText.contains("must")
-                || lowerText.contains("should")
-                || lowerText.contains("will")
-                || lowerText.contains("can")
-                || FUNCTIONAL_KEYWORDS.matcher(text).find());
+                && !text.matches("^\\d+\\.\\s*$") // Not just a number
+                && (lowerText.contains("user")
+                        || lowerText.contains("system")
+                        || lowerText.contains("application")
+                        || lowerText.contains("shall")
+                        || lowerText.contains("must")
+                        || lowerText.contains("should")
+                        || lowerText.contains("will")
+                        || lowerText.contains("can")
+                        || FUNCTIONAL_KEYWORDS.matcher(text).find());
     }
 
     private String cleanupRequirementText(String text) {
         return text.replaceAll("#+\\s*", "") // Remove markdown headers
-                  .replaceAll("\\s+", " ") // Normalize whitespace
-                  .trim();
+                .replaceAll("\\s+", " ") // Normalize whitespace
+                .trim();
     }
 
     private AnalyzedRequirement analyzeIndividualRequirement(String requirementText) {
@@ -525,9 +537,15 @@ public class RequirementsAnalysisEngine {
         // Determine the type of feature being built to create appropriate subtasks
         boolean isBookingFeature = requirementText.contains("booking") || requirementText.contains("reservation");
         boolean isPaymentFeature = requirementText.contains("payment") || requirementText.contains("transaction");
-        boolean isUserFeature = requirementText.contains("user") || requirementText.contains("account") || requirementText.contains("profile");
-        boolean isPerformanceFeature = requirementText.contains("performance") || requirementText.contains("fast") || requirementText.contains("optimiz");
-        boolean isLocationFeature = requirementText.contains("location") || requirementText.contains("gps") || requirementText.contains("map");
+        boolean isUserFeature = requirementText.contains("user")
+                || requirementText.contains("account")
+                || requirementText.contains("profile");
+        boolean isPerformanceFeature = requirementText.contains("performance")
+                || requirementText.contains("fast")
+                || requirementText.contains("optimiz");
+        boolean isLocationFeature = requirementText.contains("location")
+                || requirementText.contains("gps")
+                || requirementText.contains("map");
 
         // 1. Analysis and Design Phase
         List<TaskRequiredSkillResponse> analysisSkills = aiSkillAnalysisService.analyzeRequiredSkills(
@@ -536,7 +554,8 @@ public class RequirementsAnalysisEngine {
         subtasks.add(GeneratedTask.builder()
                 .analyzedRequirementId(requirement.getId())
                 .title("Design & Architecture: " + baseTitle)
-                .description("Create technical design, database schema, and API specifications for: " + requirement.getDescription())
+                .description("Create technical design, database schema, and API specifications for: "
+                        + requirement.getDescription())
                 .taskType(TaskType.RESEARCH)
                 .priority(mapPriority(requirement.getPriority()))
                 .requiredSkills(analysisSkills)
@@ -548,11 +567,13 @@ public class RequirementsAnalysisEngine {
         List<TaskRequiredSkillResponse> backendSkills = aiSkillAnalysisService.analyzeRequiredSkills(
                 "Backend development for: " + requirement.getOriginalContent(), TaskType.DEVELOPMENT.toString());
 
-        String backendDescription = "Implement backend services, APIs, and business logic for: " + requirement.getDescription();
+        String backendDescription =
+                "Implement backend services, APIs, and business logic for: " + requirement.getDescription();
         if (isBookingFeature) {
             backendDescription = "Develop booking management API endpoints, validation logic, and database operations";
         } else if (isPaymentFeature) {
-            backendDescription = "Implement payment processing integration, transaction handling, and payment gateway APIs";
+            backendDescription =
+                    "Implement payment processing integration, transaction handling, and payment gateway APIs";
         } else if (isUserFeature) {
             backendDescription = "Build user authentication, authorization, and profile management APIs";
         } else if (isLocationFeature) {
@@ -574,7 +595,8 @@ public class RequirementsAnalysisEngine {
         List<TaskRequiredSkillResponse> frontendSkills = aiSkillAnalysisService.analyzeRequiredSkills(
                 "Frontend development for: " + requirement.getOriginalContent(), TaskType.DEVELOPMENT.toString());
 
-        String frontendDescription = "Create user interface components and integrate with backend APIs for: " + requirement.getDescription();
+        String frontendDescription =
+                "Create user interface components and integrate with backend APIs for: " + requirement.getDescription();
         if (isBookingFeature) {
             frontendDescription = "Develop booking form UI, availability calendar, and booking confirmation screens";
         } else if (isPaymentFeature) {
@@ -602,9 +624,11 @@ public class RequirementsAnalysisEngine {
         List<TaskRequiredSkillResponse> testingSkills = aiSkillAnalysisService.analyzeRequiredSkills(
                 "Testing for: " + requirement.getOriginalContent(), TaskType.TESTING.toString());
 
-        String testingDescription = "Perform unit testing, integration testing, and end-to-end testing for: " + requirement.getDescription();
+        String testingDescription = "Perform unit testing, integration testing, and end-to-end testing for: "
+                + requirement.getDescription();
         if (isPaymentFeature) {
-            testingDescription = "Conduct thorough testing including security testing, transaction verification, and payment flow validation";
+            testingDescription =
+                    "Conduct thorough testing including security testing, transaction verification, and payment flow validation";
         } else if (isPerformanceFeature) {
             testingDescription = "Execute performance testing, load testing, and optimization validation";
         }
@@ -653,8 +677,7 @@ public class RequirementsAnalysisEngine {
 
                 // Remove common prefixes to make title more concise
                 action = action.replaceAll(
-                    "^(Implement\\s+|Develop\\s+|Create\\s+|Add\\s+|Build\\s+|Ensure\\s+|Integrate\\s+)",
-                    "");
+                        "^(Implement\\s+|Develop\\s+|Create\\s+|Add\\s+|Build\\s+|Ensure\\s+|Integrate\\s+)", "");
 
                 // If action is already concise, use it; otherwise add context
                 if (action.length() > 60) {
@@ -687,11 +710,11 @@ public class RequirementsAnalysisEngine {
         if (reqPriority == null) return TaskPriority.MEDIUM;
 
         return switch (reqPriority) {
-            case CRITICAL -> TaskPriority.URGENT;  // Map CRITICAL to URGENT
+            case CRITICAL -> TaskPriority.URGENT; // Map CRITICAL to URGENT
             case HIGH -> TaskPriority.HIGH;
             case MEDIUM -> TaskPriority.MEDIUM;
             case LOW -> TaskPriority.LOW;
-            case OPTIONAL -> TaskPriority.LOW;  // Map OPTIONAL to LOW instead of null
+            case OPTIONAL -> TaskPriority.LOW; // Map OPTIONAL to LOW instead of null
         };
     }
 

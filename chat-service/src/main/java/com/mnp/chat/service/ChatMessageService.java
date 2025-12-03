@@ -92,20 +92,6 @@ public class ChatMessageService {
                 .map(message -> toChatMessageResponse(message, userId))
                 .toList();
 
-//        log.info("Found {} messages for conversation: {}", result.size(), conversationId);
-
-        // Debug logging for recall messages
-        result.forEach(msg -> {
-            if (msg.isRecalled()) {
-                log.info(
-                        "Recalled message found: id={}, isRecalled={}, recallType={}, message='{}'",
-                        msg.getId(),
-                        msg.isRecalled(),
-                        msg.getRecallType(),
-                        msg.getMessage());
-            }
-        });
-
         return result;
     }
 
@@ -138,6 +124,8 @@ public class ChatMessageService {
     private ChatMessageResponse createMessage(
             Object request, String replyToMessageId, String messageType, String userId) {
         // Extract common properties from request
+
+        log.info("Create messsage");
         String conversationId;
         String message;
 
@@ -370,7 +358,8 @@ public class ChatMessageService {
                                 groupName);
 
                         String message = objectMapper.writeValueAsString(personalizedResponse);
-                        client.sendEvent("message", message);
+                        client.sendEvent("message", personalizedResponse);
+                        client.sendEvent("add-participants-success", conversation);
                     }
 
                 } catch (JsonProcessingException e) {
@@ -548,7 +537,8 @@ public class ChatMessageService {
                                 groupName);
 
                         String message = objectMapper.writeValueAsString(personalizedResponse);
-                        client.sendEvent("message", message);
+                        client.sendEvent("message", personalizedResponse);
+                        client.sendEvent("remove-participants-success", conversation);
                     }
 
                 } catch (JsonProcessingException e) {
@@ -676,7 +666,8 @@ public class ChatMessageService {
                             finalSystemMessage, currentUserId, leavingUserId, leavingUserName, groupName);
 
                     String message = objectMapper.writeValueAsString(personalizedResponse);
-                    client.sendEvent("message", message);
+                    client.sendEvent("message", personalizedResponse);
+                    client.sendEvent("leave-group-success", conversation);
 
                 } catch (JsonProcessingException e) {
                     log.error("Error serializing leave-group response", e);
@@ -722,7 +713,7 @@ public class ChatMessageService {
 
     public void broadcastMessage(
             ChatMessage chatMessage, Conversation conversation, String senderId, String messageType) {
-        // Get participants userIds
+
         List<String> userIds = conversation.getParticipants().stream()
                 .map(ParticipantInfo::getUserId)
                 .toList();
@@ -732,26 +723,31 @@ public class ChatMessageService {
 
         final ChatMessage finalChatMessage = chatMessage;
 
-        // Determine the event name based on message type
-        String eventName = "REPLY".equals(messageType) ? "reply-message" : "message";
+        // ✅ Determine event name based on message type
+        String eventName;
+        if ("REPLY".equals(messageType)) {
+            eventName = "reply-message";
+        } else if ("EDITED".equals(messageType)) {
+            eventName = "message"; // ✅ Broadcast edited message as "message" event
+        } else {
+            eventName = "message";
+        }
 
         socketIOServer.getAllClients().forEach(client -> {
             var webSocketSession = webSocketSessions.get(client.getSessionId().toString());
 
             if (Objects.nonNull(webSocketSession)) {
-                try {
-                    // Create response for each client with their own userId context
-                    ChatMessageResponse chatMessageResponse =
-                            toChatMessageResponse(finalChatMessage, webSocketSession.getUserId());
-                    chatMessageResponse.setMe(webSocketSession.getUserId().equals(senderId));
-                    // Only set read info if the message was seen
-                    chatMessageResponse.setReader(finalChatMessage.getReader());
+                ChatMessageResponse chatMessageResponse =
+                        toChatMessageResponse(finalChatMessage, webSocketSession.getUserId());
+                chatMessageResponse.setMe(webSocketSession.getUserId().equals(senderId));
+                chatMessageResponse.setReader(finalChatMessage.getReader());
+                chatMessageResponse.setModifiedDate(Instant.now());
 
-                    String message = objectMapper.writeValueAsString(chatMessageResponse);
-                    client.sendEvent(eventName, message);
-                } catch (JsonProcessingException e) {
-                    log.error("Error serializing {} response", messageType.toLowerCase(), e);
-                }
+                log.info("Response sent: {}", chatMessageResponse);
+
+                client.sendEvent(eventName, chatMessageResponse);
+
+                log.info("Broadcasted {} to client: {}", messageType, client.getSessionId());
             }
         });
     }
@@ -1138,7 +1134,7 @@ public class ChatMessageService {
             if (Objects.nonNull(webSocketSession)) {
                 try {
                     String message = objectMapper.writeValueAsString(statusUpdate);
-                    client.sendEvent("message-status-update", message);
+                    client.sendEvent("message-status-update", statusUpdate);
                     sentCount++;
                     log.info(
                             "Sent message-status-update to client: {} (user: {})",
@@ -1201,7 +1197,7 @@ public class ChatMessageService {
                         );
 
                         String reactionUpdateJson = objectMapper.writeValueAsString(reactionUpdate);
-                        client.sendEvent("reaction-update", reactionUpdateJson);
+                        client.sendEvent("reaction-update", reactionUpdate);
 
                         log.debug("Sent reaction update to user: {}", recipientUserId);
                     } catch (Exception e) {
@@ -1289,7 +1285,6 @@ public class ChatMessageService {
 
     private void broadcastRecallMessage(ChatMessage recalledMessage, Conversation conversation, String recallerUserId) {
         try {
-            // Get participants userIds
             List<String> userIds = conversation.getParticipants().stream()
                     .map(ParticipantInfo::getUserId)
                     .toList();
@@ -1297,33 +1292,33 @@ public class ChatMessageService {
             Map<String, WebSocketSession> webSocketSessions = createWebSocketSessionMap(
                     webSocketSessionRepository.findAllByUserIdIn(userIds));
 
-            // Broadcast to all connected clients who are participants in this conversation
             socketIOServer.getAllClients().forEach(client -> {
-                var webSocketSession =
-                        webSocketSessions.get(client.getSessionId().toString());
+                var webSocketSession = webSocketSessions.get(client.getSessionId().toString());
                 if (Objects.nonNull(webSocketSession)) {
                     try {
                         String currentUserId = webSocketSession.getUserId();
-                        ChatMessageResponse response =
-                                toChatMessageResponseForRecall(recalledMessage, currentUserId, recallerUserId);
+                        ChatMessageResponse response = toChatMessageResponseForRecall(
+                                recalledMessage, currentUserId, recallerUserId
+                        );
 
-                        String message = objectMapper.writeValueAsString(response);
-                        client.sendEvent("message-recalled", message);
+                        // ✅ GỬI OBJECT TRỰC TIẾP, KHÔNG STRINGIFY
+                        client.sendEvent("message-recalled", response);
 
-                        log.debug("Sent recall update to client: {} (user: {})", client.getSessionId(), currentUserId);
+                        log.debug("Sent recall update to client: {} (user: {})",
+                                client.getSessionId(), currentUserId);
                     } catch (Exception e) {
-                        log.error("Error sending recall update to client: {}", client.getSessionId(), e);
+                        log.error("Error sending recall update to client: {}",
+                                client.getSessionId(), e);
                     }
                 }
             });
 
-            log.info(
-                    "Broadcasted recall update for message: {} to {} participants",
-                    recalledMessage.getId(),
-                    userIds.size());
+            log.info("Broadcasted recall update for message: {} to {} participants",
+                    recalledMessage.getId(), userIds.size());
 
         } catch (Exception e) {
-            log.error("Error broadcasting recall update for message: {}", recalledMessage.getId(), e);
+            log.error("Error broadcasting recall update for message: {}",
+                    recalledMessage.getId(), e);
         }
     }
 
@@ -1517,7 +1512,7 @@ public class ChatMessageService {
 
                         String messageJson = objectMapper.writeValueAsString(response);
                         String eventName = isPinned ? "message-pinned" : "message-unpinned";
-                        client.sendEvent(eventName, messageJson);
+                        client.sendEvent(eventName, response);
 
                         log.debug(
                                 "Sent {} update to client: {} (user: {})",
@@ -1577,11 +1572,28 @@ public class ChatMessageService {
 
             // Determine message type based on file type
             String messageType = determineMessageTypeFromUrl(request.getFileType());
+//            log.info("📁 Socket media message saved with ID: {}", chatMessage.getId());
+
+            log.info("File type: {}", request.getFileType());
+            // Create system message for file upload notification
+            String systemMessageText;
+            if (request.getFileType() != null
+                    && (request.getFileType().equals("image/png")
+                    || request.getFileType().equals("image/jpeg")
+                    || request.getFileType().equals("image/jpg")
+                    || request.getFileType().equals("image/gif")
+                    || request.getFileType().equals("image/webp"))) {
+                systemMessageText = userInfo.getUser().getFirstName() + " "
+                        + userInfo.getUser().getLastName() + " uploaded an image";
+            } else {
+                systemMessageText = userInfo.getUser().getFirstName() + " "
+                        + userInfo.getUser().getLastName() + " sent a file";
+            }
 
             // Create chat message with media
             ChatMessage chatMessage = ChatMessage.builder()
                     .conversationId(request.getConversationId())
-                    .message(request.getCaption() != null ? request.getCaption() : "") // Use caption as message
+                    .message(systemMessageText) // Use caption as message
                     .type(messageType)
                     .status("SENT")
                     .createdDate(Instant.now())
@@ -1601,45 +1613,11 @@ public class ChatMessageService {
 
             // Save message
             chatMessage = chatMessageRepository.save(chatMessage);
-            log.info("📁 Socket media message saved with ID: {}", chatMessage.getId());
 
-            log.info("File type: {}", request.getFileType());
-            // Create system message for file upload notification
-            String systemMessageText;
-            if (request.getFileType() != null
-                    && (request.getFileType().equals("image/png")
-                            || request.getFileType().equals("image/jpeg")
-                            || request.getFileType().equals("image/jpg")
-                            || request.getFileType().equals("image/gif")
-                            || request.getFileType().equals("image/webp"))) {
-                systemMessageText = userInfo.getUser().getFirstName() + " "
-                        + userInfo.getUser().getLastName() + " uploaded an image";
-            } else {
-                systemMessageText = userInfo.getUser().getFirstName() + " "
-                        + userInfo.getUser().getLastName() + " sent a file";
-            }
-
-            ChatMessage systemMessage = ChatMessage.builder()
-                    .conversationId(request.getConversationId())
-                    .message(systemMessageText)
-                    .type("SYSTEM_FILE")
-                    .status("SENT")
-                    .createdDate(Instant.now())
-                    .sender(ParticipantInfo.builder()
-                            .userId(userInfo.getUserId())
-                            .username(userInfo.getUser().getUsername())
-                            .firstName(userInfo.getUser().getFirstName())
-                            .lastName(userInfo.getUser().getLastName())
-                            .avatar(userInfo.getAvatar())
-                            .build())
-                    .build();
-
-            // Save system message
-            systemMessage = chatMessageRepository.save(systemMessage);
-            log.info("📁 System file message created with ID: {}", systemMessage.getId());
+//            log.info("📁 System file message created with ID: {}", systemMessage.getId());
 
             // Update conversation lastMessage with system message
-            conversation.setLastMessage(systemMessage);
+            conversation.setLastMessage(chatMessage);
             conversation.setModifiedDate(Instant.now());
             conversationRepository.save(conversation);
 
@@ -1648,7 +1626,7 @@ public class ChatMessageService {
             log.info("📁 Socket media message broadcasted successfully");
 
             // Broadcast system message via socket
-            broadcastMessage(systemMessage, conversation, userId, "SYSTEM_FILE");
+//            broadcastMessage(systemMessage, conversation, userId, "SYSTEM_FILE");
             log.info("📁 System file message broadcasted successfully");
 
             // Return response
@@ -2300,24 +2278,30 @@ public class ChatMessageService {
         // Find the message
         ChatMessage chatMessage = chatMessageRepository
                 .findById(messageId)
-                .orElseThrow(() -> new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION));
+                .orElseThrow(() -> new AppException(ErrorCode.MESSAGE_NOT_FOUND));
 
         // Only the sender can edit their message
         if (!chatMessage.getSender().getUserId().equals(userId)) {
             throw new AppException(ErrorCode.UNAUTHORIZED);
         }
 
+        // ✅ Validate new content
+//        if (newContent == null || newContent.trim().isEmpty()) {
+//            throw new AppException(ErrorCode.INVALID_MESSAGE_CONTENT);
+//        }
+
         // Update message content and set edited flag
-        chatMessage.setMessage(newContent);
-        chatMessage.setType("EDITED"); // Optionally, set a type or add an 'edited' flag
+        chatMessage.setMessage(newContent.trim());
+        chatMessage.setType("EDITED"); // ✅ Mark as EDITED
         chatMessage.setModifiedDate(Instant.now());
 
         chatMessage = chatMessageRepository.save(chatMessage);
 
-        // Optionally update conversation lastMessage if this is the latest message
+        // Update conversation lastMessage if this is the latest message
         Conversation conversation = conversationRepository
                 .findById(conversationId)
                 .orElseThrow(() -> new AppException(ErrorCode.CONVERSATION_NOT_FOUND));
+
         if (conversation.getLastMessage() != null
                 && conversation.getLastMessage().getId().equals(messageId)) {
             conversation.setLastMessage(chatMessage);
@@ -2325,7 +2309,7 @@ public class ChatMessageService {
             conversationRepository.save(conversation);
         }
 
-        // Broadcast the edited message to all clients in the conversation
+        // ✅ Broadcast to all participants (including sender)
         broadcastMessage(chatMessage, conversation, userId, "EDITED");
 
         return toChatMessageResponse(chatMessage, userId);

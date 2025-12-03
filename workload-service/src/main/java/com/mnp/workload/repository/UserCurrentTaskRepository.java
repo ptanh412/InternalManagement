@@ -15,13 +15,16 @@ public interface UserCurrentTaskRepository extends JpaRepository<UserCurrentTask
     List<UserCurrentTask> findByProjectId(String projectId);
     Optional<UserCurrentTask> findByTaskId(String taskId);
 
-    @Query("SELECT uct FROM UserCurrentTask uct WHERE uct.userId = :userId AND uct.projectId = :projectId")
-    List<UserCurrentTask> findByUserIdAndProjectId(@Param("userId") String userId, @Param("projectId") String projectId);
-
     @Query("SELECT SUM(uct.estimatedHours) FROM UserCurrentTask uct WHERE uct.userId = :userId")
     Integer getTotalEstimatedHoursByUserId(@Param("userId") String userId);
 
     @Query("SELECT SUM(uct.actualHoursSpent) FROM UserCurrentTask uct WHERE uct.userId = :userId")
     Integer getTotalActualHoursByUserId(@Param("userId") String userId);
+
+    @Query("SELECT SUM(uct.estimatedHours) FROM UserCurrentTask uct WHERE uct.userId = :userId AND uct.dueDate BETWEEN :startDate AND :endDate")
+    Integer getTotalEstimatedHoursForDateRange(@Param("userId") String userId,
+                                             @Param("startDate") java.time.LocalDateTime startDate,
+                                             @Param("endDate") java.time.LocalDateTime endDate);
+
 
 }

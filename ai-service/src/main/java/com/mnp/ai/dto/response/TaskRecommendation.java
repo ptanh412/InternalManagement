@@ -1,13 +1,14 @@
 package com.mnp.ai.dto.response;
 
+import java.util.List;
+
 import com.mnp.ai.enums.TaskPriority;
 import com.mnp.ai.enums.TaskType;
+
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.util.List;
 
 @Data
 @Builder

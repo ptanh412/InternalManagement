@@ -1,11 +1,12 @@
 # ML Service Dockerfile
-FROM openjdk:21-jdk-slim
+FROM eclipse-temurin:21-jdk-jammy
 
-# Install Python and required packages for ML integration
+# Install Python, Maven and required packages for ML integration
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     python3-venv \
+    maven \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -23,18 +24,15 @@ RUN cd /app/ml-training-python && \
 
 # Copy Maven files
 COPY pom.xml /app/
-COPY .mvn/ /app/.mvn/
-COPY mvnw /app/
-RUN chmod +x /app/mvnw
 
 # Download dependencies (this layer will be cached)
-RUN ./mvnw dependency:go-offline -B
+RUN mvn dependency:go-offline -B
 
 # Copy source code
 COPY src/ /app/src/
 
 # Build the application
-RUN ./mvnw clean package -DskipTests
+RUN mvn clean package -DskipTests
 
 # Create directories for models and logs
 RUN mkdir -p /app/models /app/model-backups /var/log/ml-service

@@ -508,6 +508,9 @@ const TaskDetailModal = ({ isOpen, onClose, taskId, onEdit }) => {
     }
   };
 
+    console.log("Loaded task data:", task);
+
+
   const loadSubmissions = async () => {
     if (!taskId) return;
     
@@ -784,7 +787,7 @@ const handleEditReview = async (submissionId, status, comments) => {
                     </div>
                   )}
                   
-                  {task.requiredSkills?.length > 0 && (
+                  {/* {task.requiredSkills?.length > 0 && (
                     <div>
                       <span className="text-sm font-medium text-gray-700 mb-2 block">Required Skills:</span>
                       <div className="flex flex-wrap gap-2">
@@ -798,7 +801,7 @@ const handleEditReview = async (submissionId, status, comments) => {
                         ))}
                       </div>
                     </div>
-                  )}
+                  )} */}
                 </div>
               )}
 

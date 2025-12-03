@@ -20,5 +20,8 @@ public enum TaskType {
     ARCHITECTURE,      // System architecture tasks
     SECURITY,          // Security-related tasks
     PERFORMANCE,       // Performance optimization tasks
-    REFACTORING        // Code refactoring tasks
+    REFACTORING,        // Code refactoring tasks
+    DATA_ANALYSIS,
+    DATA_ENGINEERING,
+    AI_ML
 }

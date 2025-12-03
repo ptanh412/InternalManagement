@@ -1,7 +1,7 @@
 package com.mnp.workload.service;
 
-import com.devteria.workload.dto.request.*;
-import com.devteria.workload.dto.response.*;
+import com.mnp.workload.dto.request.*;
+import com.mnp.workload.dto.response.*;
 import com.mnp.workload.dto.request.AddTaskToWorkloadRequest;
 import com.mnp.workload.dto.request.UpdateCapacityRequest;
 import com.mnp.workload.dto.request.UpdateTaskWorkloadRequest;
@@ -63,8 +63,8 @@ public class WorkloadService {
 
         // Recalculate workload metrics
         recalculateWorkloadMetrics(workload);
+        userWorkloadRepository.save(workload);
 
-        UserWorkload savedWorkload = userWorkloadRepository.save(workload);
         log.info("Updated capacity for user {}: {} hours/week", userId, request.getWeeklyCapacityHours());
 
         return getUserWorkload(userId);
@@ -72,21 +72,55 @@ public class WorkloadService {
 
     // Check user availability for new tasks
     public UserAvailabilityResponse getUserAvailability(String userId) {
+        log.info("📞 WORKLOAD-SERVICE: Received availability request for user {}", userId);
+
+        try {
+            UserWorkload workload = getOrCreateUserWorkload(userId);
+            log.info("✅ Retrieved/created workload for user {}: availability={}%, capacity={} hours",
+                     userId, workload.getAvailabilityPercentage(), workload.getWeeklyCapacityHours());
+
+            List<UserCurrentTask> currentTasks = userCurrentTaskRepository.findByUserId(userId);
+            log.info("📋 User {} has {} current tasks", userId, currentTasks.size());
+
+            boolean isAvailable = workload.getAvailabilityPercentage() > 10.0; // Consider available if >10% capacity
+
+            UserAvailabilityResponse response = UserAvailabilityResponse.builder()
+                    .userId(userId)
+                    .isAvailable(isAvailable)
+                    .availabilityPercentage(workload.getAvailabilityPercentage())
+                    .nextAvailableDate(workload.getNextAvailableDate())
+                    .currentTasksCount(currentTasks.size())
+                    .weeklyCapacity(workload.getWeeklyCapacityHours())
+                    .currentLoad(workload.getTotalEstimateHours())
+                    .build();
+
+            log.info("✅ Returning availability response for user {}: isAvailable={}, availability={}%",
+                     userId, isAvailable, workload.getAvailabilityPercentage());
+
+            return response;
+
+        } catch (Exception e) {
+            log.error("❌ ERROR getting availability for user {}: {}", userId, e.getMessage(), e);
+            throw e;
+        }
+    }
+
+    // **MANUAL WORKLOAD REFRESH - for troubleshooting and ensuring data consistency**
+    @Transactional
+    public UserWorkloadResponse refreshUserWorkload(String userId) {
         UserWorkload workload = getOrCreateUserWorkload(userId);
-        List<UserCurrentTask> currentTasks = userCurrentTaskRepository.findByUserId(userId);
 
-        boolean isAvailable = workload.getAvailabilityPercentage() > 10.0; // Consider available if >10% capacity
-        int availableHours = Math.max(0, workload.getWeeklyCapacityHours() - workload.getTotalEstimateHours());
+        log.info("Manually refreshing workload for user {}. Current state - Estimated: {}, Availability: {}%",
+                userId, workload.getTotalEstimateHours(), workload.getAvailabilityPercentage());
 
-        return UserAvailabilityResponse.builder()
-                .userId(userId)
-                .isAvailable(isAvailable)
-                .availabilityPercentage(workload.getAvailabilityPercentage())
-                .nextAvailableDate(workload.getNextAvailableDate())
-                .currentTasksCount(currentTasks.size())
-                .weeklyCapacity(workload.getWeeklyCapacityHours())
-                .currentLoad(workload.getTotalEstimateHours())
-                .build();
+        // Force complete recalculation
+        recalculateWorkloadMetrics(workload);
+        UserWorkload refreshedWorkload = userWorkloadRepository.save(workload);
+
+        log.info("Workload refreshed for user {}. New state - Estimated: {}, Availability: {}%",
+                userId, refreshedWorkload.getTotalEstimateHours(), refreshedWorkload.getAvailabilityPercentage());
+
+        return getUserWorkload(userId);
     }
 
     // Get team workload overview
@@ -185,8 +219,8 @@ public class WorkloadService {
 
         UserCurrentTask savedTask = userCurrentTaskRepository.save(currentTask);
 
-        // Update workload metrics
-        workload.setTotalEstimateHours(workload.getTotalEstimateHours() + request.getEstimatedHours());
+        // **COMPLETELY RECALCULATE ALL WORKLOAD METRICS**
+        // Don't just add hours - recalculate everything from database to ensure accuracy
         recalculateWorkloadMetrics(workload);
         userWorkloadRepository.save(workload);
 
@@ -204,39 +238,53 @@ public class WorkloadService {
         String userId = task.getUserId();
         UserWorkload workload = getOrCreateUserWorkload(userId);
 
+        // Track what changed for logging
+        boolean taskChanged = false;
+        Integer oldEstimatedHours = task.getEstimatedHours();
+        Integer oldActualHours = task.getActualHoursSpent();
+
         // Update task details
-        if (request.getEstimatedHours() != null) {
-            int hoursDifference = request.getEstimatedHours() - task.getEstimatedHours();
+        if (request.getEstimatedHours() != null && !request.getEstimatedHours().equals(task.getEstimatedHours())) {
             task.setEstimatedHours(request.getEstimatedHours());
-            workload.setTotalEstimateHours(workload.getTotalEstimateHours() + hoursDifference);
+            taskChanged = true;
         }
 
-        if (request.getActualHoursSpent() != null) {
-            int hoursDifference = request.getActualHoursSpent() - task.getActualHoursSpent();
+        if (request.getActualHoursSpent() != null && !request.getActualHoursSpent().equals(task.getActualHoursSpent())) {
             task.setActualHoursSpent(request.getActualHoursSpent());
-            workload.setTotalActualHours(workload.getTotalActualHours() + hoursDifference);
+            taskChanged = true;
         }
 
-        if (request.getProgressPercentage() != null) {
+        if (request.getProgressPercentage() != null && !request.getProgressPercentage().equals(task.getProgressPercentage())) {
             task.setProgressPercentage(request.getProgressPercentage());
             // Update remaining hours based on progress
             int newRemainingHours = (int) (task.getEstimatedHours() * (1.0 - request.getProgressPercentage() / 100.0));
             task.setRemainingHours(Math.max(0, newRemainingHours));
+            taskChanged = true;
         }
 
-        if (request.getRemainingHours() != null) {
+        if (request.getRemainingHours() != null && !request.getRemainingHours().equals(task.getRemainingHours())) {
             task.setRemainingHours(request.getRemainingHours());
+            taskChanged = true;
         }
 
-        UserCurrentTask updatedTask = userCurrentTaskRepository.save(task);
+        if (taskChanged) {
+            UserCurrentTask updatedTask = userCurrentTaskRepository.save(task);
 
-        // Recalculate workload metrics
-        recalculateWorkloadMetrics(workload);
-        userWorkloadRepository.save(workload);
+            // **COMPLETELY RECALCULATE ALL WORKLOAD METRICS**
+            Double oldAvailability = workload.getAvailabilityPercentage();
+            recalculateWorkloadMetrics(workload);
+            userWorkloadRepository.save(workload);
 
-        log.info("Updated task {} workload for user {}", taskId, userId);
+            log.info("Updated task {} workload for user {}. Estimated: {} -> {}, Actual: {} -> {}, Availability: {}% -> {}%",
+                    taskId, userId, oldEstimatedHours, task.getEstimatedHours(),
+                    oldActualHours, task.getActualHoursSpent(),
+                    oldAvailability, workload.getAvailabilityPercentage());
 
-        return mapToUserCurrentTaskResponse(updatedTask);
+            return mapToUserCurrentTaskResponse(updatedTask);
+        } else {
+            log.debug("No changes detected for task {} workload update", taskId);
+            return mapToUserCurrentTaskResponse(task);
+        }
     }
 
     // Remove task from workload (when completed)
@@ -248,18 +296,17 @@ public class WorkloadService {
         String userId = task.getUserId();
         UserWorkload workload = getOrCreateUserWorkload(userId);
 
-        // Update workload metrics
-        workload.setTotalEstimateHours(workload.getTotalEstimateHours() - task.getEstimatedHours());
-        workload.setTotalActualHours(workload.getTotalActualHours() - task.getActualHoursSpent());
-
-        // Remove task
+        // Remove task first
         userCurrentTaskRepository.delete(task);
+        log.info("Removed task {} from database", taskId);
 
-        // Recalculate workload metrics
+        // **COMPLETELY RECALCULATE ALL WORKLOAD METRICS**
+        // Recalculate from remaining tasks to ensure accuracy
         recalculateWorkloadMetrics(workload);
         userWorkloadRepository.save(workload);
 
-        log.info("Removed task {} from user {} workload", taskId, userId);
+        log.info("Removed task {} from user {} workload. New availability: {}%, Total estimated hours: {}",
+                taskId, userId, workload.getAvailabilityPercentage(), workload.getTotalEstimateHours());
     }
 
     // Helper methods
@@ -291,13 +338,37 @@ public class WorkloadService {
         workload.setTotalEstimateHours(totalEstimated != null ? totalEstimated : 0);
         workload.setTotalActualHours(totalActual != null ? totalActual : 0);
 
-        // Calculate next available date
+        // **CALCULATE AVAILABILITY PERCENTAGE**
+        if (workload.getWeeklyCapacityHours() > 0) {
+            double utilization = (double) workload.getTotalEstimateHours() / workload.getWeeklyCapacityHours() * 100.0;
+            workload.setAvailabilityPercentage(Math.max(0.0, 100.0 - utilization));
+        } else {
+            workload.setAvailabilityPercentage(0.0);
+        }
+
+        // **CALCULATE NEXT AVAILABLE DATE**
         if (workload.getTotalEstimateHours() >= workload.getWeeklyCapacityHours()) {
-            int overloadWeeks = workload.getTotalEstimateHours() / workload.getWeeklyCapacityHours();
+            int overloadWeeks = (workload.getTotalEstimateHours() + workload.getWeeklyCapacityHours() - 1) / workload.getWeeklyCapacityHours();
             workload.setNextAvailableDate(LocalDate.now().plusWeeks(overloadWeeks));
         } else {
             workload.setNextAvailableDate(LocalDate.now());
         }
+
+        // **CALCULATE UPCOMING WEEK HOURS**
+        // Get tasks due in the next 7 days
+        LocalDateTime startOfWeek = LocalDate.now().atStartOfDay();
+        LocalDateTime endOfWeek = startOfWeek.plusDays(7);
+
+        Integer upcomingHours = userCurrentTaskRepository.getTotalEstimatedHoursForDateRange(
+            workload.getUserId(),
+            startOfWeek,
+            endOfWeek
+        );
+        workload.setUpcomingWeekHours(upcomingHours != null ? upcomingHours : 0);
+
+        log.debug("Recalculated workload for user {}: totalEstimated={}, availabilityPercentage={}, nextAvailableDate={}",
+                 workload.getUserId(), workload.getTotalEstimateHours(),
+                 workload.getAvailabilityPercentage(), workload.getNextAvailableDate());
     }
 
     private double calculateUtilizationPercentage(UserWorkload workload) {
@@ -399,7 +470,8 @@ public class WorkloadService {
 
     private List<String> getDepartmentUserIds(String departmentId) {
         // This would integrate with user/profile service to get department users
-        // For now, return mock data
+        // For now, return mock data for department: " + departmentId
+        log.debug("Getting mock users for department: {}", departmentId);
         return List.of("user1", "user2", "user3", "user4");
     }
 }

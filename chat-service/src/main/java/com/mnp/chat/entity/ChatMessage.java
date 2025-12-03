@@ -52,6 +52,8 @@ public class ChatMessage {
 
     Instant modifiedDate;
 
+//    boolean edited = false;
+
     // Recall-related fields
     boolean isRecalled; // Whether the message has been recalled
     String recallType; // "self" or "everyone"

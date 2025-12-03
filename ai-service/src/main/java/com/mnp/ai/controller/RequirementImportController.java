@@ -5,6 +5,7 @@ import java.util.*;
 
 import jakarta.validation.Valid;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,20 +14,20 @@ import com.mnp.ai.dto.request.RequirementUploadRequest;
 import com.mnp.ai.dto.response.ApiResponse;
 import com.mnp.ai.dto.response.RequirementAnalysisResponse;
 import com.mnp.ai.dto.response.TaskRecommendation;
+import com.mnp.ai.dto.response.TaskRequiredSkillResponse;
 import com.mnp.ai.entity.AnalyzedRequirement;
 import com.mnp.ai.entity.GeneratedTask;
 import com.mnp.ai.enums.RequirementPriority;
 import com.mnp.ai.service.FileProcessingService;
-import com.mnp.ai.service.RequirementsAnalysisEngine;
 import com.mnp.ai.service.GeminiTaskAnalysisService;
+import com.mnp.ai.service.RequirementsAnalysisEngine;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 
 @RestController
 @RequestMapping("/ai/requirements")
 @Slf4j
-public class RequirementImportController {
+public class    RequirementImportController {
 
     private final FileProcessingService fileProcessingService;
     private final RequirementsAnalysisEngine requirementsAnalysisEngine;
@@ -138,19 +139,37 @@ public class RequirementImportController {
                     List<TaskRecommendation> geminiTasks = geminiTaskAnalysisService.analyzeAndGenerateTasks(
                             combinedContent.toString(),
                             projectName != null ? projectName : "Software Development Project",
-                            "Agile"
-                    );
+                            "Agile");
 
                     // Convert Gemini TaskRecommendation to GeneratedTask format
                     for (TaskRecommendation geminiTask : geminiTasks) {
+                        // Convert RequiredSkill to TaskRequiredSkillResponse
+                        List<TaskRequiredSkillResponse> taskSkills = new ArrayList<>();
+                        if (geminiTask.getRequiredSkills() != null) {
+                            for (var skill : geminiTask.getRequiredSkills()) {
+                                TaskRequiredSkillResponse skillResponse = TaskRequiredSkillResponse.builder()
+                                        .skillType(skill.getSkillType() != null ? skill.getSkillType().name() : null)
+                                        .requiredLevel(skill.getRequiredLevel() != null ? skill.getRequiredLevel().name() : null)
+                                        .skillName(skill.getSkillName())
+                                        .mandatory(skill.getMandatory())
+                                        .confidenceScore(geminiTask.getConfidenceScore()) // Use task confidence as skill confidence
+                                        .reasoningNote("Required for " + geminiTask.getTitle())
+                                        .build();
+                                taskSkills.add(skillResponse);
+                            }
+                        }
+
                         GeneratedTask task = GeneratedTask.builder()
                                 .title(geminiTask.getTitle())
                                 .description(geminiTask.getDescription())
-                                .taskType(geminiTask.getType()) // Use 'getType()' not 'getTaskType()'
+                                .taskType(geminiTask.getType())
                                 .priority(geminiTask.getPriority())
-                                .estimatedHours(geminiTask.getEstimatedHours() != null ? geminiTask.getEstimatedHours().doubleValue() : 8.0)
+                                .estimatedHours(
+                                        geminiTask.getEstimatedHours() != null
+                                                ? geminiTask.getEstimatedHours().doubleValue()
+                                                : 8.0)
                                 .confidenceScore(geminiTask.getConfidenceScore())
-                                .requiredSkills(new ArrayList<>()) // TaskRecommendation doesn't have requiredSkills
+                                .requiredSkills(taskSkills)
                                 .build();
                         recommendedTasks.add(task);
                     }
@@ -162,7 +181,8 @@ public class RequirementImportController {
 
                     // Fallback to local analysis
                     try {
-                        recommendedTasks = requirementsAnalysisEngine.generateTasksFromRequirements(analyzedRequirements);
+                        recommendedTasks =
+                                requirementsAnalysisEngine.generateTasksFromRequirements(analyzedRequirements);
                         log.info("Generated {} tasks using local analysis", recommendedTasks.size());
                     } catch (Exception localError) {
                         log.error("Local task generation also failed", localError);
@@ -213,7 +233,8 @@ public class RequirementImportController {
                     .warnings(warnings)
                     .errors(errors)
                     .processingTimeMs(System.currentTimeMillis() - startTime)
-                    .aiModelUsed(recommendedTasks.isEmpty() ? "Requirements Analysis Engine v1.0" : "Google Gemini 1.5 Pro")
+                    .aiModelUsed(
+                            recommendedTasks.isEmpty() ? "Requirements Analysis Engine v1.0" : "Google Gemini 1.5 Pro")
                     .tokenCount(combinedContent.length())
                     .build();
 
@@ -280,13 +301,62 @@ public class RequirementImportController {
 
             // Generate tasks if requested
             List<GeneratedTask> recommendedTasks = new ArrayList<>();
-            if (request.getGenerateTasks() && !analyzedRequirements.isEmpty()) {
+            if (request.getGenerateTasks() && !requirementText.trim().isEmpty()) {
                 try {
-                    recommendedTasks = requirementsAnalysisEngine.generateTasksFromRequirements(analyzedRequirements);
-                    log.info("Generated {} recommended tasks", recommendedTasks.size());
+                    // Use Google Gemini AI for enhanced task generation
+                    log.info("Using Google Gemini AI for task recommendations");
+                    List<TaskRecommendation> geminiTasks = geminiTaskAnalysisService.analyzeAndGenerateTasks(
+                            requirementText,
+                            request.getProjectName() != null ? request.getProjectName() : "Software Development Project",
+                            "Agile");
+
+                    // Convert Gemini TaskRecommendation to GeneratedTask format
+                    for (TaskRecommendation geminiTask : geminiTasks) {
+                        // Convert RequiredSkill to TaskRequiredSkillResponse
+                        List<TaskRequiredSkillResponse> taskSkills = new ArrayList<>();
+                        if (geminiTask.getRequiredSkills() != null) {
+                            for (var skill : geminiTask.getRequiredSkills()) {
+                                TaskRequiredSkillResponse skillResponse = TaskRequiredSkillResponse.builder()
+                                        .skillType(skill.getSkillType() != null ? skill.getSkillType().name() : null)
+                                        .requiredLevel(skill.getRequiredLevel() != null ? skill.getRequiredLevel().name() : null)
+                                        .skillName(skill.getSkillName())
+                                        .mandatory(skill.getMandatory())
+                                        .confidenceScore(geminiTask.getConfidenceScore())
+                                        .reasoningNote("Required for " + geminiTask.getTitle())
+                                        .build();
+                                taskSkills.add(skillResponse);
+                            }
+                        }
+
+                        GeneratedTask task = GeneratedTask.builder()
+                                .title(geminiTask.getTitle())
+                                .description(geminiTask.getDescription())
+                                .taskType(geminiTask.getType())
+                                .priority(geminiTask.getPriority())
+                                .estimatedHours(
+                                        geminiTask.getEstimatedHours() != null
+                                                ? geminiTask.getEstimatedHours().doubleValue()
+                                                : 8.0)
+                                .confidenceScore(geminiTask.getConfidenceScore())
+                                .requiredSkills(taskSkills)
+                                .build();
+                        recommendedTasks.add(task);
+                    }
+
+                    log.info("Generated {} Gemini AI recommended tasks", recommendedTasks.size());
                 } catch (Exception e) {
-                    log.error("Failed to generate tasks", e);
-                    errors.add("Task generation failed: " + e.getMessage());
+                    log.error("Gemini AI task generation failed, falling back to local analysis", e);
+                    warnings.add("Gemini AI unavailable, using local analysis: " + e.getMessage());
+
+                    // Fallback to local analysis
+                    try {
+                        recommendedTasks =
+                                requirementsAnalysisEngine.generateTasksFromRequirements(analyzedRequirements);
+                        log.info("Generated {} tasks using local analysis", recommendedTasks.size());
+                    } catch (Exception localError) {
+                        log.error("Local task generation also failed", localError);
+                        errors.add("Task generation failed: " + localError.getMessage());
+                    }
                 }
             }
 
@@ -342,7 +412,8 @@ public class RequirementImportController {
                     .warnings(warnings)
                     .errors(errors)
                     .processingTimeMs(System.currentTimeMillis() - startTime)
-                    .aiModelUsed("Requirements Analysis Engine v1.0")
+                    .aiModelUsed(
+                            recommendedTasks.isEmpty() ? "Requirements Analysis Engine v1.0" : "Google Gemini 1.5 Pro")
                     .tokenCount(requirementText.length())
                     .build();
 

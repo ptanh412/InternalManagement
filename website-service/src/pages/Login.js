@@ -53,8 +53,8 @@ const Login = () => {
         // console.log('Login: Login successful, navigating to dashboard');
         const from = location.state?.from?.pathname || '/dashboard';
         // console.log('Login: Redirecting to:', from);
-        navigate(from, { replace: true });
-        // navigate("/chat");
+        // navigate(from, { replace: true });
+        navigate("/chat");
       } else {
         console.log('Login: Login failed:', result.error);
         setError(result.error);

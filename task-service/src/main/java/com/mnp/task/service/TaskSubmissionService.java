@@ -36,7 +36,6 @@ import java.util.List;
 public class TaskSubmissionService {
 
     TaskSubmissionRepository taskSubmissionRepository;
-    FileServiceClient fileServiceClient;
     TaskSubmissionMapper taskSubmissionMapper;
     ObjectMapper objectMapper;
     // Add new dependencies
@@ -46,6 +45,7 @@ public class TaskSubmissionService {
     TaskSocketIOService taskSocketIOService;
     TaskService taskService;
     private final RealTimeNotificationClient realTimeNotificationClient;
+    WorkloadIntegrationService workloadIntegrationService;
 
     /**
      * Submit a task with optional file attachment
@@ -652,6 +652,19 @@ public class TaskSubmissionService {
 
             taskRepository.save(task);
             log.info("Task status updated: taskId={}, oldStatus={}, newStatus={}", taskId, oldStatus, status);
+
+            // **UPDATE WORKLOAD SERVICE FOR STATUS CHANGE**
+            try {
+                workloadIntegrationService.updateTaskStatusInWorkload(task, oldStatus, status);
+
+                // Remove task from workload if completed or cancelled
+                if (status == TaskStatus.DONE || status == TaskStatus.CANCELLED) {
+                    workloadIntegrationService.removeTaskFromWorkload(task);
+                    log.info("Removed completed/cancelled task {} from workload service", taskId);
+                }
+            } catch (Exception e) {
+                log.error("Failed to update workload service for status change: {}", e.getMessage());
+            }
         } catch (Exception e) {
             log.error("Failed to update task status: taskId={}, status={}, error={}", taskId, status, e.getMessage());
             // Don't throw exception to avoid breaking the submission review process

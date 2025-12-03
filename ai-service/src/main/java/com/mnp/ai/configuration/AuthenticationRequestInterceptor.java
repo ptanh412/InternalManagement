@@ -1,6 +1,5 @@
 package com.mnp.ai.configuration;
 
-import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -8,7 +7,6 @@ import feign.RequestInterceptor;
 import feign.RequestTemplate;
 import lombok.extern.slf4j.Slf4j;
 
-@Component
 @Slf4j
 public class AuthenticationRequestInterceptor implements RequestInterceptor {
     @Override

@@ -1,13 +1,14 @@
 package com.mnp.ai.entity;
 
+import java.time.LocalDateTime;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field;
+
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.mapping.Field;
-import org.springframework.data.mongodb.core.index.Indexed;
-
-import java.time.LocalDateTime;
 
 @Document(collection = "cv_analysis_history")
 @Data
@@ -52,9 +53,9 @@ public class CVAnalysisHistory {
 
     @Field("created_username")
     String createdUsername;
+
     @Field("created_user_email")
     String createdUserEmail;
-
 
     @Field("created_by")
     @Indexed

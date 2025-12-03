@@ -80,16 +80,11 @@ public class ProfileServiceFallback implements ProfileServiceClient {
     private UserProfileResponse createFallbackUserProfile(String userId) {
         return UserProfileResponse.builder()
                 .userId(userId)
-                .name("Fallback User")
-                .department("UNKNOWN")
-                .role("DEVELOPER")
                 .skills(createFallbackSkills()) // Changed to use List<UserSkillResponse>
-                .experienceYears(3.0)
                 .averageTaskCompletionRate(0.8)
                 .totalTasksCompleted(50)
                 .currentWorkLoadHours(20)
                 .availabilityStatus("AVAILABLE")
-                .performanceRating(3.5)
                 .createdAt(LocalDateTime.now())
                 .build();
     }

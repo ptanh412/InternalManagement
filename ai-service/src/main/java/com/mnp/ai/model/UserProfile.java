@@ -23,6 +23,7 @@ public class UserProfile {
     String city;
     String department;
     String role;
+    String seniorityLevel; // From identity-service (INTERN, JUNIOR, MID_LEVEL, SENIOR, LEAD, PRINCIPAL)
 
     // Skills and competencies - aligned with profile-service structure
     Map<String, Double> skills; // skill -> proficiency level (0-1)

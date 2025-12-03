@@ -1,7 +1,7 @@
 package com.mnp.workload.configuration;
 
-import com.devteria.profile.dto.ApiResponse;
-import com.devteria.profile.exception.ErrorCode;
+import com.mnp.workload.dto.request.ApiResponse;
+import com.mnp.workload.exception.ErrorCode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;

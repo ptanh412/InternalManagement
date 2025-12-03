@@ -1,29 +1,45 @@
 # Database Configuration
 database:
   postgres:
-    host: localhost
-    port: 5432
+    host: 127.0.0.1
+    port: 5433
     database: ml_training_db
     username: ml_user
     password: ml_password
-    
+
   neo4j:
     uri: bolt://localhost:7687
     username: neo4j
-    password: neo4j_password
-    
+    password: "12345678"
+
   mongodb:
     uri: mongodb://localhost:27017
-    database: internal_management
-    username: mongo_user
-    password: mongo_password
+    database: ai_service
     
   mysql:
     host: localhost
     port: 3306
-    database: internal_management
-    username: mysql_user
-    password: mysql_password
+    username: root  # Update with your MySQL username
+    password: "123456"    # Update with your MySQL password
+
+    # Multiple MySQL databases configuration
+    databases:
+      identity:
+        database: identity
+        description: "Identity service - user authentication and authorization data"
+        
+      project:
+        database: project
+        description: "Project service - project information and management data"
+        
+      task:
+        database: task
+        description: "Task service - task assignments and tracking data"
+
+      workload:
+        database: workload
+        description: "Workload service - user workload and capacity tracking data"
+
 
 # Kafka Configuration
 kafka:

@@ -7,7 +7,7 @@ spring:
   application:
     name: workload-service
   datasource:
-    url: "jdbc:mysql://localhost:3306/workload_db"
+    url: "jdbc:mysql://localhost:3306/workload"
     driverClassName: "com.mysql.cj.jdbc.Driver"
     username: root
     password: 123456

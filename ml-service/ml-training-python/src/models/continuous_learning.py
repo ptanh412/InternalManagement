@@ -9,21 +9,19 @@ This module implements continuous learning capabilities:
 """
 
 import pandas as pd
-import numpy as np
 import yaml
 import joblib
 import logging
 import schedule
 import time
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Any
+from typing import Dict, Any
 from sqlalchemy import create_engine, text
 
-from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 import structlog
 
-from models.hybrid_recommender import HybridRecommenderTrainer
-from data.data_collector import MultiDatabaseDataCollector
+from .hybrid_recommender import HybridRecommenderTrainer
+from src.data.data_collector import MultiDatabaseDataCollector
 
 logger = structlog.get_logger(__name__)
 
@@ -34,29 +32,62 @@ class ContinuousModelTrainer:
     
     def __init__(self, config_path: str = "config/model_config.yaml"):
         """Initialize continuous trainer"""
-        with open(config_path, 'r') as file:
-            self.config = yaml.safe_load(file)
-        
+        try:
+            with open(config_path, 'r') as file:
+                self.config = yaml.safe_load(file)
+
+            self.continuous_config = self.config['continuous_learning']
+            self.training_config = self.config['training']
+
+            # Initialize components
+            self.data_collector = MultiDatabaseDataCollector(config_path)
+            self.model_trainer = HybridRecommenderTrainer(config_path)
+
+            # Performance tracking
+            self.min_accuracy_improvement = self.continuous_config['min_accuracy_improvement']
+            self.min_data_size = self.continuous_config['min_data_size']
+            self.performance_degradation_threshold = self.continuous_config['performance_degradation_threshold']
+
+            # Database connection for ML metrics
+            postgres_config = self.config['database']['postgres']
+            self.ml_engine = create_engine(
+                f"postgresql://{postgres_config['username']}:{postgres_config['password']}"
+                f"@{postgres_config['host']}:{postgres_config['port']}"
+                f"/{postgres_config['database']}"
+            )
+        except (FileNotFoundError, KeyError) as e:
+            logger.warning(f"Could not load config from {config_path}: {e}")
+            logger.info("Using default configuration")
+            self._setup_defaults()
+
+    def _setup_defaults(self):
+        """Setup default configuration when config file is not available"""
+        self.config = {
+            'continuous_learning': {
+                'min_accuracy_improvement': 0.01,
+                'min_data_size': 500,
+                'performance_degradation_threshold': 0.05
+            },
+            'training': {
+                'test_size': 0.2,
+                'random_state': 42
+            }
+        }
         self.continuous_config = self.config['continuous_learning']
         self.training_config = self.config['training']
-        
-        # Initialize components
-        self.data_collector = MultiDatabaseDataCollector(config_path)
-        self.model_trainer = HybridRecommenderTrainer(config_path)
-        
+
+        # Initialize components with defaults
+        self.data_collector = None  # Will be initialized when needed
+        self.model_trainer = HybridRecommenderTrainer()
+
         # Performance tracking
         self.min_accuracy_improvement = self.continuous_config['min_accuracy_improvement']
         self.min_data_size = self.continuous_config['min_data_size']
         self.performance_degradation_threshold = self.continuous_config['performance_degradation_threshold']
-        
-        # Database connection for ML metrics
-        postgres_config = self.config['database']['postgres']
-        self.ml_engine = create_engine(
-            f"postgresql://{postgres_config['username']}:{postgres_config['password']}"
-            f"@{postgres_config['host']}:{postgres_config['port']}"
-            f"/{postgres_config['database']}"
-        )
-        
+
+        # No database connection in default mode
+        self.ml_engine = None
+
         logger.info("Continuous model trainer initialized")
     
     def run_continuous_training_pipeline(self):
@@ -443,6 +474,12 @@ class ContinuousModelTrainer:
                 logger.error(f"Scheduler error: {e}")
                 time.sleep(60)  # Wait a minute before retrying
     
+    def start_scheduler(self):
+        """
+        Alias for start_continuous_training_scheduler for backward compatibility
+        """
+        return self.start_continuous_training_scheduler()
+
     def run_manual_training(self):
         """
         Run training manually (for testing or immediate needs)

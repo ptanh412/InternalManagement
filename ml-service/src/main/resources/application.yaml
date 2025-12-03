@@ -1,7 +1,7 @@
 # ML Service Configuration
 
 server:
-  port: 8090
+  port: 8091
   servlet:
     context-path: /ml-service
 
@@ -11,16 +11,46 @@ spring:
   
   profiles:
     active: dev
-    
-  # Database Configuration
+
+  # Spring Cloud Config - Disable or make optional
+  cloud:
+    config:
+      enabled: false
+      import-check:
+        enabled: false
+    compatibility-verifier:
+      enabled: false
+
+  # Config import property (optional)
+  config:
+    import: "optional:configserver:"
+
+  # Additional Spring Boot configurations
+  main:
+    allow-bean-definition-overriding: true
+    web-application-type: servlet
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+
+  # Jackson configuration
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+  # Database Configuration - Default to H2 for development
   datasource:
-    url: jdbc:postgresql://localhost:5432/ml_training_db
-    username: ml_user
-    password: ml_password
-    driver-class-name: org.postgresql.Driver
+    url: jdbc:h2:mem:mldb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
     hikari:
-      maximum-pool-size: 20
-      minimum-idle: 5
+      maximum-pool-size: 10
+      minimum-idle: 2
       connection-timeout: 20000
       idle-timeout: 300000
       max-lifetime: 1200000
@@ -29,20 +59,25 @@ spring:
   # JPA Configuration
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: false
+      ddl-auto: create-drop
+    show-sql: true
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
+        dialect: org.hibernate.dialect.H2Dialect
         format_sql: true
         use_sql_comments: true
         jdbc:
           batch_size: 25
         order_inserts: true
         order_updates: true
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    database-platform: org.hibernate.dialect.H2Dialect
 
-  # Kafka Configuration
+  # H2 Console (for development)
+  h2:
+    console:
+      enabled: true
+
+  # Kafka Configuration (Optional - will not fail startup if unavailable)
   kafka:
     bootstrap-servers: localhost:9092
     consumer:
@@ -53,28 +88,35 @@ spring:
       enable-auto-commit: false
       properties:
         spring.json.trusted.packages: "com.internalmanagement.mlservice.messaging.events"
+        request.timeout.ms: 5000
+        session.timeout.ms: 10000
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
       value-serializer: org.apache.kafka.common.serialization.StringSerializer
-      acks: all
+      acks: 1
       retries: 3
       properties:
         enable.idempotence: true
+        request.timeout.ms: 5000
     listener:
       ack-mode: manual_immediate
-      concurrency: 3
+      concurrency: 1
 
-  # Redis Configuration (for caching)
+  # Redis Configuration (Optional - for caching when available)
   data:
     redis:
       host: localhost
       port: 6379
       timeout: 2000ms
+      connect-timeout: 2000ms
       lettuce:
         pool:
           max-active: 8
           max-idle: 8
           min-idle: 0
+      # Make Redis optional
+      repositories:
+        enabled: false
 
   # Security Configuration
   security:
@@ -83,13 +125,20 @@ spring:
         jwt:
           issuer-uri: http://localhost:8080/auth/realms/internal-management
 
-# Eureka Configuration
+# JWT configuration
+jwt:
+  signerKey: "1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij"
+  valid-duration: 3600 # 1 hour
+  refreshable-duration: 36000 # 10 hours
+
+# Eureka Configuration (Optional - can be disabled if not using service discovery)
 eureka:
   client:
     service-url:
       defaultZone: http://localhost:8761/eureka/
-    fetch-registry: true
-    register-with-eureka: true
+    fetch-registry: false
+    register-with-eureka: false
+    enabled: false
   instance:
     prefer-ip-address: true
     lease-renewal-interval-in-seconds: 30
@@ -164,11 +213,22 @@ management:
         include: health,info,metrics,prometheus
   endpoint:
     health:
-      show-details: when-authorized
+      show-details: always
+      show-components: always
+  health:
+    # Disable health indicators for external services to avoid DOWN status
+    redis:
+      enabled: false
+    kafka:
+      enabled: false
+    mail:
+      enabled: false
   metrics:
-    export:
-      prometheus:
-        enabled: true
+    distribution:
+      percentiles-histogram:
+        http:
+          server:
+            requests: true
 
 # OpenAPI Documentation
 springdoc:
@@ -188,7 +248,17 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:postgresql://localhost:5432/ml_training_db_dev
+    url: jdbc:h2:mem:mldb_dev;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    database-platform: org.hibernate.dialect.H2Dialect
+  h2:
+    console:
+      enabled: true
   kafka:
     bootstrap-servers: localhost:9092
   data:
@@ -247,7 +317,7 @@ spring:
     url: jdbc:h2:mem:testdb
     driver-class-name: org.h2.Driver
     username: sa
-    password: 
+    password: ""
   jpa:
     hibernate:
       ddl-auto: create-drop

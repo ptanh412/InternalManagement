@@ -1,18 +1,21 @@
 package com.mnp.ai.service;
 
+import java.util.*;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mnp.ai.model.AssignmentRecommendation;
 import com.mnp.ai.model.TaskProfile;
 import com.mnp.ai.model.UserProfile;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -34,8 +37,10 @@ public class GeminiRecommendationService {
     public List<AssignmentRecommendation> generateGeminiRecommendations(
             TaskProfile task, List<UserProfile> candidates) {
 
-        log.info("Generating Gemini AI recommendations for task: {} with {} candidates",
-                task.getTaskId(), candidates.size());
+        log.info(
+                "Generating Gemini AI recommendations for task: {} with {} candidates",
+                task.getTaskId(),
+                candidates.size());
 
         try {
             // Filter candidates based on task creator's role
@@ -55,8 +60,8 @@ public class GeminiRecommendationService {
             String geminiResponse = callGeminiAPI(prompt);
 
             // Parse Gemini response and enhance recommendations
-            List<AssignmentRecommendation> recommendations = parseGeminiRecommendations(
-                    geminiResponse, task, filteredCandidates);
+            List<AssignmentRecommendation> recommendations =
+                    parseGeminiRecommendations(geminiResponse, task, filteredCandidates);
 
             // Apply team lead prioritization for High/Critical priority tasks
             recommendations = applyTeamLeadPrioritization(recommendations, task, filteredCandidates);
@@ -91,10 +96,10 @@ public class GeminiRecommendationService {
         boolean creatorIsTeamLead = false;
         if (creator != null) {
             String role = creator.getRole();
-            creatorIsTeamLead = role != null &&
-                (role.toUpperCase().contains("TEAM_LEAD") ||
-                 role.toUpperCase().contains("MANAGER") ||
-                 role.toUpperCase().contains("LEAD"));
+            creatorIsTeamLead = role != null
+                    && (role.toUpperCase().contains("TEAM_LEAD")
+                            || role.toUpperCase().contains("MANAGER")
+                            || role.toUpperCase().contains("LEAD"));
         }
 
         // If creator is team lead, filter to only EMPLOYEE role candidates
@@ -119,24 +124,38 @@ public class GeminiRecommendationService {
     private String buildRecommendationPrompt(TaskProfile task, List<UserProfile> candidates) {
         StringBuilder prompt = new StringBuilder();
 
-        prompt.append("You are a technical recruiter. Analyze candidates and write UNIQUE, SPECIFIC reasoning for EACH person.\n\n");
+        prompt.append(
+                "You are a technical recruiter. Analyze candidates and write UNIQUE, SPECIFIC reasoning for EACH person.\n\n");
 
         // Task information - compact format
         prompt.append("TASK: ").append(task.getTitle()).append("\n");
-        prompt.append("Priority: ").append(task.getPriority()).append(" | Type: ").append(task.getTaskType());
-        prompt.append(" | Dept: ").append(task.getDepartment()).append(" | Hours: ").append(task.getEstimatedHours()).append("\n");
+        prompt.append("Priority: ")
+                .append(task.getPriority())
+                .append(" | Type: ")
+                .append(task.getTaskType());
+        prompt.append(" | Dept: ")
+                .append(task.getDepartment())
+                .append(" | Hours: ")
+                .append(task.getEstimatedHours())
+                .append("\n");
 
         if (task.getRequiredSkills() != null && !task.getRequiredSkills().isEmpty()) {
             prompt.append("Required Skills: ");
-            task.getRequiredSkills().forEach((skill, level) ->
-                prompt.append(skill).append("(min:").append(level).append(") "));
+            task.getRequiredSkills()
+                    .forEach((skill, level) ->
+                            prompt.append(skill).append("(min:").append(level).append(") "));
             prompt.append("\n");
         }
 
         prompt.append("\nCANDIDATES:\n");
         for (int i = 0; i < Math.min(candidates.size(), 8); i++) {
             UserProfile c = candidates.get(i);
-            prompt.append(i + 1).append(". ").append(c.getName()).append(" [ID:").append(c.getUserId()).append("]\n");
+            prompt.append(i + 1)
+                    .append(". ")
+                    .append(c.getName())
+                    .append(" [ID:")
+                    .append(c.getUserId())
+                    .append("]\n");
             prompt.append("   Role: ").append(c.getRole());
             prompt.append(" | Dept: ").append(c.getDepartment() != null ? c.getDepartment() : "N/A");
             prompt.append(" | Avail: ").append(c.getAvailabilityScore());
@@ -145,9 +164,12 @@ public class GeminiRecommendationService {
             if (c.getSkills() != null && !c.getSkills().isEmpty()) {
                 prompt.append("   Skills: ");
                 c.getSkills().entrySet().stream()
-                    .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
-                    .limit(6)
-                    .forEach(s -> prompt.append(s.getKey()).append("(").append(s.getValue()).append(") "));
+                        .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                        .limit(6)
+                        .forEach(s -> prompt.append(s.getKey())
+                                .append("(")
+                                .append(s.getValue())
+                                .append(") "));
                 prompt.append("\n");
             } else {
                 prompt.append("   Skills: None listed\n");
@@ -157,7 +179,8 @@ public class GeminiRecommendationService {
         prompt.append("\nIMPORTANT INSTRUCTIONS:\n");
         prompt.append("1. Write DIFFERENT reasoning for EACH person - DO NOT repeat generic phrases\n");
         prompt.append("2. MENTION the person's NAME in their reasoning\n");
-        prompt.append("3. COMPARE their actual skill levels to required levels (e.g., 'Has React 5.0, exceeds requirement of 3.0' or 'Has React 2.5, below requirement of 4.0')\n");
+        prompt.append(
+                "3. COMPARE their actual skill levels to required levels (e.g., 'Has React 5.0, exceeds requirement of 3.0' or 'Has React 2.5, below requirement of 4.0')\n");
         prompt.append("4. MENTION specific missing or weak skills by name\n");
         prompt.append("5. If TEAM_LEAD role and high priority: score higher; if EMPLOYEE: explain fit differently\n");
         prompt.append("6. Keep reasoning under 120 characters but make it UNIQUE\n");
@@ -170,7 +193,8 @@ public class GeminiRecommendationService {
         prompt.append("      \"userId\": \"exact-user-id-from-above\",\n");
         prompt.append("      \"rank\": 1,\n");
         prompt.append("      \"score\": 0.85,\n");
-        prompt.append("      \"reasoning\": \"[NAME] has [SPECIFIC SKILL] at level X, [comparison to requirement]. [Strength/weakness].\",\n");
+        prompt.append(
+                "      \"reasoning\": \"[NAME] has [SPECIFIC SKILL] at level X, [comparison to requirement]. [Strength/weakness].\",\n");
         prompt.append("      \"skillAnalysis\": {\n");
         prompt.append("        \"matchedSkills\": [\"skill1\", \"skill2\"],\n");
         prompt.append("        \"missingSkills\": [\"skill3\"],\n");
@@ -182,8 +206,10 @@ public class GeminiRecommendationService {
         prompt.append("    }\n");
         prompt.append("  ]\n");
         prompt.append("}\n\n");
-        prompt.append("EXAMPLE GOOD reasoning: \"David has React 5.0/TypeScript 5.0 exceeding requirements. Perfect frontend skills but missing E2E framework experience.\"\n");
-        prompt.append("EXAMPLE BAD reasoning: \"Good skill match for this task. Currently has light workload.\" (too generic!)\n");
+        prompt.append(
+                "EXAMPLE GOOD reasoning: \"David has React 5.0/TypeScript 5.0 exceeding requirements. Perfect frontend skills but missing E2E framework experience.\"\n");
+        prompt.append(
+                "EXAMPLE BAD reasoning: \"Good skill match for this task. Currently has light workload.\" (too generic!)\n");
 
         return prompt.toString();
     }
@@ -193,7 +219,8 @@ public class GeminiRecommendationService {
      */
     private String generateSkillNecessityExplanation(String skill, TaskProfile task) {
         String taskType = task.getTaskType() != null ? task.getTaskType().toLowerCase() : "";
-        String description = task.getDescription() != null ? task.getDescription().toLowerCase() : "";
+        String description =
+                task.getDescription() != null ? task.getDescription().toLowerCase() : "";
         String skillLower = skill.toLowerCase();
 
         if (skillLower.contains("java") || skillLower.contains("spring")) {
@@ -228,35 +255,34 @@ public class GeminiRecommendationService {
         try {
             // Use simpler request structure that's compatible with gemini-2.5-flash
             Map<String, Object> requestBody = Map.of(
-                "contents", List.of(
-                    Map.of("parts", List.of(
-                        Map.of("text", prompt)
-                    ))
-                ),
-                "generationConfig", Map.of(
-                    "temperature", 0.2,  // Lower temperature for more focused responses
-                    "maxOutputTokens", 16000,  // Increased to handle more candidates
-                    "topP", 0.8,
-                    "topK", 10
-                )
-            );
+                    "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))),
+                    "generationConfig",
+                            Map.of(
+                                    "temperature",
+                                    0.2, // Lower temperature for more focused responses
+                                    "maxOutputTokens",
+                                    16000, // Increased to handle more candidates
+                                    "topP",
+                                    0.8,
+                                    "topK",
+                                    10));
 
             String url = String.format(
-                "https://generativelanguage.googleapis.com/v1/models/%s:generateContent?key=%s",
-                model, geminiApiKey
-            );
+                    "https://generativelanguage.googleapis.com/v1/models/%s:generateContent?key=%s",
+                    model, geminiApiKey);
 
             log.info("Calling Gemini API for task assignment recommendations");
             log.debug("Request URL: {}", url);
             log.debug("Request body: {}", requestBody);
 
-            String response = webClient.post()
-                .uri(url)
-                .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(requestBody)
-                .retrieve()
-                .bodyToMono(String.class)
-                .block();
+            String response = webClient
+                    .post()
+                    .uri(url)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .bodyValue(requestBody)
+                    .retrieve()
+                    .bodyToMono(String.class)
+                    .block();
 
             log.info("Successfully received Gemini recommendation response");
             log.debug("Response length: {} characters", response != null ? response.length() : 0);
@@ -343,13 +369,15 @@ public class GeminiRecommendationService {
 
                         // Set additional fields
                         if (recNode.has("isTeamLead")) {
-                            recommendation.setIsTeamLead(recNode.get("isTeamLead").asBoolean());
+                            recommendation.setIsTeamLead(
+                                    recNode.get("isTeamLead").asBoolean());
                         }
 
                         // Extract detailed skill analysis
                         JsonNode skillAnalysisNode = recNode.get("skillAnalysis");
                         if (skillAnalysisNode != null) {
-                            extractSkillAnalysis(recommendation, skillAnalysisNode, task, candidate, taskSkillNecessity);
+                            extractSkillAnalysis(
+                                    recommendation, skillAnalysisNode, task, candidate, taskSkillNecessity);
                         } else {
                             // Generate basic skill analysis if not provided by AI
                             generateBasicSkillAnalysis(recommendation, task, candidate, taskSkillNecessity);
@@ -371,8 +399,12 @@ public class GeminiRecommendationService {
     /**
      * Extract skill analysis from Gemini AI response
      */
-    private void extractSkillAnalysis(AssignmentRecommendation recommendation, JsonNode skillAnalysisNode,
-                                    TaskProfile task, UserProfile candidate, Map<String, String> taskSkillNecessity) {
+    private void extractSkillAnalysis(
+            AssignmentRecommendation recommendation,
+            JsonNode skillAnalysisNode,
+            TaskProfile task,
+            UserProfile candidate,
+            Map<String, String> taskSkillNecessity) {
 
         // Extract matched skills
         JsonNode matchedSkillsNode = skillAnalysisNode.get("matchedSkills");
@@ -427,8 +459,11 @@ public class GeminiRecommendationService {
     /**
      * Generate basic skill analysis when AI doesn't provide detailed analysis
      */
-    private void generateBasicSkillAnalysis(AssignmentRecommendation recommendation, TaskProfile task,
-                                          UserProfile candidate, Map<String, String> taskSkillNecessity) {
+    private void generateBasicSkillAnalysis(
+            AssignmentRecommendation recommendation,
+            TaskProfile task,
+            UserProfile candidate,
+            Map<String, String> taskSkillNecessity) {
 
         if (task.getRequiredSkills() == null || candidate.getSkills() == null) {
             return;
@@ -466,16 +501,17 @@ public class GeminiRecommendationService {
 
         // Generate skill match summary
         StringBuilder summaryBuilder = new StringBuilder();
-        summaryBuilder.append(String.format("Matches %d/%d required skills. ",
-            matchedSkills.size(), task.getRequiredSkills().size()));
+        summaryBuilder.append(String.format(
+                "Matches %d/%d required skills. ",
+                matchedSkills.size(), task.getRequiredSkills().size()));
 
         if (!missingSkills.isEmpty()) {
             summaryBuilder.append(String.format("Missing: %s. ", String.join(", ", missingSkills)));
         }
 
         if (!bonusSkills.isEmpty()) {
-            summaryBuilder.append(String.format("Bonus skills: %s.",
-                String.join(", ", bonusSkills.subList(0, Math.min(3, bonusSkills.size())))));
+            summaryBuilder.append(String.format(
+                    "Bonus skills: %s.", String.join(", ", bonusSkills.subList(0, Math.min(3, bonusSkills.size())))));
         }
 
         // Set the analysis results
@@ -488,12 +524,12 @@ public class GeminiRecommendationService {
 
         // Generate development opportunity
         if (!missingSkills.isEmpty()) {
-            recommendation.setSkillDevelopmentOpportunity(
-                String.format("This assignment could help develop skills in: %s",
-                String.join(", ", missingSkills.subList(0, Math.min(2, missingSkills.size())))));
+            recommendation.setSkillDevelopmentOpportunity(String.format(
+                    "This assignment could help develop skills in: %s",
+                    String.join(", ", missingSkills.subList(0, Math.min(2, missingSkills.size())))));
         } else {
             recommendation.setSkillDevelopmentOpportunity(
-                "This assignment aligns well with current skill set and could reinforce existing expertise.");
+                    "This assignment aligns well with current skill set and could reinforce existing expertise.");
         }
     }
 
@@ -553,8 +589,10 @@ public class GeminiRecommendationService {
             }
 
             String repaired = repairedJson.toString();
-            log.info("Attempting to use repaired JSON. Original length: {}, Repaired length: {}",
-                    json.length(), repaired.length());
+            log.info(
+                    "Attempting to use repaired JSON. Original length: {}, Repaired length: {}",
+                    json.length(),
+                    repaired.length());
 
             try {
                 // Validate the repaired JSON
@@ -598,8 +636,11 @@ public class GeminiRecommendationService {
                     String beforeField = json.substring(0, keyStart);
                     if (beforeField.trim().endsWith(",")) {
                         // Remove the trailing comma and return
-                        return beforeField.substring(0, beforeField.lastIndexOf(",")).trim();
-                    } else if (beforeField.trim().endsWith("{") || beforeField.trim().endsWith("[")) {
+                        return beforeField
+                                .substring(0, beforeField.lastIndexOf(","))
+                                .trim();
+                    } else if (beforeField.trim().endsWith("{")
+                            || beforeField.trim().endsWith("[")) {
                         // Just after opening brace/bracket, remove whole field
                         return beforeField.trim();
                     }
@@ -654,9 +695,8 @@ public class GeminiRecommendationService {
 
                 // Enhance reasoning for team lead priority
                 String enhancedReason = String.format(
-                    "[HIGH PRIORITY TASK - TEAM LEAD PRIORITIZED] %s. As a team lead/senior member, they are well-suited for this %s priority task requiring strong leadership and technical expertise.",
-                    rec.getRecommendationReason(), priority.toLowerCase()
-                );
+                        "[HIGH PRIORITY TASK - TEAM LEAD PRIORITIZED] %s. As a team lead/senior member, they are well-suited for this %s priority task requiring strong leadership and technical expertise.",
+                        rec.getRecommendationReason(), priority.toLowerCase());
                 rec.setRecommendationReason(enhancedReason);
 
                 teamLeadRecommendations.add(rec);
@@ -679,8 +719,10 @@ public class GeminiRecommendationService {
             finalRecommendations.get(i).setRank(i + 1);
         }
 
-        log.info("Prioritized {} team leads and {} regular members for high priority task",
-                teamLeadRecommendations.size(), regularRecommendations.size());
+        log.info(
+                "Prioritized {} team leads and {} regular members for high priority task",
+                teamLeadRecommendations.size(),
+                regularRecommendations.size());
 
         return finalRecommendations;
     }
@@ -692,8 +734,10 @@ public class GeminiRecommendationService {
         String role = candidate.getRole();
         if (role != null) {
             String roleLower = role.toLowerCase();
-            if (roleLower.contains("lead") || roleLower.contains("senior") ||
-                roleLower.contains("manager") || roleLower.contains("architect")) {
+            if (roleLower.contains("lead")
+                    || roleLower.contains("senior")
+                    || roleLower.contains("manager")
+                    || roleLower.contains("architect")) {
                 return true;
             }
         }
@@ -714,9 +758,9 @@ public class GeminiRecommendationService {
      */
     private UserProfile findCandidateById(String userId, List<UserProfile> candidates) {
         return candidates.stream()
-            .filter(candidate -> candidate.getUserId().equals(userId))
-            .findFirst()
-            .orElse(null);
+                .filter(candidate -> candidate.getUserId().equals(userId))
+                .findFirst()
+                .orElse(null);
     }
 
     /**
@@ -728,15 +772,265 @@ public class GeminiRecommendationService {
         log.info("Generating fallback recommendations for task: {}", task.getTaskId());
 
         return candidates.stream()
-            .limit(5) // Limit to top 5 candidates
-            .map(candidate -> {
-                AssignmentRecommendation rec = new AssignmentRecommendation();
-                rec.setUserId(candidate.getUserId());
-                rec.setTaskId(task.getTaskId());
-                rec.setOverallScore(0.7); // Default score
-                rec.setRecommendationReason("Fallback recommendation based on basic criteria matching");
-                return rec;
-            })
-            .collect(Collectors.toList());
+                .limit(5) // Limit to top 5 candidates
+                .map(candidate -> {
+                    AssignmentRecommendation rec = new AssignmentRecommendation();
+                    rec.setUserId(candidate.getUserId());
+                    rec.setTaskId(task.getTaskId());
+                    rec.setOverallScore(0.7); // Default score
+                    rec.setRecommendationReason("Fallback recommendation based on basic criteria matching");
+                    return rec;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Generate a concise recommendation reason for a single candidate using Gemini AI
+     * This is called after ML scoring to provide human-readable explanations
+     */
+    public String generateRecommendationReasonForCandidate(
+            AssignmentRecommendation recommendation,
+            TaskProfile task,
+            UserProfile candidate) {
+
+        log.debug("Generating Gemini AI reason for candidate {} on task {}",
+                 candidate.getUserId(), task.getTaskId());
+
+        try {
+            String prompt = buildSingleCandidatePrompt(recommendation, task, candidate);
+            String geminiResponse = callGeminiAPI(prompt);
+
+            // Extract clean text from response (remove any JSON formatting if present)
+            String cleanedReason = cleanReasoningText(geminiResponse);
+
+            log.info("Generated Gemini reason for candidate {}: {}",
+                    candidate.getUserId(), cleanedReason);
+
+            return cleanedReason;
+
+        } catch (Exception e) {
+            log.error("Error generating Gemini reason for candidate {}: {}",
+                     candidate.getUserId(), e.getMessage());
+            return generateFallbackReason(recommendation, candidate);
+        }
+    }
+
+    /**
+     * Build a focused prompt for a single candidate recommendation
+     */
+    private String buildSingleCandidatePrompt(
+            AssignmentRecommendation recommendation,
+            TaskProfile task,
+            UserProfile candidate) {
+
+        StringBuilder prompt = new StringBuilder();
+
+        prompt.append("You are an expert technical recruiter. Generate a concise, specific recommendation reason.\n\n");
+
+        prompt.append("TASK DETAILS:\n");
+        prompt.append("Title: ").append(task.getTitle()).append("\n");
+        prompt.append("Priority: ").append(task.getPriority()).append("\n");
+        prompt.append("Difficulty: ").append(task.getDifficulty() != null ? task.getDifficulty() : "N/A").append("\n");
+        prompt.append("Estimated Hours: ").append(task.getEstimatedHours()).append("\n");
+
+        if (task.getRequiredSkills() != null && !task.getRequiredSkills().isEmpty()) {
+            prompt.append("Required Skills: ");
+            task.getRequiredSkills().forEach((skill, level) ->
+                prompt.append(skill).append(" (").append(String.format("%.1f", level)).append("), ")
+            );
+            prompt.append("\n");
+        }
+
+        prompt.append("\nCANDIDATE DETAILS:\n");
+        prompt.append("Name: ").append(candidate.getName()).append("\n");
+        prompt.append("Role: ").append(candidate.getRole()).append("\n");
+        prompt.append("Department: ").append(candidate.getDepartment() != null ? candidate.getDepartment() : "N/A").append("\n");
+        prompt.append("Seniority: ").append(candidate.getSeniorityLevel()).append("\n");
+        prompt.append("Availability: ").append(candidate.getAvailabilityStatus()).append("\n");
+
+        if (candidate.getSkills() != null && !candidate.getSkills().isEmpty()) {
+            prompt.append("Skills: ");
+            candidate.getSkills().entrySet().stream()
+                .sorted(Map.Entry.<String, Double>comparingByValue().reversed())
+                .limit(8)
+                .forEach(entry ->
+                    prompt.append(entry.getKey()).append(" (").append(String.format("%.1f", entry.getValue())).append("), ")
+                );
+            prompt.append("\n");
+        }
+
+        prompt.append("\nML EVALUATION SCORES:\n");
+        prompt.append("Overall Score: ").append(String.format("%.2f%%", recommendation.getOverallScore() * 100)).append("\n");
+        if (recommendation.getSkillMatchScore() != null) {
+            prompt.append("Skill Match: ").append(String.format("%.2f%%", recommendation.getSkillMatchScore() * 100)).append("\n");
+        }
+        if (recommendation.getWorkloadScore() != null) {
+            prompt.append("Workload Fit: ").append(String.format("%.2f%%", recommendation.getWorkloadScore() * 100)).append("\n");
+        }
+        if (recommendation.getPerformanceScore() != null) {
+            prompt.append("Performance History: ").append(String.format("%.2f%%", recommendation.getPerformanceScore() * 100)).append("\n");
+        }
+        if (recommendation.getAvailabilityScore() != null) {
+            prompt.append("Availability: ").append(String.format("%.2f%%", recommendation.getAvailabilityScore() * 100)).append("\n");
+        }
+
+        prompt.append("\nINSTRUCTIONS:\n");
+        prompt.append("Generate a concise, professional recommendation reason (2-3 sentences max).\n");
+        prompt.append("Focus on:\n");
+        prompt.append("1. The candidate's NAME and key strengths\n");
+        prompt.append("2. Specific skill matches or gaps (mention actual skill names)\n");
+        prompt.append("3. Why they are suitable despite any limitations\n");
+        prompt.append("4. Their availability and capacity if relevant\n\n");
+
+        prompt.append("IMPORTANT: Return ONLY the recommendation text, no JSON, no markdown, no extra formatting.\n");
+        prompt.append("Example good output: \"Sarah has strong React (4.5) and TypeScript (4.0) skills exceeding requirements. ");
+        prompt.append("While missing Docker experience, her excellent availability and proven track record make her ideal for this frontend task.\"\n\n");
+        prompt.append("Generate the recommendation reason now:");
+
+        return prompt.toString();
+    }
+
+    /**
+     * Clean reasoning text from Gemini response
+     */
+    private String cleanReasoningText(String response) {
+        if (response == null) {
+            return "Recommended based on ML evaluation.";
+        }
+
+        String cleaned = response.trim();
+
+        // Remove markdown code blocks
+        cleaned = cleaned.replaceAll("```json\\s*", "");
+        cleaned = cleaned.replaceAll("```\\s*", "");
+
+        // Remove JSON structure if present
+        if (cleaned.startsWith("{") || cleaned.startsWith("[")) {
+            try {
+                JsonNode jsonNode = objectMapper.readTree(cleaned);
+                if (jsonNode.has("reasoning")) {
+                    cleaned = jsonNode.get("reasoning").asText();
+                } else if (jsonNode.has("reason")) {
+                    cleaned = jsonNode.get("reason").asText();
+                } else if (jsonNode.isArray() && jsonNode.size() > 0) {
+                    cleaned = jsonNode.get(0).asText();
+                }
+            } catch (Exception e) {
+                log.debug("Response is not JSON, using as-is");
+            }
+        }
+
+        // Limit length if too long
+        if (cleaned.length() > 500) {
+            cleaned = cleaned.substring(0, 497) + "...";
+        }
+
+        return cleaned.trim();
+    }
+
+    /**
+     * Generate fallback reason if Gemini AI fails
+     */
+    private String generateFallbackReason(AssignmentRecommendation recommendation, UserProfile candidate) {
+        return String.format(
+            "%s is recommended with an overall score of %.1f%%. Strong candidate based on ML evaluation of skills, availability, and performance history.",
+            candidate.getName() != null ? candidate.getName() : "This candidate",
+            recommendation.getOverallScore() * 100
+        );
+    }
+
+    /**
+     * Generate personalized reason using Gemini AI for a specific candidate and task
+     * This method is called by HybridRecommendationAlgorithm for unique explanations
+     */
+    public String generatePersonalizedReason(String prompt) {
+        log.debug("Generating personalized reason with Gemini AI");
+
+        try {
+            // Create a simplified request for just getting the reasoning text
+            String reasoningPrompt =
+                    "INSTRUCTIONS: Provide ONLY the 2-3 sentence explanation. No JSON, no formatting, just the text.\n\n"
+                            + prompt;
+
+            String geminiResponse = callGeminiAPI(reasoningPrompt);
+
+            if (geminiResponse != null && !geminiResponse.trim().isEmpty()) {
+                // Clean up the response - remove any JSON formatting, markdown, etc.
+                String cleanReason = cleanReasoningResponse(geminiResponse);
+
+                // Validate the response length and content
+                if (cleanReason.length() > 20 && cleanReason.length() < 500) {
+                    return cleanReason;
+                }
+            }
+
+            log.warn("Gemini response was invalid or too short/long, response: {}", geminiResponse);
+            return null;
+
+        } catch (Exception e) {
+            log.error("Error generating personalized reason with Gemini: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Clean up Gemini response to extract just the reasoning text
+     */
+    private String cleanReasoningResponse(String response) {
+        if (response == null) {
+            return "";
+        }
+
+        String cleaned = response.trim();
+
+        // Remove markdown formatting
+        if (cleaned.startsWith("```")) {
+            int firstNewline = cleaned.indexOf('\n');
+            if (firstNewline > 0) {
+                cleaned = cleaned.substring(firstNewline + 1);
+            }
+        }
+        if (cleaned.endsWith("```")) {
+            cleaned = cleaned.substring(0, cleaned.lastIndexOf("```"));
+        }
+
+        // Remove JSON structure if present
+        if (cleaned.startsWith("{") && cleaned.contains("\"reasoning\":")) {
+            try {
+                JsonNode json = objectMapper.readTree(cleaned);
+                JsonNode reasoningNode = json.get("reasoning");
+                if (reasoningNode != null) {
+                    cleaned = reasoningNode.asText();
+                }
+            } catch (Exception e) {
+                // If JSON parsing fails, continue with text cleaning
+            }
+        }
+
+        // Remove quotes if the entire response is wrapped in quotes
+        if (cleaned.startsWith("\"") && cleaned.endsWith("\"")) {
+            cleaned = cleaned.substring(1, cleaned.length() - 1);
+        }
+
+        // Remove any remaining instruction text that might have leaked through
+        String[] unwantedPhrases = {
+            "Here's the explanation:", "Explanation:", "Based on the analysis:", "REASONING:", "RESPONSE:"
+        };
+
+        for (String phrase : unwantedPhrases) {
+            if (cleaned.startsWith(phrase)) {
+                cleaned = cleaned.substring(phrase.length()).trim();
+            }
+        }
+
+        // Clean up extra whitespace and ensure proper sentence structure
+        cleaned = cleaned.replaceAll("\\s+", " ").trim();
+
+        // Ensure it ends with proper punctuation
+        if (!cleaned.isEmpty() && !cleaned.endsWith(".") && !cleaned.endsWith("!") && !cleaned.endsWith("?")) {
+            cleaned += ".";
+        }
+
+        return cleaned;
     }
 }

@@ -40,6 +40,11 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
+# Thêm các dòng sau:
+**/application.yml
+**/application.yaml
+**/target/classes/application.yaml
+
 # Node modules
 node_modules/
 *.log

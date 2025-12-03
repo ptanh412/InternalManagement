@@ -1,5 +1,15 @@
 package com.mnp.ai.service;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -9,18 +19,10 @@ import com.mnp.ai.enums.ProficiencyLevel;
 import com.mnp.ai.enums.SkillType;
 import com.mnp.ai.enums.TaskPriority;
 import com.mnp.ai.enums.TaskType;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
 
 @Service
 @Slf4j
@@ -49,7 +51,8 @@ public class GeminiTaskAnalysisService {
 
             String listUrl = "https://generativelanguage.googleapis.com/v1/models?key=" + geminiApiKey;
 
-            String response = webClient.get()
+            String response = webClient
+                    .get()
                     .uri(listUrl)
                     .retrieve()
                     .bodyToMono(String.class)
@@ -69,7 +72,8 @@ public class GeminiTaskAnalysisService {
                         JsonNode supportedMethods = modelNode.get("supportedGenerationMethods");
 
                         // Only show models that support generateContent
-                        if (supportedMethods != null && supportedMethods.toString().contains("generateContent")) {
+                        if (supportedMethods != null
+                                && supportedMethods.toString().contains("generateContent")) {
                             // Extract just the model name (remove "models/" prefix)
                             String shortName = modelName.replace("models/", "");
                             log.info("  - {}", shortName);
@@ -88,40 +92,37 @@ public class GeminiTaskAnalysisService {
         try {
             log.info("Testing Gemini API key validity...");
 
-            Map<String, Object> testBody = Map.of(
-                    "contents", List.of(
-                            Map.of("parts", List.of(
-                                    Map.of("text", "Hello")
-                            ))
-                    )
-            );
+            Map<String, Object> testBody =
+                    Map.of("contents", List.of(Map.of("parts", List.of(Map.of("text", "Hello")))));
 
             String testUrl = String.format(
                     "https://generativelanguage.googleapis.com/v1/models/%s:generateContent?key=%s",
-                    model, geminiApiKey
-            );
+                    model, geminiApiKey);
 
             log.info("Testing with URL: {}", testUrl.replace(geminiApiKey, "***"));
 
-            String response = webClient.post()
+            String response = webClient
+                    .post()
                     .uri(testUrl)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(testBody)
                     .retrieve()
-                    .onStatus(status -> status.is4xxClientError(),
-                            clientResponse -> clientResponse.bodyToMono(String.class)
-                                    .flatMap(errorBody -> {
-                                        log.error("API key test 4xx error: {} - Response: {}",
-                                                clientResponse.statusCode(), errorBody);
+                    .onStatus(status -> status.is4xxClientError(), clientResponse -> clientResponse
+                            .bodyToMono(String.class)
+                            .flatMap(errorBody -> {
+                                log.error(
+                                        "API key test 4xx error: {} - Response: {}",
+                                        clientResponse.statusCode(),
+                                        errorBody);
 
-                                        // If model not found, list available models
-                                        if (errorBody.contains("NOT_FOUND")) {
-                                            log.error("Model '{}' not found! Listing available models...", model);
-                                            listAvailableModels();
-                                        }
+                                // If model not found, list available models
+                                if (errorBody.contains("NOT_FOUND")) {
+                                    log.error("Model '{}' not found! Listing available models...", model);
+                                    listAvailableModels();
+                                }
 
-                                        return Mono.error(new RuntimeException("API test failed: " + errorBody));
-                                    }))
+                                return Mono.error(new RuntimeException("API test failed: " + errorBody));
+                            }))
                     .bodyToMono(String.class)
                     .block();
 
@@ -144,13 +145,16 @@ public class GeminiTaskAnalysisService {
 
         try {
             // Validate API key first
-            if (geminiApiKey == null || geminiApiKey.trim().isEmpty() || geminiApiKey.equals("your-gemini-api-key-here")) {
+            if (geminiApiKey == null
+                    || geminiApiKey.trim().isEmpty()
+                    || geminiApiKey.equals("your-gemini-api-key-here")) {
                 log.error("Google Gemini API key is not configured properly");
                 throw new RuntimeException("Gemini API key not configured");
             }
 
             log.info("Using model: {}", model);
-            log.info("Using API key starting with: {}",
+            log.info(
+                    "Using API key starting with: {}",
                     geminiApiKey.substring(0, Math.min(10, geminiApiKey.length())) + "...");
 
             // Test the API key first
@@ -162,46 +166,41 @@ public class GeminiTaskAnalysisService {
             String prompt = createTaskAnalysisPrompt(content, projectType, methodology);
 
             Map<String, Object> requestBody = Map.of(
-                    "contents", List.of(
-                            Map.of("parts", List.of(
-                                    Map.of("text", prompt)
-                            ))
-                    ),
-                    "generationConfig", Map.of(
-                            "temperature", temperature,
-                            "maxOutputTokens", maxTokens,
-                            "topP", 0.8,
-                            "topK", 10
-                    )
-            );
+                    "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))),
+                    "generationConfig",
+                            Map.of("temperature", temperature, "maxOutputTokens", maxTokens, "topP", 0.8, "topK", 10));
 
             // FIX: Use correct API endpoint with /v1/ instead of /v1beta/
             String apiUrl = String.format(
                     "https://generativelanguage.googleapis.com/v1/models/%s:generateContent?key=%s",
-                    model, geminiApiKey
-            );
+                    model, geminiApiKey);
 
             log.info("Calling Gemini API with model: {}", model);
 
-            String response = webClient.post()
+            String response = webClient
+                    .post()
                     .uri(apiUrl)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(requestBody)
                     .retrieve()
-                    .onStatus(status -> status.is4xxClientError(),
-                            clientResponse -> clientResponse.bodyToMono(String.class)
-                                    .flatMap(errorBody -> {
-                                        log.error("Gemini API 4xx error: {} - Response: {}",
-                                                clientResponse.statusCode(), errorBody);
-                                        return Mono.error(new RuntimeException("Gemini API error: " + errorBody));
-                                    }))
-                    .onStatus(status -> status.is5xxServerError(),
-                            serverResponse -> serverResponse.bodyToMono(String.class)
-                                    .flatMap(errorBody -> {
-                                        log.error("Gemini API 5xx error: {} - Response: {}",
-                                                serverResponse.statusCode(), errorBody);
-                                        return Mono.error(new RuntimeException("Gemini API server error: " + errorBody));
-                                    }))
+                    .onStatus(status -> status.is4xxClientError(), clientResponse -> clientResponse
+                            .bodyToMono(String.class)
+                            .flatMap(errorBody -> {
+                                log.error(
+                                        "Gemini API 4xx error: {} - Response: {}",
+                                        clientResponse.statusCode(),
+                                        errorBody);
+                                return Mono.error(new RuntimeException("Gemini API error: " + errorBody));
+                            }))
+                    .onStatus(status -> status.is5xxServerError(), serverResponse -> serverResponse
+                            .bodyToMono(String.class)
+                            .flatMap(errorBody -> {
+                                log.error(
+                                        "Gemini API 5xx error: {} - Response: {}",
+                                        serverResponse.statusCode(),
+                                        errorBody);
+                                return Mono.error(new RuntimeException("Gemini API server error: " + errorBody));
+                            }))
                     .bodyToMono(String.class)
                     .block();
 
@@ -251,54 +250,143 @@ public class GeminiTaskAnalysisService {
     }
 
     private String createTaskAnalysisPrompt(String content, String projectType, String methodology) {
-        return String.format("""
-            You are a senior project manager. Analyze the requirements and generate 6-8 actionable tasks in valid JSON format.
+        return String.format(
+                """
+			You are a senior project manager with deep technical expertise. Analyze the requirements and generate 6-8 actionable tasks in valid JSON format.
 
-            Requirements:
-            %s
+			Requirements:
+			%s
 
-            Project Type: %s | Methodology: %s
+			Project Type: %s | Methodology: %s
 
-            Return ONLY valid JSON with this exact structure:
+			Return ONLY valid JSON with this exact structure:
 
-            {
-              "tasks": [
-                {
-                  "title": "Short Task Title",
-                  "description": "Brief description (max 120 chars)",
-                  "priority": "LOW|MEDIUM|HIGH|URGENT",
-                  "type": "DEVELOPMENT|FRONTEND_DEVELOPMENT|BACKEND_DEVELOPMENT|DATABASE_DEVELOPMENT|MOBILE_DEVELOPMENT|TESTING|UNIT_TESTING|INTEGRATION_TESTING|RESEARCH|DOCUMENTATION|DESIGN|CODE_REVIEW|BUG_FIX|DEPLOYMENT|MAINTENANCE|PLANNING|ARCHITECTURE|SECURITY",
-                  "estimatedHours": 8,
-                  "tags": ["tag1", "tag2"],
-                  "dependencies": [],
-                  "assigneeRole": "FRONTEND_DEVELOPER|BACKEND_DEVELOPER|UI_UX_DESIGNER|QA_ENGINEER|DEVOPS_ENGINEER|PROJECT_MANAGER",
-                  "confidenceScore": 0.85,
-                  "requiredSkills": [
-                    {
-                      "skillType": "PROGRAMMING_LANGUAGE|FRAMEWORK|DATABASE|TOOL|DESIGN",
-                      "requiredLevel": "BEGINNER|INTERMEDIATE|ADVANCED|EXPERT|MASTER",
-                      "skillName": "JavaScript",
-                      "mandatory": true
-                    }
-                  ]
-                }
-              ]
-            }
+			{
+			"tasks": [
+				{
+				"title": "Short Task Title",
+				"description": "Brief description (max 120 chars)",
+				"priority": "LOW|MEDIUM|HIGH|URGENT",
+				"type": "DEVELOPMENT|FRONTEND_DEVELOPMENT|BACKEND_DEVELOPMENT|DATABASE_DEVELOPMENT|MOBILE_DEVELOPMENT|TESTING|UNIT_TESTING|INTEGRATION_TESTING|RESEARCH|DOCUMENTATION|DESIGN|CODE_REVIEW|BUG_FIX|DEPLOYMENT|MAINTENANCE|PLANNING|ARCHITECTURE|SECURITY",
+				"estimatedHours": 8,
+				"tags": ["tag1", "tag2"],
+				"dependencies": [],
+				"assigneeRole": "FRONTEND_DEVELOPER|BACKEND_DEVELOPER|UI_UX_DESIGNER|QA_ENGINEER|DEVOPS_ENGINEER|PROJECT_MANAGER",
+				"confidenceScore": 0.85,
+				"requiredSkills": [
+					{
+					"skillType": "PROGRAMMING_LANGUAGE|FRAMEWORK|DATABASE|CLOUD_PLATFORM|DEVELOPMENT_TOOL|TESTING_TOOL|ARCHITECTURE|SECURITY|MOBILE_DEVELOPMENT|DATA_ANALYSIS|FRONTEND_TECHNOLOGY|BACKEND_TECHNOLOGY|DEVOPS_TOOL|API_TECHNOLOGY|PERFORMANCE_OPTIMIZATION",
+					"requiredLevel": "BEGINNER|INTERMEDIATE|ADVANCED|EXPERT|MASTER",
+					"skillName": "JavaScript",
+					"mandatory": true
+					}
+				]
+				}
+			]
+			}
 
-            Guidelines:
-            - Create 6-8 tasks maximum to fit response limits
-            - Keep descriptions under 120 characters
-            - Focus on essential development phases
-            - Use realistic time estimates (4-40 hours)
-            - Use only these priorities: LOW, MEDIUM, HIGH, URGENT (NOT CRITICAL)
-            - Use specific task types like FRONTEND_DEVELOPMENT, BACKEND_DEVELOPMENT, DATABASE_DEVELOPMENT, TESTING, etc.
-            - Assign appropriate priorities and roles
-            - Include 1-4 relevant skills per task based on the task requirements
-            - Use specific skill names (e.g., "React", "Java", "MySQL", "Docker", "Figma")
-            - Set mandatory=true for essential skills, false for nice-to-have
-            - Match skill levels to task complexity
-            - Return ONLY the JSON object, no markdown or explanations
-            """, content, projectType != null ? projectType : "Software Development", methodology != null ? methodology : "AGILE");
+			CRITICAL SKILL NAMING CONVENTIONS (use these EXACT names for better matching):
+			
+			Programming Languages:
+			- Use: "JavaScript" (NOT "JS" or "ECMAScript")
+			- Use: "TypeScript" (NOT "TS")
+			- Use: "Python" (NOT "Py")
+			- Use: "Java" (NOT "J2EE" or "JDK")
+			- Use: "Kotlin", "Swift", "Go", "Ruby", "PHP", "C#"
+			
+			Frontend Frameworks (interchangeable - system knows React ↔ Vue ↔ Angular):
+			- Use: "React", "Vue.js", "Angular", "Next.js"
+			- For styling: "HTML/CSS", "Tailwind CSS", "Bootstrap"
+			- For state: "Redux", "State Management"
+			
+			Backend Frameworks:
+			- Java: "Spring Boot" (NOT "Spring" alone)
+			- Node.js: "Express.js", "NestJS"
+			- Python: "Django", "Flask", "FastAPI"
+			- For APIs: "RESTful API" or "REST API" (system knows these are same)
+			
+			Databases (system knows SQL databases are interchangeable):
+			- SQL: "PostgreSQL", "MySQL", "SQL" (NOT "Postgres" or "PSQL")
+			- NoSQL: "MongoDB", "Redis", "Cassandra"
+			- Use "Database Management" for general DB skills
+			
+			Mobile Development (system knows relationships):
+			- "React Native" (cross-platform)
+			- "Flutter" (cross-platform)
+			- "Android" + "Kotlin"
+			- "iOS" + "Swift"
+			- Use "Mobile Development" for general mobile skills
+			
+			Testing Tools (system knows testing relationships):
+			- Java: "JUnit", "Mockito"
+			- JavaScript: "Jest", "Mocha"
+			- E2E: "Selenium", "Cypress"
+			- API: "Postman", "Swagger"
+			- Performance: "JMeter", "Gatling"
+			- Use "Load Testing" or "Integration Testing" for test types
+			
+			DevOps & Cloud (system knows Docker ↔ Kubernetes relationship):
+			- Containers: "Docker", "Kubernetes"
+			- Cloud: "AWS", "Google Cloud Platform", "Azure"
+			- CI/CD: "Jenkins", "GitLab CI", "GitHub Actions", "CI/CD"
+			- Monitoring: "Prometheus/Grafana"
+			
+			Security (use specific names):
+			- "JWT", "OAuth", "Spring Security"
+			- "PCI DSS", "SSL/TLS"
+			- Use "Security" for general security skills
+			
+			Architecture & Design:
+			- "Microservices", "System Architecture"
+			- "RESTful API Design" (system knows Spring Boot/Node.js devs can do this)
+			- "Algorithm Design", "Database Design"
+			
+			Performance:
+			- "Query Optimization", "Caching", "Performance Optimization"
+			- "API Performance Tuning" (system knows this relates to Spring Boot/Node.js)
+			
+			Version Control:
+			- "Git" (NOT "GitHub" or "GitLab" for the skill itself)
+			
+			Data & Analytics:
+			- "ETL", "Data Visualization", "Analytics"
+			- ML: "Machine Learning", "TensorFlow", "PyTorch", "NLP"
+			
+			Messaging & Integration:
+			- "Apache Kafka", "MQTT", "WebSocket"
+			- "Payment Gateway Integration", "Stripe API"
+			- Use "API Integration" for general API work
+			
+			SKILL SELECTION RULES:
+			1. Use EXACT skill names from the list above (case-sensitive)
+			2. For frontend tasks: Include language (JavaScript/TypeScript) + framework (React/Vue/Angular)
+			3. For backend tasks: Include language (Java/Node.js/Python) + framework (Spring Boot/Express/Django)
+			4. For database tasks: Include specific DB (PostgreSQL/MySQL/MongoDB)
+			5. For mobile tasks: Include platform (React Native/Flutter/Android/iOS)
+			6. For API tasks: Include "RESTful API" or "RESTful API Design"
+			7. For testing tasks: Include test framework (JUnit/Jest/Selenium)
+			8. Set mandatory=true for core skills, false for bonus skills
+			9. Match requiredLevel to task difficulty: BEGINNER (LOW), INTERMEDIATE (MEDIUM), ADVANCED (HIGH), EXPERT (URGENT)
+			10. Include 2-4 skills per task (don't overload)
+			
+			SMART MATCHING EXAMPLES (system handles these automatically):
+			- If task needs "Vue.js", developers with "React" or "Angular" CAN match (semantic relationship)
+			- If task needs "PostgreSQL", developers with "MySQL" CAN match (SQL databases are interchangeable)
+			- If task needs "Spring Boot", developers with "Java" CAN match (Java → Spring Boot relationship)
+			- If task needs "Jest", developers with "JavaScript" or "TypeScript" CAN match
+			- If task needs "Docker", developers with "Kubernetes" CAN match (container orchestration)
+			
+			Guidelines:
+			- Create 6-8 tasks maximum to fit response limits
+			- Keep descriptions under 120 characters
+			- Use realistic time estimates (4-40 hours)
+			- Use only these priorities: LOW, MEDIUM, HIGH, URGENT (NOT CRITICAL)
+			- Assign appropriate roles matching task type
+			- Return ONLY the JSON object, no markdown or explanations
+			""",
+                content,
+                projectType != null ? projectType : "Software Development",
+                methodology != null ? methodology : "AGILE");
     }
 
     private List<TaskRecommendation> parseTaskRecommendations(String jsonResponse) {
@@ -523,11 +611,12 @@ public class GeminiTaskAnalysisService {
         }
 
         // Map old task type values to new ones
-        String mappedType = switch (typeStr.toUpperCase()) {
-            case "TASK", "FEATURE", "STORY", "EPIC" -> "DEVELOPMENT";
-            case "BUG" -> "BUG_FIX";
-            default -> typeStr.toUpperCase();
-        };
+        String mappedType =
+                switch (typeStr.toUpperCase()) {
+                    case "TASK", "FEATURE", "STORY", "EPIC" -> "DEVELOPMENT";
+                    case "BUG" -> "BUG_FIX";
+                    default -> typeStr.toUpperCase();
+                };
 
         try {
             return TaskType.valueOf(mappedType);
@@ -564,12 +653,11 @@ public class GeminiTaskAnalysisService {
                                         .mandatory(true)
                                         .build(),
                                 RequiredSkill.builder()
-                                        .skillType(SkillType.TOOL)
+                                        .skillType(SkillType.BUILD_TOOL)
                                         .requiredLevel(ProficiencyLevel.BEGINNER)
                                         .skillName("Maven")
                                         .mandatory(false)
-                                        .build()
-                        ))
+                                        .build()))
                         .build(),
                 TaskRecommendation.builder()
                         .title("Requirements Analysis and Documentation")
@@ -582,18 +670,17 @@ public class GeminiTaskAnalysisService {
                         .confidenceScore(0.85)
                         .requiredSkills(Arrays.asList(
                                 RequiredSkill.builder()
-                                        .skillType(SkillType.TOOL)
+                                        .skillType(SkillType.DEVELOPMENT_TOOL)
                                         .requiredLevel(ProficiencyLevel.INTERMEDIATE)
                                         .skillName("Documentation Tools")
                                         .mandatory(true)
                                         .build(),
                                 RequiredSkill.builder()
-                                        .skillType(SkillType.DESIGN)
+                                        .skillType(SkillType.SOFT_SKILL)
                                         .requiredLevel(ProficiencyLevel.BEGINNER)
                                         .skillName("Requirements Analysis")
                                         .mandatory(true)
-                                        .build()
-                        ))
+                                        .build()))
                         .build(),
                 TaskRecommendation.builder()
                         .title("Database Schema Design")
@@ -619,13 +706,11 @@ public class GeminiTaskAnalysisService {
                                         .mandatory(true)
                                         .build(),
                                 RequiredSkill.builder()
-                                        .skillType(SkillType.DESIGN)
+                                        .skillType(SkillType.ARCHITECTURE)
                                         .requiredLevel(ProficiencyLevel.INTERMEDIATE)
                                         .skillName("Database Design")
                                         .mandatory(true)
-                                        .build()
-                        ))
-                        .build()
-        );
+                                        .build()))
+                        .build());
     }
 }

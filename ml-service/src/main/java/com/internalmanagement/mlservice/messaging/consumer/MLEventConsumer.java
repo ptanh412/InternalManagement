@@ -1,7 +1,6 @@
 package com.internalmanagement.mlservice.messaging.consumer;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.internalmanagement.mlservice.entity.MLTrainingEvent;
 import com.internalmanagement.mlservice.messaging.events.TaskCompletionEvent;
 import com.internalmanagement.mlservice.messaging.events.TaskAssignmentEvent;
 import com.internalmanagement.mlservice.messaging.events.UserProfileUpdateEvent;
@@ -33,7 +32,7 @@ public class MLEventConsumer {
     public void handleTaskCompletionEvent(
             @Payload String eventJson,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
-            @Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition,
+            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
         
@@ -69,7 +68,7 @@ public class MLEventConsumer {
     public void handleTaskAssignmentEvent(
             @Payload String eventJson,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
-            @Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition,
+            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
         
@@ -78,9 +77,7 @@ public class MLEventConsumer {
         
         try {
             TaskAssignmentEvent event = objectMapper.readValue(eventJson, TaskAssignmentEvent.class);
-            
-            log.info("Processing task assignment event for task: {} and user: {}", 
-                    event.getTaskId(), event.getUserId());
+
             
             // Process the event for ML training
             mlDataCollectionService.processTaskAssignmentEvent(event);
@@ -103,7 +100,7 @@ public class MLEventConsumer {
     public void handleUserProfileUpdateEvent(
             @Payload String eventJson,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
-            @Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition,
+            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
         
@@ -137,7 +134,7 @@ public class MLEventConsumer {
     public void handleMLEvent(
             @Payload String eventJson,
             @Header(KafkaHeaders.RECEIVED_TOPIC) String topic,
-            @Header(KafkaHeaders.RECEIVED_PARTITION_ID) int partition,
+            @Header(KafkaHeaders.RECEIVED_PARTITION) int partition,
             @Header(KafkaHeaders.OFFSET) long offset,
             Acknowledgment acknowledgment) {
         

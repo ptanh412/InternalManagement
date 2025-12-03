@@ -1,13 +1,14 @@
 package com.mnp.ai.repository;
 
-import com.mnp.ai.entity.CVAnalysisHistory;
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Optional;
+
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Optional;
+import com.mnp.ai.entity.CVAnalysisHistory;
 
 @Repository
 public interface CVAnalysisHistoryRepository extends MongoRepository<CVAnalysisHistory, String> {
@@ -45,7 +46,6 @@ public interface CVAnalysisHistoryRepository extends MongoRepository<CVAnalysisH
     List<CVAnalysisHistory> findByConfidenceScoreGreaterThanEqual(Double minConfidence);
 
     // Custom aggregation for average confidence (will be used in service)
-    @Query(value = "{ 'status': { $in: ['ANALYZED', 'USER_CREATED'] } }",
-            fields = "{ 'confidenceScore': 1 }")
+    @Query(value = "{ 'status': { $in: ['ANALYZED', 'USER_CREATED'] } }", fields = "{ 'confidenceScore': 1 }")
     List<CVAnalysisHistory> findAllWithConfidenceScore();
 }

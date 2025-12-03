@@ -19,6 +19,24 @@ public interface ModelTrainingHistoryRepository extends JpaRepository<ModelTrain
     /**
      * Find latest training record
      */
+    Optional<ModelTrainingHistory> findTopByOrderByStartedAtDesc();
+
+    /**
+     * Find training by training ID
+     */
+    Optional<ModelTrainingHistory> findByTrainingId(String trainingId);
+
+    /**
+     * Find latest completed training
+     */
+    Optional<ModelTrainingHistory> findTopByStatusOrderByCompletedAtDesc(String status);
+
+    /**
+     * Find training history after a certain date
+     */
+    org.springframework.data.domain.Page<ModelTrainingHistory> findByStartedAtAfter(
+            LocalDateTime startedAt,
+            org.springframework.data.domain.Pageable pageable);
     @Query("SELECT mth FROM ModelTrainingHistory mth ORDER BY mth.trainingDate DESC")
     Optional<ModelTrainingHistory> findLatestTraining();
 

@@ -20,11 +20,15 @@ import logging
 from datetime import datetime
 
 # Add src to path
-sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+current_dir = os.path.dirname(os.path.abspath(__file__))
+src_path = os.path.join(current_dir, 'src')
+if src_path not in sys.path:
+    sys.path.insert(0, src_path)
 
-from data.data_collector import SyntheticDataGenerator, MultiDatabaseDataCollector
-from models.hybrid_recommender import HybridRecommenderTrainer
-from models.continuous_learning import ContinuousModelTrainer
+# Import from src modules
+from src.data.data_collector import SyntheticDataGenerator, MultiDatabaseDataCollector
+from src.models.hybrid_recommender import HybridRecommenderTrainer
+from src.models.continuous_learning import ContinuousModelTrainer
 
 def setup_logging(level=logging.INFO):
     """Setup logging configuration"""
@@ -37,10 +41,11 @@ def setup_logging(level=logging.INFO):
         ]
     )
 
-def train_with_synthetic_data():
+def train_with_synthetic_data(config_path='config/model_config.yaml'):
     """Train models using synthetic data"""
     logging.info("Starting training with synthetic data...")
-    
+    logging.info(f"Using configuration: {config_path}")
+
     # Generate synthetic data
     generator = SyntheticDataGenerator()
     training_data = generator.generate_comprehensive_dataset()
@@ -48,7 +53,7 @@ def train_with_synthetic_data():
     logging.info(f"Generated {len(training_data)} synthetic training records")
     
     # Train models
-    trainer = HybridRecommenderTrainer()
+    trainer = HybridRecommenderTrainer(config_path)
     results = trainer.train_hybrid_model(training_data)
     
     # Print results
@@ -85,13 +90,29 @@ def train_with_synthetic_data():
     logging.info("Synthetic data training completed successfully")
     return results
 
-def train_with_real_data():
+def train_with_real_data(config_path='config/model_config.yaml'):
     """Train models using real data from databases"""
     logging.info("Starting training with real data...")
-    
+    logging.info(f"Using configuration: {config_path}")
+
     try:
         # Collect real data
-        collector = MultiDatabaseDataCollector()
+        collector = MultiDatabaseDataCollector(config_path)
+
+        # Test database connections first
+        connection_status = collector.test_connections()
+        print("\nDatabase Connection Status:")
+        print(f"PostgreSQL: {'✓' if connection_status['postgres'] else '✗'}")
+        print(f"Neo4j: {'✓' if connection_status['neo4j'] else '✗'}")
+        print(f"MongoDB: {'✓' if connection_status['mongodb'] else '✗'}")
+        for db_name, status in connection_status['mysql'].items():
+            print(f"MySQL ({db_name}): {'✓' if status else '✗'}")
+        print()
+
+        # Show available tables for debugging
+        collector.show_available_tables()
+        print()
+
         training_data = collector.collect_comprehensive_training_data()
         
         if len(training_data) < 100:
@@ -101,7 +122,7 @@ def train_with_real_data():
         logging.info(f"Collected {len(training_data)} real training records")
         
         # Train models
-        trainer = HybridRecommenderTrainer()
+        trainer = HybridRecommenderTrainer(config_path)
         results = trainer.train_hybrid_model(training_data)
         
         # Print results (similar to synthetic data results)
@@ -123,16 +144,19 @@ def train_with_real_data():
         return results
         
     except Exception as e:
+        import traceback
         logging.error(f"Real data training failed: {e}")
+        logging.error(f"Full traceback:\n{traceback.format_exc()}")
         logging.info("Falling back to synthetic data training")
-        return train_with_synthetic_data()
+        return train_with_synthetic_data(config_path)
 
-def run_continuous_training():
+def run_continuous_training(config_path='config/model_config.yaml'):
     """Run continuous learning pipeline"""
     logging.info("Starting continuous training pipeline...")
-    
+    logging.info(f"Using configuration: {config_path}")
+
     try:
-        trainer = ContinuousModelTrainer()
+        trainer = ContinuousModelTrainer(config_path)
         trainer.run_continuous_training_pipeline()
         
         print("\n" + "="*60)
@@ -147,13 +171,14 @@ def run_continuous_training():
         logging.error(f"Continuous training failed: {e}")
         raise
 
-def start_continuous_scheduler():
-    """Start the continuous training scheduler"""
+def start_continuous_scheduler(config_path='config/model_config.yaml'):
+    """Start continuous training scheduler"""
     logging.info("Starting continuous training scheduler...")
-    
+    logging.info(f"Using configuration: {config_path}")
+
     try:
-        trainer = ContinuousModelTrainer()
-        
+        trainer = ContinuousModelTrainer(config_path)
+        trainer.start_scheduler()
         print("\n" + "="*60)
         print("CONTINUOUS TRAINING SCHEDULER STARTED")
         print("="*60)
@@ -242,13 +267,13 @@ def main():
     try:
         # Execute based on mode
         if args.synthetic:
-            results = train_with_synthetic_data()
+            results = train_with_synthetic_data(args.config)
         elif args.real:
-            results = train_with_real_data()
+            results = train_with_real_data(args.config)
         elif args.continuous:
-            run_continuous_training()
+            run_continuous_training(args.config)
         elif args.scheduler:
-            start_continuous_scheduler()
+            start_continuous_scheduler(args.config)
         elif args.validate:
             validate_models()
         

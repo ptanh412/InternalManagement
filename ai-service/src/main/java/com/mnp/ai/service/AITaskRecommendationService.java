@@ -1,14 +1,16 @@
 package com.mnp.ai.service;
 
-import com.mnp.ai.dto.request.TaskAnalysisRequest;
-import com.mnp.ai.dto.response.TaskAnalysisResponse;
-import com.mnp.ai.dto.response.TaskRecommendation;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.List;
+
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import com.mnp.ai.dto.request.TaskAnalysisRequest;
+import com.mnp.ai.dto.response.TaskAnalysisResponse;
+import com.mnp.ai.dto.response.TaskRecommendation;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
@@ -19,15 +21,14 @@ public class AITaskRecommendationService {
     private final FileProcessingService fileProcessingService;
 
     public TaskAnalysisResponse analyzeTextContent(TaskAnalysisRequest request) {
-        log.info("Starting Gemini AI analysis for text content, length: {} characters", request.getContent().length());
+        log.info(
+                "Starting Gemini AI analysis for text content, length: {} characters",
+                request.getContent().length());
 
         long startTime = System.currentTimeMillis();
 
         List<TaskRecommendation> tasks = geminiService.analyzeAndGenerateTasks(
-                request.getContent(),
-                request.getProjectType(),
-                request.getMethodology()
-        );
+                request.getContent(), request.getProjectType(), request.getMethodology());
 
         long processingTime = System.currentTimeMillis() - startTime;
 
@@ -44,7 +45,8 @@ public class AITaskRecommendationService {
     }
 
     public TaskAnalysisResponse analyzeFileContent(MultipartFile file, String projectType, String methodology) {
-        log.info("Starting Gemini AI analysis for file: {}, size: {} bytes", file.getOriginalFilename(), file.getSize());
+        log.info(
+                "Starting Gemini AI analysis for file: {}, size: {} bytes", file.getOriginalFilename(), file.getSize());
 
         try {
             long startTime = System.currentTimeMillis();
@@ -56,11 +58,8 @@ public class AITaskRecommendationService {
                 throw new RuntimeException("Could not extract readable content from file");
             }
 
-            List<TaskRecommendation> tasks = geminiService.analyzeAndGenerateTasks(
-                    extractedContent,
-                    projectType,
-                    methodology
-            );
+            List<TaskRecommendation> tasks =
+                    geminiService.analyzeAndGenerateTasks(extractedContent, projectType, methodology);
 
             long processingTime = System.currentTimeMillis() - startTime;
 
@@ -91,12 +90,7 @@ public class AITaskRecommendationService {
 
     private List<String> generateMilestones(List<TaskRecommendation> tasks) {
         // Generate milestones based on task types and priorities
-        return List.of(
-                "Project Setup & Planning",
-                "Development Phase 1",
-                "Testing & QA",
-                "Deployment & Launch"
-        );
+        return List.of("Project Setup & Planning", "Development Phase 1", "Testing & QA", "Deployment & Launch");
     }
 
     private Integer calculateTotalHours(List<TaskRecommendation> tasks) {

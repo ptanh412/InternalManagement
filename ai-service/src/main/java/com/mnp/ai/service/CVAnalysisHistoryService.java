@@ -1,5 +1,13 @@
 package com.mnp.ai.service;
 
+import java.time.LocalDateTime;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mnp.ai.dto.request.UserCreatedRequest;
 import com.mnp.ai.dto.response.CVAnalysisHistoryResponse;
@@ -10,17 +18,11 @@ import com.mnp.ai.entity.CVAnalysisHistory;
 import com.mnp.ai.exception.AppException;
 import com.mnp.ai.exception.ErrorCode;
 import com.mnp.ai.repository.CVAnalysisHistoryRepository;
+
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -35,11 +37,7 @@ public class CVAnalysisHistoryService {
      * Save CV analysis history after AI analysis
      */
     public CVAnalysisHistory saveAnalysisHistory(
-            String fileName,
-            Long fileSize,
-            String fileType,
-            CVAnalysisResult analysisResult,
-            String uploadedBy) {
+            String fileName, Long fileSize, String fileType, CVAnalysisResult analysisResult, String uploadedBy) {
 
         try {
             CVAnalysisHistory history = CVAnalysisHistory.builder()
@@ -70,11 +68,7 @@ public class CVAnalysisHistoryService {
      * Save failed analysis to history
      */
     public CVAnalysisHistory saveFailedAnalysis(
-            String fileName,
-            Long fileSize,
-            String fileType,
-            String errorMessage,
-            String uploadedBy) {
+            String fileName, Long fileSize, String fileType, String errorMessage, String uploadedBy) {
 
         try {
             CVAnalysisHistory history = CVAnalysisHistory.builder()
@@ -105,9 +99,8 @@ public class CVAnalysisHistoryService {
      * Update history after user creation
      */
     public void updateHistoryWithCreatedUser(String historyId, UserCreatedRequest request) {
-        CVAnalysisHistory history = historyRepository.findById(historyId)
-                .orElseThrow(() -> new AppException(ErrorCode.HISTORY_NOT_FOUND));
-
+        CVAnalysisHistory history =
+                historyRepository.findById(historyId).orElseThrow(() -> new AppException(ErrorCode.HISTORY_NOT_FOUND));
 
         history.setCreatedUserId(request.getUserId());
         history.setCreatedUsername(request.getUsername());
@@ -125,8 +118,8 @@ public class CVAnalysisHistoryService {
      * Mark history as failed
      */
     public void markAsFailed(String historyId, String errorMessage) {
-        CVAnalysisHistory history = historyRepository.findById(historyId)
-                .orElseThrow(() -> new AppException(ErrorCode.HISTORY_NOT_FOUND));
+        CVAnalysisHistory history =
+                historyRepository.findById(historyId).orElseThrow(() -> new AppException(ErrorCode.HISTORY_NOT_FOUND));
 
         history.setStatus(CVAnalysisHistory.AnalysisStatus.FAILED);
         history.setErrorMessage(errorMessage);
@@ -143,9 +136,7 @@ public class CVAnalysisHistoryService {
         List<CVAnalysisHistory> histories = historyRepository.findAllByOrderByCreatedAtDesc();
         log.info("Retrieved {} CV analysis histories from MongoDB", histories.size());
 
-        return histories.stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        return histories.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     /**
@@ -155,9 +146,7 @@ public class CVAnalysisHistoryService {
         List<CVAnalysisHistory> histories = historyRepository.findByCreatedByOrderByCreatedAtDesc(userId);
         log.info("Retrieved {} histories for user {} from MongoDB", histories.size(), userId);
 
-        return histories.stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        return histories.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     /**
@@ -166,9 +155,7 @@ public class CVAnalysisHistoryService {
     public List<CVAnalysisHistoryResponse> getHistoryByStatus(CVAnalysisHistory.AnalysisStatus status) {
         List<CVAnalysisHistory> histories = historyRepository.findByStatusOrderByCreatedAtDesc(status);
 
-        return histories.stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        return histories.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     /**
@@ -178,9 +165,7 @@ public class CVAnalysisHistoryService {
         LocalDateTime fromDate = LocalDateTime.now().minusDays(days);
         List<CVAnalysisHistory> histories = historyRepository.findByCreatedAtAfterOrderByCreatedAtDesc(fromDate);
 
-        return histories.stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        return histories.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     /**
@@ -200,8 +185,7 @@ public class CVAnalysisHistoryService {
         // Get status distribution
         Map<String, Long> analysisByStatus = getAnalysisCountByStatus();
 
-        log.info("Generated statistics from MongoDB: {} total, {} users created",
-                totalAnalyzed, totalUsersCreated);
+        log.info("Generated statistics from MongoDB: {} total, {} users created", totalAnalyzed, totalUsersCreated);
 
         return CVAnalysisStatsResponse.builder()
                 .totalAnalyzed(totalAnalyzed)
@@ -226,15 +210,15 @@ public class CVAnalysisHistoryService {
 
         double sum = historiesWithConfidence.stream()
                 .filter(h -> h.getConfidenceScore() != null)
-                .filter(h -> h.getStatus() == CVAnalysisHistory.AnalysisStatus.ANALYZED ||
-                        h.getStatus() == CVAnalysisHistory.AnalysisStatus.USER_CREATED)
+                .filter(h -> h.getStatus() == CVAnalysisHistory.AnalysisStatus.ANALYZED
+                        || h.getStatus() == CVAnalysisHistory.AnalysisStatus.USER_CREATED)
                 .mapToDouble(CVAnalysisHistory::getConfidenceScore)
                 .sum();
 
         long count = historiesWithConfidence.stream()
                 .filter(h -> h.getConfidenceScore() != null)
-                .filter(h -> h.getStatus() == CVAnalysisHistory.AnalysisStatus.ANALYZED ||
-                        h.getStatus() == CVAnalysisHistory.AnalysisStatus.USER_CREATED)
+                .filter(h -> h.getStatus() == CVAnalysisHistory.AnalysisStatus.ANALYZED
+                        || h.getStatus() == CVAnalysisHistory.AnalysisStatus.USER_CREATED)
                 .count();
 
         return count > 0 ? sum / count : 0.0;
@@ -258,8 +242,8 @@ public class CVAnalysisHistoryService {
      * Get analysis history detail
      */
     public CVAnalysisHistoryResponse getHistoryDetail(String historyId) {
-        CVAnalysisHistory history = historyRepository.findById(historyId)
-                .orElseThrow(() -> new AppException(ErrorCode.HISTORY_NOT_FOUND));
+        CVAnalysisHistory history =
+                historyRepository.findById(historyId).orElseThrow(() -> new AppException(ErrorCode.HISTORY_NOT_FOUND));
 
         log.info("Retrieved history detail from MongoDB for ID: {}", historyId);
 
@@ -284,9 +268,7 @@ public class CVAnalysisHistoryService {
     public List<CVAnalysisHistoryResponse> searchByFileName(String fileName) {
         List<CVAnalysisHistory> histories = historyRepository.findByFileNameContainingIgnoreCase(fileName);
 
-        return histories.stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        return histories.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     /**
@@ -295,49 +277,47 @@ public class CVAnalysisHistoryService {
     public List<CVAnalysisHistoryResponse> getHighConfidenceAnalyses() {
         List<CVAnalysisHistory> histories = historyRepository.findByConfidenceScoreGreaterThanEqual(0.8);
 
-        return histories.stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
+        return histories.stream().map(this::toResponse).collect(Collectors.toList());
     }
 
     /**
      * Convert entity to response DTO
      */
     private CVAnalysisHistoryResponse toResponse(CVAnalysisHistory history) {
-        CVAnalysisHistoryResponse.CVAnalysisHistoryResponseBuilder builder =
-                CVAnalysisHistoryResponse.builder()
-                        .id(history.getId())
-                        .fileName(history.getFileName())
-                        .fileSize(history.getFileSize())
-                        .fileType(history.getFileType())
-                        .cvFileUrl(history.getCvFileUrl())
-                        .status(history.getStatus().name())
-                        .confidenceScore(history.getConfidenceScore())
-                        .processingTimeMs(history.getProcessingTimeMs())
-                        .createdBy(history.getCreatedBy())
-                        .analyzedAt(history.getCreatedAt())
-                        .errorMessage(history.getErrorMessage())
-                        .notes(history.getNotes())
-                        .createdUserId(history.getCreatedUserId())
-                        .createdUsername(history.getCreatedUsername())
-                        .createdUserEmail(history.getCreatedUserEmail());
+        CVAnalysisHistoryResponse.CVAnalysisHistoryResponseBuilder builder = CVAnalysisHistoryResponse.builder()
+                .id(history.getId())
+                .fileName(history.getFileName())
+                .fileSize(history.getFileSize())
+                .fileType(history.getFileType())
+                .cvFileUrl(history.getCvFileUrl())
+                .status(history.getStatus().name())
+                .confidenceScore(history.getConfidenceScore())
+                .processingTimeMs(history.getProcessingTimeMs())
+                .createdBy(history.getCreatedBy())
+                .analyzedAt(history.getCreatedAt())
+                .errorMessage(history.getErrorMessage())
+                .notes(history.getNotes())
+                .createdUserId(history.getCreatedUserId())
+                .createdUsername(history.getCreatedUsername())
+                .createdUserEmail(history.getCreatedUserEmail());
         try {
-            if (history.getAnalysisResultJson() != null && !history.getAnalysisResultJson().isEmpty()) {
-                ParsedUserProfile profile = objectMapper.readValue(
-                        history.getAnalysisResultJson(),
-                        ParsedUserProfile.class
-                );
+            if (history.getAnalysisResultJson() != null
+                    && !history.getAnalysisResultJson().isEmpty()) {
+                ParsedUserProfile profile =
+                        objectMapper.readValue(history.getAnalysisResultJson(), ParsedUserProfile.class);
 
                 builder.extractedName(profile.getName())
                         .extractedEmail(profile.getEmail())
                         .extractedPhone(profile.getPhone())
                         .extractedDepartment(profile.getDepartment())
                         .extractedSeniority(profile.getSeniority())
-                        .totalSkills(profile.getSkills() != null ? profile.getSkills().size() : 0);
+                        .totalSkills(
+                                profile.getSkills() != null
+                                        ? profile.getSkills().size()
+                                        : 0);
             }
         } catch (Exception e) {
-            log.warn("Failed to parse analysis result JSON for history {}: {}",
-                    history.getId(), e.getMessage());
+            log.warn("Failed to parse analysis result JSON for history {}: {}", history.getId(), e.getMessage());
         }
 
         return builder.build();

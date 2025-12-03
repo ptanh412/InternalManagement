@@ -22,3 +22,4 @@ app:
   services:
     file: http://localhost:8084
     identity: http://localhost:8080/identity
+    task: http://localhost:8088/task

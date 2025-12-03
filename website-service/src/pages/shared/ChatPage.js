@@ -36,6 +36,7 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import chatSocketService from '../../services/chatSocketService';
 import chatApiService from '../../services/chatApiService';
+import { apiService } from '../../services/apiService';
 
 const ChatPage = ({ role }) => {
   const { user } = useAuth();
@@ -62,6 +63,11 @@ const ChatPage = ({ role }) => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(null);
   const [showReactionDetails, setShowReactionDetails] = useState(null);
   const [reactingToMessage, setReactingToMessage] = useState(new Set());
+  const [uploadingFile, setUploadingFile] = useState(false); // ✅ Track file upload state
+
+  const isUploadingRef = useRef(false); // ✅ Prevent double upload
+  const sendingRef = useRef(false);
+
 
   const eventHandlersSetup = useRef(false);
 
@@ -93,6 +99,14 @@ const ChatPage = ({ role }) => {
     }
   }, [selectedConversation]);
 
+    // ✅ Cleanup khi unmount hoặc conversation change
+  useEffect(() => {
+    return () => {
+      isUploadingRef.current = false;
+      setUploadingFile(false);
+    };
+  }, [selectedConversation?.id]);
+
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
@@ -120,7 +134,7 @@ const ChatPage = ({ role }) => {
       const token = localStorage.getItem('token');
       if (token) {
         chatSocketService.connect(token);
-        setupSocketEventHandlers();
+        // ✅ REMOVED: setupSocketEventHandlers() - already called in useEffect below
       }
     } catch (error) {
       console.error('Error initializing chat:', error);
@@ -137,24 +151,108 @@ const ChatPage = ({ role }) => {
       eventHandlersSetup.current = true;
     }
 
-    // ✅ Cleanup khi unmount
+    // ✅ Cleanup ALL socket listeners khi unmount
     return () => {
-      chatSocketService.off('reaction-update');
+      // Connection events
+      chatSocketService.off('connected');
+      chatSocketService.off('disconnected');
+      chatSocketService.off('connection_error');
+
+      // Message events
+      chatSocketService.off('message');
+      chatSocketService.off('reply-message');
+      chatSocketService.off('message-status-update');
+      chatSocketService.off('message-recalled');
+      chatSocketService.off('message-pinned');
+      chatSocketService.off('message-unpinned');
+      chatSocketService.off('reply-message-error');
+
+      // Pin/Unpin events
       chatSocketService.off('pin-message-success');
       chatSocketService.off('unpin-message-success');
-      chatSocketService.off('message');
+      chatSocketService.off('pin-message-error');
+
+      // Media events
+      chatSocketService.off('media-message-success');
+      chatSocketService.off('media-message-error');
+      chatSocketService.off('media-reply-success');
+      chatSocketService.off('media-reply-error');
+
+      // Group management events
+      chatSocketService.off('create-group-success');
+      chatSocketService.off('create-group-error');
+      chatSocketService.off('add-participants-success');
+      chatSocketService.off('add-participants-error');
+      chatSocketService.off('remove-participants-success');
+      chatSocketService.off('remove-participants-error');
+      chatSocketService.off('leave-group-success');
+      chatSocketService.off('leave-group-error');
+      chatSocketService.off('group-info-edit-success');
+      chatSocketService.off('group-info-edit-error');
+
+      // Reaction events
+      chatSocketService.off('reaction-update');
+      chatSocketService.off('react-message-success');
+      chatSocketService.off('remove-reaction-success');
+      chatSocketService.off('react-message-error');
+      chatSocketService.off('remove-reaction-error');
+
+      // Other events
+      chatSocketService.off('recall-message-success');
+      chatSocketService.off('recall-message-error');
+      chatSocketService.off('forward-message-success');
+      chatSocketService.off('forward-message-error');
+      chatSocketService.off('edit-message-success');
+      chatSocketService.off('edit-message-error');
+
       eventHandlersSetup.current = false;
     };
-  }, []);
+  }, [selectedConversation]);
 
   const setupSocketEventHandlers = () => {
-
-    chatSocketService.off('reaction-update');
+    // ✅ Remove ALL existing listeners first to prevent duplicates
+    chatSocketService.off('connected');
+    chatSocketService.off('disconnected');
+    chatSocketService.off('connection_error');
+    chatSocketService.off('message');
+    chatSocketService.off('reply-message');
+    chatSocketService.off('message-status-update');
+    chatSocketService.off('message-recalled');
+    chatSocketService.off('message-pinned');
+    chatSocketService.off('message-unpinned');
     chatSocketService.off('pin-message-success');
     chatSocketService.off('unpin-message-success');
+    chatSocketService.off('pin-message-error');
+    chatSocketService.off('media-message-success');
+    chatSocketService.off('media-message-error');
+    chatSocketService.off('media-reply-success');
+    chatSocketService.off('media-reply-error');
+    chatSocketService.off('create-group-success');
+    chatSocketService.off('create-group-error');
+    chatSocketService.off('add-participants-success');
+    chatSocketService.off('add-participants-error');
+    chatSocketService.off('remove-participants-success');
+    chatSocketService.off('remove-participants-error');
+    chatSocketService.off('leave-group-success');
+    chatSocketService.off('leave-group-error');
+    chatSocketService.off('group-info-edit-success');
+    chatSocketService.off('group-info-edit-error');
+    chatSocketService.off('reply-message-error');
+    chatSocketService.off('reaction-update');
+    chatSocketService.off('react-message-success');
+    chatSocketService.off('remove-reaction-success');
+    chatSocketService.off('react-message-error');
+    chatSocketService.off('remove-reaction-error');
+    chatSocketService.off('recall-message-success');
+    chatSocketService.off('recall-message-error');
+    chatSocketService.off('forward-message-success');
+    chatSocketService.off('forward-message-error');
+    chatSocketService.off('edit-message-success');
+    chatSocketService.off('edit-message-error');
+
     // Connection events
     chatSocketService.on('connected', (data) => {
-      console.log('Chat connected:', data);
+      // console.log('Chat connected:', data);
       setConnecting(false);
     });
 
@@ -169,14 +267,125 @@ const ChatPage = ({ role }) => {
     });
 
     // Core message events (matching web-app patterns)
-    chatSocketService.on('message', (messageData) => {
-      console.log('Message received via Socket.IO:', messageData);
-      handleIncomingMessage(messageData);
+    chatSocketService.on("message", (messageData) => {
+      console.log("✅ Received message:", messageData);
+      console.log("📍 Current selectedConversation:", selectedConversation?.id);
+      console.log("📍 Message conversationId:", messageData.conversationId);
+      
+      updateConversationLastMessage(messageData);
+      
+      setMessages(prev => {
+        console.log("🔍 setMessages callback executed! Current messages:", prev.length);
+        const exists = prev.some(msg => msg.id === messageData.id);
+        console.log("🔍 Message exists?", exists);
+        
+        if (exists) {
+          console.log('🔄 Updating existing message:', messageData);
+          return prev.map(msg => {
+            if (msg.id === messageData.id) {
+              return { ...msg, ...messageData };
+            }
+            return msg;
+          });
+        } else {
+          console.log('➕ Adding new message:', messageData);
+          console.log('➕ Condition check:', {
+            hasSelectedConv: !!selectedConversation,
+            matchesConv: messageData.conversationId === selectedConversation?.id
+          });
+          
+          if (selectedConversation && messageData.conversationId === selectedConversation.id) {
+            return [...prev, messageData];
+          }
+          return prev;
+        }
+      });
+    });
+
+    // ✅ Handle Edit Message Success
+    chatSocketService.on('edit-message-success', (messageData) => {
+      console.log('✅ Edit message success:', messageData);
+      
+      setMessages(prev => prev.map(msg => {
+        if (msg.id === messageData.id) {
+          return {
+            ...msg,
+            message: messageData.message,
+            type: messageData.type, // "EDITED"
+            edited: true,
+            modifiedDate: messageData.modifiedDate,
+            // Preserve other fields
+            pinned: messageData.pinned || msg.pinned,
+            reactions: messageData.reactions || msg.reactions || [],
+          };
+        }
+        return msg;
+      }));
+
+      // Update conversation last message if needed
+      updateConversationLastMessage(messageData);
+      
+    });
+
+    // ✅ Handle Edit Message Error
+    chatSocketService.on('edit-message-error', (error) => {
+      console.error('❌ Edit message error:', error);
     });
 
     chatSocketService.on('reply-message', (messageData) => {
-      console.log('Reply message received via Socket.IO:', messageData);
-      handleIncomingMessage(messageData);
+      console.log('📩 Reply message received via Socket.IO:', messageData);
+      console.log('📍 Current selectedConversation:', selectedConversation?.id);
+      console.log('📍 Message conversationId:', messageData.conversationId);
+      
+      // Update conversation last message
+      updateConversationLastMessage(messageData); 
+      
+      // ✅ Update messages state
+      setMessages(prev => {
+        console.log('📝 Current messages count:', prev.length);
+        
+        const exists = prev.some(msg => msg.id === messageData.id);
+        console.log('🔍 Message exists?', exists);
+        
+        if (exists) {
+          console.log('♻️ Updating existing message:', messageData.id);
+          return prev.map(msg => {
+            if (msg.id === messageData.id) {
+              return {
+                ...msg,
+                ...messageData,
+                pinned: messageData.pinned || msg.pinned,
+                createdDate: messageData.createdDate || msg.createdDate || Date.now() / 1000,
+                modifiedDate: messageData.modifiedDate || msg.modifiedDate || Date.now() / 1000,
+                reactions: messageData.reactions?.map(reaction => ({
+                  ...reaction,
+                  reactedByMe: reaction.users?.some(u => u.id === user?.id)
+                })) || msg.reactions || [],
+              };
+            }
+            return msg;
+          });
+        } else {
+          // ✅ CRITICAL: Check if message belongs to current conversation
+          const belongsToCurrentConv = messageData.conversationId;
+          console.log('🎯 Belongs to current conversation?', belongsToCurrentConv);
+          
+          if (belongsToCurrentConv) {
+            console.log('✅ Adding new message:', messageData.id);
+            const newMessages = [...prev, messageData];
+            console.log('📊 New messages count:', newMessages.length);
+            return newMessages;
+          } else {
+            console.log('⚠️ Message not for current conversation, skipping');
+            return prev;
+          }
+        }
+      });
+      
+      // ✅ Force scroll to bottom after adding message
+      setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     });
 
     chatSocketService.on('message-status-update', (statusData) => {
@@ -188,8 +397,74 @@ const ChatPage = ({ role }) => {
       handleMessageRecalled(data);
     });
 
-    chatSocketService.on('message-pinned', (data) => {
-      handleMessagePinned(data);
+    chatSocketService.on('message-pinned', (messageData) => {
+      // handleMessagePinned(data);
+      console.log('Message pinned event received:', messageData);
+      updateConversationLastMessage(messageData); 
+      setMessages(prev => {
+          const exists = prev.some(msg => msg.id === messageData.id);
+          
+          if (exists) {
+              // --- LOGIC UPDATE (Inline trực tiếp để tránh gọi hàm setMessages khác) ---
+              console.log('Updating existing message:', messageData.id);
+              return prev.map(msg => {
+                  if (msg.id === messageData.id) {
+                      return {
+                          ...msg,
+                          ...messageData,
+                          pinned: messageData.pinned || msg.pinned,
+                          reactions: messageData.reactions?.map(reaction => ({
+                              ...reaction,
+                              reactedByMe: reaction.users?.some(u => u.id === user?.id)
+                          })) || msg.reactions || [],
+                      };
+                  }
+                  return msg;
+              });
+          } else {
+              // --- LOGIC ADD NEW ---
+              console.log('Adding new message:', messageData.id);
+              if (selectedConversation && messageData.conversationId === selectedConversation.id) {
+                  return [...prev, messageData];
+              }
+              return prev;
+          }
+      });
+    });
+
+    chatSocketService.on('message-unpinned', (messageData) => {
+      // handleMessagePinned(data);
+      console.log('Message unpinned event received:', messageData);
+      updateConversationLastMessage(messageData); 
+      setMessages(prev => {
+          const exists = prev.some(msg => msg.id === messageData.id);
+          
+          if (exists) {
+              // --- LOGIC UPDATE (Inline trực tiếp để tránh gọi hàm setMessages khác) ---
+              console.log('Updating existing message:', messageData.id);
+              return prev.map(msg => {
+                  if (msg.id === messageData.id) {
+                      return {
+                          ...msg,
+                          ...messageData,
+                          pinned: false,
+                          reactions: messageData.reactions?.map(reaction => ({
+                              ...reaction,
+                              reactedByMe: reaction.users?.some(u => u.id === user?.id)
+                          })) || msg.reactions || [],
+                      };
+                  }
+                  return msg;
+              });
+          } else {
+              // --- LOGIC ADD NEW ---
+              console.log('Adding new message:', messageData.id);
+              if (selectedConversation && messageData.conversationId === selectedConversation.id) {
+                  return [...prev, messageData];
+              }
+              return prev;
+          }
+      });
     });
 
     // ✅ Pin/Unpin events - these will now be handled by system messages through handleIncomingMessage
@@ -212,23 +487,38 @@ const ChatPage = ({ role }) => {
 
     // Media message events
     chatSocketService.on('media-message-success', (data) => {
-      console.log('Media message sent successfully:', data);
+      console.log('📁 Media message sent successfully:', data);
+      setUploadingFile(false);
+      isUploadingRef.current = false; // ✅ Reset ref
+
       if (selectedConversation && data.conversationId === selectedConversation.id) {
-        setMessages(prev => [...prev, data]);
+        setMessages(prev => {
+          const withoutTemp = prev.filter(msg => !msg.id.startsWith('temp-media-'));
+          const messageExists = withoutTemp.some(msg => msg.id === data.id);
+          
+          if (!messageExists) {
+            return [...withoutTemp, data].sort(
+              (a, b) => new Date(a.createdDate) - new Date(b.createdDate)
+            );
+          }
+          return withoutTemp;
+        });
       }
-      // Update conversation list
+
       setConversations(prev => 
         prev.map(conv => 
           conv.id === data.conversationId 
-            ? { ...conv, lastMessage: data, updatedAt: new Date().toISOString() }
+            ? { ...conv, updatedAt: new Date().toISOString() }
             : conv
-        )
+        ).sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt))
       );
     });
 
     chatSocketService.on('media-message-error', (data) => {
-      console.error('Media message error:', data.error);
-      // Show error notification
+      console.error('📁 Media message error:', data);
+      setUploadingFile(false);
+      isUploadingRef.current = false; // ✅ Reset ref
+      setMessages(prev => prev.filter(msg => !msg.id.startsWith('temp-media-')));
     });
 
     chatSocketService.on('media-reply-success', (data) => {
@@ -275,24 +565,26 @@ const ChatPage = ({ role }) => {
       // Update conversations list with new participants
       setConversations(prevConversations =>
         prevConversations.map(conv => {
-          if (conv.id === data.conversationId) {
+          if (conv.id === data.id) {
+            console.log('Updating conversation participants for:', conv.id);
             return {
               ...conv,
               participants: data.participants
             };
           }
+
           return conv;
         })
       );
 
       // Update the selected conversation with new participants
-      if (selectedConversation && selectedConversation.id === data.conversationId) {
+      if (selectedConversation && selectedConversation.id === data.id) {
         setSelectedConversation(prevConversation => ({
           ...prevConversation,
           participants: data.participants
         }));
       }
-      loadMessages(data.conversationId);
+      // loadMessages(data.conversationId);
 
     });
 
@@ -304,7 +596,7 @@ const ChatPage = ({ role }) => {
       console.log('Participants removed:', data);
       
       // Update conversations list to reflect the change
-      if (selectedConversation && selectedConversation.id === data.conversationId) {
+      if (selectedConversation && selectedConversation.id === data.id) {
         setSelectedConversation(prevConversation => ({
           ...prevConversation,
           participants: prevConversation.participants?.filter(
@@ -315,7 +607,7 @@ const ChatPage = ({ role }) => {
 
       setConversations(prevConversations =>
         prevConversations.map(conv => {
-          if (conv.id === data.conversationId) {
+          if (conv.id === data.id) {
             return {
               ...conv,
               participants: conv.participants?.filter(
@@ -339,11 +631,11 @@ const ChatPage = ({ role }) => {
       
       // Remove the conversation from the list when user leaves
       setConversations(prevConversations =>
-        prevConversations.filter(conv => conv.id !== data.conversationId)
+        prevConversations.filter(conv => conv.id !== data.id)
       );
 
       // Clear selected conversation if it was the one the user left
-      if (selectedConversation && selectedConversation.id === data.conversationId) {
+      if (selectedConversation && selectedConversation.id === data.id) {
         setSelectedConversation(null);
         setMessages([]);
       }
@@ -440,8 +732,10 @@ const ChatPage = ({ role }) => {
       // Show error notification
     });
 
-    chatSocketService.on('recall-message-success', (data) => {
-      console.log('Message recalled:', data);
+    chatSocketService.on('message-recalled', (data) => {
+      console.log('Message recalled event received:', data);
+      
+      // ✅ Truyền toàn bộ data object vì nó đã có đầy đủ thông tin
       updateMessageInList(data);
     });
 
@@ -465,10 +759,41 @@ const ChatPage = ({ role }) => {
       // Show error notification
     });
 
-    chatSocketService.on('edit-message-success', (data) => {
-      console.log('Message edited successfully:', data);
-      updateMessageInList(data);
-    });
+    // chatSocketService.on('edit-message-success', (messageData) => {
+    //   console.log('Edit message via Socket.IO:', messageData);
+    //   // handleIncomingMessage(messageData);
+    //   // updateMessageInList(messageData);
+    //   updateConversationLastMessage(messageData); 
+    //   setMessages(prev => {
+    //       const exists = prev.some(msg => msg.id === messageData.id);
+          
+    //       if (exists) {
+    //           // --- LOGIC UPDATE (Inline trực tiếp để tránh gọi hàm setMessages khác) ---
+    //           console.log('Updating existing message:', messageData.id);
+    //           return prev.map(msg => {
+    //               if (msg.id === messageData.id) {
+    //                   return {
+    //                       ...msg,
+    //                       ...messageData,
+    //                       pinned: messageData.pinned || msg.pinned,
+    //                       reactions: messageData.reactions?.map(reaction => ({
+    //                           ...reaction,
+    //                           reactedByMe: reaction.users?.some(u => u.id === user?.id)
+    //                       })) || msg.reactions || [],
+    //                   };
+    //               }
+    //               return msg;
+    //           });
+    //       } else {
+    //           // --- LOGIC ADD NEW ---
+    //           console.log('Adding new message:', messageData.id);
+    //           if (selectedConversation && messageData.conversationId === selectedConversation.id) {
+    //               return [...prev, messageData];
+    //           }
+    //           return prev;
+    //       }
+    //   });
+    // });
 
     chatSocketService.on('edit-message-error', (data) => {
       console.error('Edit message error:', data.error);
@@ -477,14 +802,135 @@ const ChatPage = ({ role }) => {
   };
   
   // Enhanced incoming message handler (similar to web-app)
+  // const handleIncomingMessage = (messageData) => {
+  //   console.log('Processing incoming message:', messageData);
+    
+  //   if (messageData.type === "SYSTEM_ADD_MEMBERS") {
+  //     // User was added to a new group - refresh conversation list
+  //     const currentUserId = user?.userId || user?.id;
+  //     const existingConversation = conversations.find(conv => conv.id === messageData.conversationId);
+
+  //     if (!existingConversation) {
+  //       console.log("User was added to a new group, refreshing conversations...");
+  //       loadConversations();
+  //     }
+  //   }
+
+  //   if (messageData.type === "SYSTEM_REMOVE_MEMBERS") {
+  //     const currentUserId = user?.userId || user?.id;
+      
+  //     // Check if current user was removed
+  //     if (messageData.message && messageData.message.includes("You were removed from")) {
+  //       console.log("User was removed from a group, refreshing conversations...");
+  //       loadConversations();
+        
+  //       // Clear selection if this was the selected conversation
+  //       if (selectedConversation && selectedConversation.id === messageData.conversationId) {
+  //         setSelectedConversation(null);
+  //         setMessages([]);
+  //       }
+  //       return;
+  //     } else {
+  //       // Other members were removed - refresh to update member counts
+  //       loadConversations();
+  //     }
+  //   }
+
+  //   if (messageData.type === "SYSTEM_LEAVE_GROUP") {
+  //     const currentUserId = user?.userId || user?.id;
+      
+  //     // Check if current user left the group
+  //     if (messageData.message && messageData.message.includes("You left")) {
+  //       console.log("User left the group, refreshing conversations...");
+  //       loadConversations();
+        
+  //       // Clear selection if this was the selected conversation
+  //       if (selectedConversation && selectedConversation.id === messageData.conversationId) {
+  //         setSelectedConversation(null);
+  //         setMessages([]);
+  //       }
+  //       return;
+  //     } else {
+  //       // Another member left - update immediately
+  //       loadConversations();
+  //     }
+  //   }
+
+  //   if (selectedConversation && messageData.conversationId === selectedConversation.id) {
+  //     setMessages(prev => {
+  //       // ✅ XÓA TEMP MESSAGE CÓ CÙNG CONTENT VÀ THỜI GIAN GẦN NHAU
+  //       const withoutTemp = prev.filter(msg => {
+  //         if (msg.id.startsWith('temp-') && msg.message === messageData.message) {
+  //           const timeDiff = Math.abs(
+  //             new Date(messageData.createdDate) - new Date(msg.createdDate)
+  //           );
+  //           // Nếu thời gian chênh lệch < 5 giây, coi như là cùng 1 message
+  //           if (timeDiff < 5000) {
+  //             console.log('🗑️ Removing temp message:', msg.id);
+  //             return false; // Remove temp message
+  //           }
+  //         }
+  //         return true;
+  //       });
+
+  //       // Check if real message already exists
+  //       const messageExists = withoutTemp.some(msg => msg.id === messageData.id);
+
+  //       if (!messageExists) {
+  //         const updatedMessages = [...withoutTemp, messageData].sort(
+  //           (a, b) => new Date(a.createdDate) - new Date(b.createdDate)
+  //         );
+  //         return updatedMessages;
+  //       }
+
+  //       console.log("Message already exists, not adding");
+  //       return withoutTemp;
+  //     });
+  //   }
+
+  //   // Update conversation list with new last message
+  //   setConversations(prevConversations => {
+  //     const isSystemMessage = messageData.type === 'SYSTEM' || messageData.type?.startsWith('SYSTEM_');
+  //     const isCurrentUserAction = messageData.me === true;
+      
+  //     // Don't increment unreadCount for system messages from current user
+  //     const shouldIncrementUnread = !(isSystemMessage && isCurrentUserAction);
+      
+  //     const updatedConversations = prevConversations.map(conv =>
+  //       conv.id === messageData.conversationId
+  //         ? {
+  //             ...conv,
+  //             lastMessage: messageData,
+  //             lastTimestamp: new Date(messageData.createdDate).toLocaleString(),
+  //             unreadCount: conv.id === selectedConversation?.id 
+  //               ? 0 
+  //               : shouldIncrementUnread 
+  //                 ? (conv.unreadCount || 0) + 1 
+  //                 : conv.unreadCount || 0,
+  //             updatedAt: new Date().toISOString()
+  //           }
+  //         : conv
+  //     );
+
+  //     // Sort conversations by last message time (most recent first)
+  //     return updatedConversations.sort((a, b) => {
+  //       const dateA = new Date(a.lastMessage?.createdDate || a.updatedAt || a.createdAt);
+  //       const dateB = new Date(b.lastMessage?.createdDate || b.updatedAt || b.createdAt);
+  //       return dateB - dateA;
+  //     });
+  //   });
+  //   console.log("Message reload: " , messages);
+  // };
+
+  // Legacy handler for backward compatibility
+  
+   // Enhanced incoming message handler
   const handleIncomingMessage = (messageData) => {
     console.log('Processing incoming message:', messageData);
     
+    // Handle group membership changes
     if (messageData.type === "SYSTEM_ADD_MEMBERS") {
-      // User was added to a new group - refresh conversation list
-      const currentUserId = user?.userId || user?.id;
       const existingConversation = conversations.find(conv => conv.id === messageData.conversationId);
-
       if (!existingConversation) {
         console.log("User was added to a new group, refreshing conversations...");
         loadConversations();
@@ -492,84 +938,55 @@ const ChatPage = ({ role }) => {
     }
 
     if (messageData.type === "SYSTEM_REMOVE_MEMBERS") {
-      const currentUserId = user?.userId || user?.id;
-      
-      // Check if current user was removed
       if (messageData.message && messageData.message.includes("You were removed from")) {
         console.log("User was removed from a group, refreshing conversations...");
         loadConversations();
         
-        // Clear selection if this was the selected conversation
         if (selectedConversation && selectedConversation.id === messageData.conversationId) {
           setSelectedConversation(null);
           setMessages([]);
         }
         return;
       } else {
-        // Other members were removed - refresh to update member counts
         loadConversations();
       }
     }
 
     if (messageData.type === "SYSTEM_LEAVE_GROUP") {
-      const currentUserId = user?.userId || user?.id;
-      
-      // Check if current user left the group
       if (messageData.message && messageData.message.includes("You left")) {
         console.log("User left the group, refreshing conversations...");
         loadConversations();
         
-        // Clear selection if this was the selected conversation
         if (selectedConversation && selectedConversation.id === messageData.conversationId) {
           setSelectedConversation(null);
           setMessages([]);
         }
         return;
       } else {
-        // Another member left - update immediately
         loadConversations();
       }
     }
 
+    // ✅ Add message to current conversation with deduplication
+   // Add message vào UI
     if (selectedConversation && messageData.conversationId === selectedConversation.id) {
       setMessages(prev => {
-        // ✅ XÓA TEMP MESSAGE CÓ CÙNG CONTENT VÀ THỜI GIAN GẦN NHAU
-        const withoutTemp = prev.filter(msg => {
-          if (msg.id.startsWith('temp-') && msg.message === messageData.message) {
-            const timeDiff = Math.abs(
-              new Date(messageData.createdDate) - new Date(msg.createdDate)
-            );
-            // Nếu thời gian chênh lệch < 5 giây, coi như là cùng 1 message
-            if (timeDiff < 5000) {
-              console.log('🗑️ Removing temp message:', msg.id);
-              return false; // Remove temp message
-            }
-          }
-          return true;
-        });
+        const exists = prev.some(msg => msg.id === messageData.id);
+        if (exists) return prev;
 
-        // Check if real message already exists
-        const messageExists = withoutTemp.some(msg => msg.id === messageData.id);
-
-        if (!messageExists) {
-          const updatedMessages = [...withoutTemp, messageData].sort(
-            (a, b) => new Date(a.createdDate) - new Date(b.createdDate)
-          );
-          return updatedMessages;
-        }
-
-        console.log("Message already exists, not adding");
-        return withoutTemp;
+        return [...prev, messageData].sort(
+          (a, b) => new Date(a.createdDate) - new Date(b.createdDate)
+        );
       });
     }
-
-    // Update conversation list with new last message
+    
+    // ✅ Update conversation list
     setConversations(prevConversations => {
       const isSystemMessage = messageData.type === 'SYSTEM' || messageData.type?.startsWith('SYSTEM_');
-      const isCurrentUserAction = messageData.me === true;
-      
-      // Don't increment unreadCount for system messages from current user
+      const isCurrentUserAction = messageData.me === true || messageData.sender.userId === user?.id;
       const shouldIncrementUnread = !(isSystemMessage && isCurrentUserAction);
+
+      // console.log('isSystemMessage:', isSystemMessage, 'isCurrentUserAction:', isCurrentUserAction, 'shouldIncrementUnread:', shouldIncrementUnread);
       
       const updatedConversations = prevConversations.map(conv =>
         conv.id === messageData.conversationId
@@ -577,31 +994,24 @@ const ChatPage = ({ role }) => {
               ...conv,
               lastMessage: messageData,
               lastTimestamp: new Date(messageData.createdDate).toLocaleString(),
-              unreadCount: conv.id === selectedConversation?.id 
+              unreadCount: conv.id === selectedConversation?.id  && isCurrentUserAction
                 ? 0 
-                : shouldIncrementUnread 
-                  ? (conv.unreadCount || 0) + 1 
+                // : shouldIncrementUnread 
+                //   ? (conv.unreadCount || 0) + 1 
                   : conv.unreadCount || 0,
               updatedAt: new Date().toISOString()
             }
           : conv
       );
 
-      // Sort conversations by last message time (most recent first)
       return updatedConversations.sort((a, b) => {
         const dateA = new Date(a.lastMessage?.createdDate || a.updatedAt || a.createdAt);
         const dateB = new Date(b.lastMessage?.createdDate || b.updatedAt || b.createdAt);
         return dateB - dateA;
       });
     });
-    console.log("Message reload: " , messages);
   };
-
-  // Legacy handler for backward compatibility
-  const handleNewMessage = (messageData) => {
-    console.log('Legacy handleNewMessage called:', messageData);
-    handleIncomingMessage(messageData);
-  };
+  
 
   const handleMessageStatusUpdate = (data) => {
     console.log('Processing message status update:', data);
@@ -670,30 +1080,110 @@ const ChatPage = ({ role }) => {
     );
   };
 
+  // ✅ Hàm update conversation's lastMessage
+  const updateConversationLastMessage = (newMessageOrUpdate) => {
+    console.log('Updating conversation lastMessage with:', newMessageOrUpdate.id);
+    setConversations(prevConversations => {
+        const updatedList = prevConversations.map(conv => {
+            // 1. Bỏ qua nếu không đúng conversation
+            if (conv.id !== newMessageOrUpdate.conversationId) return conv;
+
+            const currentLastMsg = conv.lastMessage;
+            const isSameMessage = currentLastMsg?.id === newMessageOrUpdate.id;
+
+            console.log(`Updating conversation ${conv.id} lastMessage:`, {
+                currentLastMsgId: currentLastMsg?.id,
+                newMessageId: newMessageOrUpdate.id,
+                isSameMessage
+            });
+            
+            // So sánh thời gian để biết tin mới hay tin cũ (phòng trường hợp socket trả về tin cũ được update)
+            const isNewerMessage = currentLastMsg;
+            console.log(`Is newer message: ${isNewerMessage}`);
+
+            // TRƯỜNG HỢP 1: Update đúng vào tin nhắn đang là lastMessage (VD: Recall, Reaction)
+            if (isSameMessage) {
+                console.log('🔄 Updating content of existing lastMessage');
+                return {
+                    ...conv,
+                    lastMessage: {
+                        ...currentLastMsg,
+                        ...newMessageOrUpdate, // Merge data mới (ví dụ isRecalled)
+                    },
+                    // Không cần đổi updatedAt nếu chỉ là update nội dung
+                };
+            }
+
+            // TRƯỜNG HỢP 2: Tin nhắn mới tinh (Thời gian mới hơn lastMessage hiện tại)
+            if (isNewerMessage) {
+                console.log('🆕 Setting new lastMessage');
+                return {
+                    ...conv,
+                    lastMessage: newMessageOrUpdate,
+                    lastTimestamp: newMessageOrUpdate.createdDate, // Cập nhật thời gian hiển thị
+                    updatedAt: new Date().toISOString(), // Để sort lên đầu
+                    // unreadCount: (conv.unreadCount || 0) + 1 // Mở comment này nếu muốn tăng số chưa đọc
+                };
+            }
+
+            // TRƯỜNG HỢP 3: Tin nhắn cũ (không phải lastMessage) được update -> Không làm gì với lastMessage của conv
+            return conv;
+        });
+
+        // (Tuỳ chọn) Sắp xếp lại danh sách để conversation mới nhất nhảy lên đầu
+        return updatedList.sort((a, b) => {
+             const dateA = new Date(a.lastMessage?.createdDate || a.updatedAt);
+             const dateB = new Date(b.lastMessage?.createdDate || b.updatedAt);
+             return dateB - dateA;
+        });
+    });
+  };
+
+  // ✅ Cập nhật hàm updateMessageInList để cũng update conversation
   const updateMessageInList = (updatedMessage) => {
-    console.log('Updating message in list:', updatedMessage.id, 'with reactions:', updatedMessage.reactions);
-    const currentUserId = user?.id;
+    console.log('Updating message in list - Full data:', updatedMessage.id);
+    const currentUserId = user?.id || user?.userId;
     
     setMessages(prev => {
+      const messageExists = prev.some(msg => msg.id === updatedMessage.id);
+      
+      // if (!messageExists) {
+      //   console.warn('Message not found in list:', updatedMessage.id);
+      //   return prev;
+      // }
+      
       const updated = prev.map(msg => {
         if (msg.id === updatedMessage.id) {
-          // Process reactions to set reactedByMe flag
+          // ✅ Merge toàn bộ data mới vào message cũ
           const processedMessage = {
+            ...msg,
             ...updatedMessage,
+            // ✅ Xử lý reactions nếu có
             reactions: updatedMessage.reactions?.map(reaction => ({
               ...reaction,
               reactedByMe: reaction.users?.some(u => 
                 u.userId === currentUserId || u.id === currentUserId
               )
-            })) || []
+            })) || msg.reactions || [],
           };
+          
+          console.log('✅ Message updated successfully:', {
+            id: processedMessage.id,
+            isRecalled: processedMessage.isRecalled,
+            message: processedMessage.message,
+            recallType: processedMessage.recallType
+          });
+          
           return processedMessage;
         }
         return msg;
       });
-      console.log('Messages updated, message with reactions:', updated.find(m => m.id === updatedMessage.id)?.reactions);
+      
       return updated;
     });
+    
+    // ✅ Cũng update conversation nếu đây là lastMessage
+    updateConversationLastMessage(updatedMessage);
   };
 
   const loadConversations = async () => {
@@ -729,13 +1219,7 @@ const ChatPage = ({ role }) => {
       const sortedMessages = (response.result || []).sort((a, b) => 
         new Date(a.createdDate) - new Date(b.createdDate)
       );
-      
-      // Debug: Check for SYSTEM_REACTION messages
-      const systemReactionMessages = sortedMessages.filter(msg => msg.type === 'SYSTEM_REACTION');
-      if (systemReactionMessages.length > 0) {
-        console.log('Found SYSTEM_REACTION messages:', systemReactionMessages);
-      }
-      
+  
       setMessages(sortedMessages);
 
       // console.log("Sorted msgs: ", sortedMessages);
@@ -750,66 +1234,160 @@ const ChatPage = ({ role }) => {
     }
   };
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !selectedConversation || sending) return;
+  // const sendMessage = async () => {
+  //   // console.log("Sending message");
+  //   if (sendingRef.current) return; 
+  //   sendingRef.current = true;
+  //   if (!newMessage.trim() || !selectedConversation || sending) return;
 
-    const tempId = `temp-${Date.now()}-${Math.random()}`;
-    const messageContent = newMessage.trim();
+  //   const tempId = `temp-${Date.now()}-${Math.random()}`;
+  //   const messageContent = newMessage.trim();
     
-    const optimisticMessage = {
-      id: tempId,
-      conversationId: selectedConversation.id,
-      message: messageContent,
-      sender: {
-        userId: user.userId || user.id,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        avatar: user.avatar
-      },
-      createdDate: new Date().toISOString(),
-      status: 'SENDING',
-      type: replyingTo ? 'REPLY' : 'TEXT',
-      me: true,
-      ...(replyingTo && { replyToMessage: replyingTo })
-    };
+  //   // ✅ Capture replyingTo state BEFORE clearing it to prevent race conditions
+  //   const currentReplyingTo = replyingTo;
+
+  //   console.log('Sending message - Captured replyingTo:', currentReplyingTo);
+
+  //   // ✅ Clear input and reply state IMMEDIATELY to prevent double sends
+  //   setNewMessage('');
+  //   if (currentReplyingTo) {
+  //     setReplyingTo(null);
+  //   }
+
+  //   const optimisticMessage = {
+  //     id: tempId,
+  //     conversationId: selectedConversation.id,
+  //     message: messageContent,
+  //     sender: {
+  //       userId: user.userId || user.id,
+  //       firstName: user.firstName,
+  //       lastName: user.lastName,
+  //       avatar: user.avatar
+  //     },
+  //     createdDate: new Date().toISOString(),
+  //     status: 'SENDING',
+  //     type: currentReplyingTo ? 'REPLY' : 'TEXT',
+  //     me: true,
+  //     ...(currentReplyingTo && { replyToMessage: currentReplyingTo })
+  //   };
+
+  //   try {
+  //     setSending(true);
+  //     setMessages(prev => [...prev, optimisticMessage]);
+
+  //     // ✅ Use captured state, not the current state
+  //     if (currentReplyingTo) {
+  //       const replyRequest = {
+  //         conversationId: selectedConversation.id,
+  //         message: messageContent,
+  //         replyToMessageId: currentReplyingTo.id
+  //       };
+
+  //       chatSocketService.sendReplyMessage(replyRequest);
+  //     } else {
+  //       // ✅ CHỈ GỬI NORMAL MESSAGE KHI KHÔNG CÓ REPLY
+  //       const messageData = {
+  //         conversationId: selectedConversation.id,
+  //         message: messageContent
+  //       };
+  //       await chatApiService.sendMessage(messageData);
+  //     }
+
+  //   } catch (error) {
+  //     console.error('Error sending message:', error);
+  //     setMessages(prev => prev.filter(msg => msg.id !== tempId));
+  //     setNewMessage(messageContent);
+  //     // ✅ Restore replyingTo state on error
+  //     if (currentReplyingTo) {
+  //       setReplyingTo(currentReplyingTo);
+  //     }
+  //   } finally {
+  //     setSending(false);
+  //     setTimeout(() => sendingRef.current = false, 200);
+  //   }
+  // };
+  const sendMessage = async () => {
+    if (sendingRef.current) return;
+    sendingRef.current = true;
+
+    if (!newMessage.trim() || !selectedConversation) {
+      sendingRef.current = false;
+      return;
+    }
+
+    const messageContent = newMessage.trim();
+    const currentReplyingTo = replyingTo;
+    const currentEditingMessage = editingMessage;
+
+    console.log("Sending message - Captured replyingTo:", currentReplyingTo);
+    console.log("Editing message:", currentEditingMessage);
 
     try {
       setSending(true);
-      setMessages(prev => [...prev, optimisticMessage]);
-      setNewMessage('');
 
-      // ✅ CHỈ GỬI 1 LẦN - REPLY HOẶC NORMAL MESSAGE
-      if (replyingTo) {
-        const replyRequest = {
-          conversationId: selectedConversation.id,
-          message: messageContent,
-          replyToMessageId: replyingTo.id
-        };
-
+      // ✅ CASE 1: EDITING MESSAGE
+      if (currentEditingMessage) {
         if (chatSocketService.isSocketConnected()) {
-          chatSocketService.sendReplyMessage(replyRequest);
-        } else {
-          await chatApiService.sendMessage(replyRequest);
+          chatSocketService.editMessage({
+            messageId: currentEditingMessage.id,
+            message: messageContent,
+            conversationId: selectedConversation.id
+          });
+
+          // Optimistic update
+          setMessages(prev => prev.map(msg => 
+            msg.id === currentEditingMessage.id 
+              ? { ...msg, message: messageContent, type: 'EDITED', edited: true }
+              : msg
+          ));
         }
-        setReplyingTo(null);
-      } else {
-        // ✅ CHỈ GỬI NORMAL MESSAGE KHI KHÔNG CÓ REPLY
-        const messageData = {
+      }
+      // ✅ CASE 2: REPLYING MESSAGE
+      else if (currentReplyingTo) {
+        if (chatSocketService.isSocketConnected()) {
+          chatSocketService.sendReplyMessage({
+            conversationId: selectedConversation.id,
+            message: messageContent,
+            replyToMessageId: currentReplyingTo.id
+          });
+        }
+      }
+      // ✅ CASE 3: NEW MESSAGE
+      else {
+        await chatApiService.sendMessage({
           conversationId: selectedConversation.id,
           message: messageContent
-        };
-        
-        await chatApiService.sendMessage(messageData);
+        });
       }
 
+      // ✅ Clear input AFTER successful send (for ALL cases)
+      setNewMessage('');
+      if (currentReplyingTo) setReplyingTo(null);
+      if (currentEditingMessage) setEditingMessage(null);
+      
+      // ✅ Force reset textarea height
+      setTimeout(() => {
+        const textarea = document.querySelector('textarea');
+        if (textarea) {
+          textarea.value = ''; // Force clear DOM value
+          textarea.style.height = 'auto';
+        }
+      }, 0);
+
     } catch (error) {
-      console.error('Error sending message:', error);
-      setMessages(prev => prev.filter(msg => msg.id !== tempId));
+      console.error("Error sending message:", error);
+      
+      // ✅ Restore message ONLY on error
       setNewMessage(messageContent);
+      if (currentReplyingTo) setReplyingTo(currentReplyingTo);
+      if (currentEditingMessage) setEditingMessage(currentEditingMessage);
+
     } finally {
       setSending(false);
+      setTimeout(() => (sendingRef.current = false), 200);
     }
   };
+
 
   // Forward & Edit message handlers
   const handleForwardMessage = (messageId, toConversationId) => {
@@ -822,16 +1400,22 @@ const ChatPage = ({ role }) => {
       chatSocketService.forwardMessage(request);
     }
   };
-  const handleEditMessage = (messageId, newContent, conversationId) => {
-    if (chatSocketService.isSocketConnected()) {
-      const request = {
-        messageId,
-        message: newContent,
-        conversationId
-      };
-      chatSocketService.editMessage(request);
-    }
-  };  
+
+  // ✅ Sửa lại handleEditMessage để set state edit
+  const handleEditMessage = (message) => {
+    setEditingMessage(message);
+    setNewMessage(message.message); // Đưa nội dung vào input
+    setShowMessageActions(null);
+    
+    // Focus vào textarea
+    setTimeout(() => {
+      const textarea = document.querySelector('textarea');
+      if (textarea) {
+        textarea.focus();
+        textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+      }
+    }, 100);
+  };
   
   const markMessagesAsRead = async (conversationId) => {
     try {
@@ -860,78 +1444,83 @@ const ChatPage = ({ role }) => {
     markMessagesAsRead(conversation.id);
   };
 
-  const handleInputChange = (e) => {
-    const value = e.target.value;
-    setNewMessage(value);
-
-    // Send typing indicator
-    if (value.trim() && selectedConversation && chatSocketService.isSocketConnected()) {
-      chatSocketService.sendTypingIndicator(selectedConversation.id);
-      
-      // Clear existing timeout
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-      }
-      
-      // Set new timeout to stop typing after 2 seconds of inactivity
-      typingTimeoutRef.current = setTimeout(() => {
-        if (chatSocketService.isSocketConnected()) {
-          chatSocketService.sendStopTypingIndicator(selectedConversation.id);
-        }
-      }, 2000);
-    } else if (!value.trim() && selectedConversation && chatSocketService.isSocketConnected()) {
-      // Send stop typing when input is cleared
-      chatSocketService.sendStopTypingIndicator(selectedConversation.id);
-      if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = null;
-      }
-    }
-  };
-
   const cancelEdit = () => {
     setEditingMessage(null);
     setNewMessage('');
-  };
 
-  const handleFileUpload = async (event) => {
-    const file = event.target.files[0];
-    if (!file || !selectedConversation) return;
-
-    try {
-      // First upload the file to get the URL (using existing API)
-      const response = await chatApiService.uploadMedia(file, selectedConversation.id);
-      console.log('File uploaded:', response);
-      
-      // If we have socket connection, send via Socket.IO for real-time delivery
-      if (chatSocketService.isSocketConnected() && response.result) {
-        const mediaRequest = {
-          conversationId: selectedConversation.id,
-          fileUrl: response.result.mediaUrl,
-          fileName: response.result.fileName || file.name,
-          fileType: response.result.mediaType || file.type,
-          fileSize: response.result.fileSize || file.size,
-          caption: '' // Can be enhanced to allow captions
-        };
-
-        // If replying to a message, add reply info
-        if (replyingTo) {
-          mediaRequest.replyToMessageId = replyingTo.id;
-          chatSocketService.sendMediaReply(mediaRequest);
-          setReplyingTo(null);
-        } else {
-          chatSocketService.sendMediaMessage(mediaRequest);
-        }
-      } else {
-        // Fallback: refresh messages to show the uploaded file
-        await loadMessages(selectedConversation.id);
-      }
-    } catch (error) {
-      console.error('Failed to upload file:', error);
-      // Show error notification
+    const textarea = document.querySelector('textarea');
+    if (textarea) {
+      textarea.style.height = 'auto';
     }
   };
-    // console.log("User: ", user);
+
+  // ✅ Improved file upload handler with optimistic UI
+  const handleFileUpload = async (event) => {
+    const file = event.target.files?.[0];
+    
+    // ✅ Critical checks
+    if (!file || !selectedConversation || uploadingFile || isUploadingRef.current) {
+      console.log('❌ Upload blocked:', { 
+        hasFile: !!file, 
+        hasConversation: !!selectedConversation,
+        uploadingFile,
+        isUploading: isUploadingRef.current 
+      });
+      event.target.value = ''; // Reset input
+      return;
+    }
+
+    console.log('📁 Starting file upload:', file.name);
+    
+    // ✅ Set both state and ref to prevent double execution
+    setUploadingFile(true);
+    isUploadingRef.current = true;
+    
+    // ✅ Reset input immediately
+    event.target.value = '';
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Upload file
+      const response = await apiService.uploadFile(formData);
+
+      if (!response.result || !response.result.url) {
+        throw new Error('Invalid upload response');
+      }
+
+      const mediaRequest = {
+        conversationId: selectedConversation.id,
+        fileUrl: response.result.url,
+        fileName: response.result.fileName || file.name,
+        fileType: response.result.mediaType || file.type,
+        fileSize: response.result.fileSize || file.size,
+        caption: newMessage.trim() || null
+      };
+
+      console.log('📤 Sending media message:', mediaRequest);
+
+      if (replyingTo) {
+        mediaRequest.replyToMessageId = replyingTo.id;
+        chatSocketService.sendMediaReply(mediaRequest);
+        setReplyingTo(null);
+      } else {
+        chatSocketService.sendMediaMessage(mediaRequest);
+      }
+
+      if (newMessage.trim()) setNewMessage('');
+
+    } catch (err) {
+      console.error('❌ Upload error:', err);
+      alert(`Failed to upload file: ${err.message}`);
+    } finally {
+      // ✅ Reset both state and ref
+      setUploadingFile(false);
+      isUploadingRef.current = false;
+    }
+  };
+
 
   const handleReactToMessage = (messageId, emoji) => {
     const message = messages.find(msg => msg.id === messageId);
@@ -1057,12 +1646,12 @@ const ChatPage = ({ role }) => {
     console.log(messageId, pin)
     if (chatSocketService.isSocketConnected()) {
       chatSocketService.pinMessage(messageId, pin);
+      // Optimistic UI update
+      setMessages(prev => prev.map(msg => 
+        msg.id === messageId ? { ...msg, pinned: pin } : msg
+      ));
     }
     
-    // Optimistic UI update
-    setMessages(prev => prev.map(msg => 
-      msg.id === messageId ? { ...msg, pinned: pin } : msg
-    ));
     
     setShowMessageActions(null);
   };
@@ -1149,6 +1738,7 @@ const ChatPage = ({ role }) => {
   };
 
   const formatDate = (timestamp) => {
+    // console.log("Timestamp: ", timestamp);
     const date = new Date(timestamp);
     const today = new Date();
     const yesterday = new Date(today);
@@ -1358,13 +1948,15 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
       </div>
     );
   }
-  const pinnedMessages = messages.filter(m => m.isPinned 
-    && !m.isRecalled
-    && m.type != 'SYSTEM' 
-    && m.type != 'SYSTEM_REACTION' 
-    && m.type != 'SYSTEM_ADD_MEMBERS' 
-    && m.type != 'SYSTEM_REMOVE_MEMBERS'
-  );
+  const pinnedMessages = messages?.filter(m => m?.pinned 
+    && !m?.isRecalled
+    && m?.type !== 'SYSTEM' 
+    && m?.type !== 'SYSTEM_REACTION' 
+    && m?.type !== 'SYSTEM_ADD_MEMBERS' 
+    && m?.type !== 'SYSTEM_REMOVE_MEMBERS'
+  );  
+
+  // console.log("Pinned msgs: ", pinnedMessages);
 
   // Add scroll to message function
   const scrollToMessage = (messageId) => {
@@ -1387,8 +1979,10 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
 
 
   const filteredMessage = messages.filter(
-    msg => msg.type !== "SYSTEM_REACTION"
+    msg => msg.type !== "SYSTEM_REACTION" && msg.type !== "SYSTEM_FILE"
   );
+
+  // console.log("Filtered: ", filteredMessage);
 
   return (
     <div className="w-full h-full flex bg-gray-50 overflow-hidden">
@@ -1462,10 +2056,10 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
                   
                   <div className="flex items-center justify-between">
                     <p className={`${conversation.unreadCount > 0 ? "font-bold": " " } text-sm text-gray-500 truncate`}>
-                      {conversation.lastMessage.type !== "SYSTEM" ? (
+                      {conversation.lastMessage.type !== "SYSTEM" && conversation.lastMessage.type !== "SYSTEM_ADD_MEMBERS" ? (
                         <>
                           {/* Only show sender name for TEXT and FILE messages */}
-                          {(conversation.lastMessage.type === 'TEXT' || conversation.lastMessage.type === 'FILE' || !conversation.lastMessage.type ) && 
+                          {(conversation.lastMessage.type === 'TEXT' || conversation.lastMessage.type === 'SYSTEM_FILE' || !conversation.lastMessage.type ) && 
                           conversation?.lastMessage?.sender?.userId === user?.id ? 'You: ' : (conversation?.lastMessage?.sender?.firstName + ": ")} 
                           {conversation.lastMessage.message}
                         </>
@@ -1640,7 +2234,7 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
             const showDate = index === 0 || 
               formatDate(message.createdDate) !== formatDate(filteredMessage[index - 1].createdDate);
             
-            const isSystemMessage = message.type !== 'TEXT' && message.type !== 'FILE' && message.type !== 'REPLY';
+            const isSystemMessage = message.type !== 'TEXT' && message.type !== 'FILE' && message.type !== 'REPLY' && message.type !== 'IMAGE' && message.type !== 'EDITED';
             // console.log("Messages: ", message);
             
             return (
@@ -1654,7 +2248,7 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
                 {showDate && (
                   <div className="flex justify-center my-4">
                     <span className="bg-white text-gray-600 text-xs font-medium px-3 py-1 rounded-full shadow-sm border border-gray-200">
-                      {formatDate(message.createdDate)}
+                      {formatDate(message.createdDate || message.modifiedDate)}
                     </span>
                   </div>
                 )}
@@ -1668,7 +2262,7 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
                 ) : (
                   <div className={`flex ${message.me ? 'justify-end' : 'justify-start'} group`}>
                     <div className={`max-w-md lg:max-w-lg xl:max-w-xl relative`}>
-                      {!message.me && selectedConversation.type === 'GROUP' && (
+                      {!message.me && selectedConversation?.type === 'GROUP' && (
                         <p className="text-xs font-medium text-gray-600 mb-1 px-3">
                           {message.sender?.firstName} {message.sender?.lastName}
                         </p>
@@ -1678,7 +2272,7 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
                         {/* Message Bubble */}
                         <div className={`px-4 py-2.5 rounded-2xl shadow-sm relative ${
                           message.me 
-                            ? 'bg-blue-600 text-white rounded-br-md' 
+                            ? `${message.type !== 'IMAGE' ? 'bg-blue-600 text-white rounded-br-md' : ''}` 
                             : 'bg-white text-gray-900 border border-gray-200 rounded-bl-md'
                         } ${message.pinned ? 'ring-2 ring-amber-400 ring-offset-2' : ''}`}>
                           
@@ -1720,12 +2314,14 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
                             <>
                               {message.mediaType ? (
                                 <div className="flex items-center space-x-2">
-                                  {message.mediaType === 'image' ? (
-                                    <Image className="h-5 w-5" />
+                                  {message.mediaType === 'image/png' ? (
+                                    null
                                   ) : (
-                                    <File className="h-5 w-5" />
+                                    <>
+                                    {/* <File className="h-5 w-5" /> */}
+                                    {/* <span className="text-sm font-medium">{message.fileName}</span> */}
+                                    </>
                                   )}
-                                  <span className="text-sm font-medium">{message.fileName}</span>
                                 </div>
                               ) : (
                                 <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
@@ -1733,10 +2329,9 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
                                 </p>
                               )}
                               
-                              {message.edited && (
-                                <span className={`text-xs italic mt-1 inline-block ${
-                                  message.me ? 'text-blue-200' : 'text-gray-500'
-                                }`}>
+                              {/* Edited Badge */}
+                              {(message.type === 'EDITED' || message.edited) && !message.isRecalled && (
+                                <span className="text-xs opacity-70 italic ml-2">
                                   (edited)
                                 </span>
                               )}
@@ -1886,6 +2481,43 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
                         </div>
                       )}
 
+                      {/* Media Content */}
+                          {(message.type === 'IMAGE' && message.mediaUrl) && (
+                            <div className="mb-2">
+                              {message.mediaType?.startsWith('image/') ? (
+                                <img 
+                                  src={message.mediaUrl} 
+                                  alt={message.fileName}
+                                  className="rounded-lg max-w-xs max-h-64 object-cover"
+                                  loading="lazy"
+                                />
+                              ) : message.mediaType?.startsWith('video/') ? (
+                                <video 
+                                  src={message.mediaUrl} 
+                                  controls
+                                  className="rounded-lg max-w-xs max-h-64"
+                                />
+                              ) : (
+                                <a 
+                                  href={message.mediaUrl} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className={`flex items-center gap-2 p-3 rounded-lg ${
+                                    message.me ? 'bg-blue-500' : 'bg-gray-100'
+                                  }`}
+                                >
+                                  <Paperclip className="h-5 w-5" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-sm font-medium truncate">{message.fileName}</p>
+                                    <p className="text-xs opacity-75">
+                                      {(message.fileSize / 1024).toFixed(2)} KB
+                                    </p>
+                                  </div>
+                                </a>
+                              )}
+                            </div>
+                          )}
+
                       {/* Timestamp & Status */}
                       <div className={`flex items-center gap-1.5 mt-1 text-xs ${
                         message.me ? 'justify-end' : 'justify-start'
@@ -1917,9 +2549,7 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
         )}
 
         {/* Message Input */}
-        <div className="bg-white border-t border-gray-200">
-          {/* Reply/Edit Preview */}
-          {(replyingTo || editingMessage) && (
+        {(replyingTo || editingMessage) && (
             <div className="px-4 py-3 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
               <div className="flex-1 min-w-0 mr-3">
                 <p className="text-sm font-semibold text-blue-900 flex items-center">
@@ -1936,7 +2566,7 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
                   )}
                 </p>
                 <p className="text-sm text-blue-700 truncate mt-0.5">
-                  {(editingMessage || replyingTo)?.message}
+                    {editingMessage ? editingMessage.message : replyingTo?.message}
                 </p>
               </div>
               <button
@@ -1947,28 +2577,38 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
               </button>
             </div>
           )}
-
-          {/* Input Controls */}
+         {/* Input Controls */}
           <div className="p-4">
             <div className="flex items-end gap-2">
               <input
                 type="file"
                 ref={fileInputRef}
                 className="hidden"
-                multiple
+                onChange={handleFileUpload}
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.txt"
+                disabled={uploadingFile} // ✅ Disable khi đang upload
+
               />
-              
               <button
-                onClick={() => fileInputRef.current?.click()}
-                className="p-2.5 text-gray-600 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0 self-end"
+                onClick={() => {
+                  if (!uploadingFile && !isUploadingRef.current) {
+                    fileInputRef.current?.click();
+                  }
+                }}
+                disabled={uploadingFile || sending}
+                className="p-2.5 text-gray-600 hover:bg-gray-100 rounded-full transition-colors flex-shrink-0 self-end disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Attach file"
               >
-                <Paperclip className="h-5 w-5" />
+                {uploadingFile ? (
+                  <Loader className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Paperclip className="h-5 w-5" />
+                )}
               </button>
               
               <div className="flex-1 relative">
-                {/* Textarea */}
                 <textarea
+                  key={editingMessage?.id || replyingTo?.id || 'new-message'} // ✅ Force re-render khi state thay đổi
                   value={newMessage}
                   onChange={(e) => {
                     setNewMessage(e.target.value);
@@ -1976,20 +2616,33 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
                     e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
                   }}
                   onKeyDown={(e) => {
-                    if (e.key === 'Enter' && !e.shiftKey && !sending) {  // ✅ Check sending
+                    if (e.key === 'Enter' && !e.shiftKey && !sending && !uploadingFile) {
                       e.preventDefault();
+                      e.stopPropagation();   // ⛔ STOP sự kiện không bubble tới button
                       sendMessage();
                     }
+                    // ESC to cancel edit
+                    if (e.key === 'Escape' && editingMessage) {
+                      cancelEdit();
+                    }
                   }}
-                  disabled={sending}  // ✅ Disable khi đang gửi
-                  placeholder={editingMessage ? "Edit your message..." : "Type a message..."}
+                  disabled={sending || uploadingFile}
+                  placeholder={
+                    uploadingFile 
+                      ? "Uploading file..." 
+                      : editingMessage 
+                        ? "Edit your message..." 
+                        : "Type a message..."
+                  }
                   rows={1}
                   className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-2xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none outline-none disabled:bg-gray-100"
                   style={{ minHeight: '44px', maxHeight: '120px' }}
                 />
+
                 <button
                   onClick={() => setShowEmojiPicker(!showEmojiPicker)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                  disabled={uploadingFile}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-600 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
                 >
                   <Smile className="h-5 w-5" />
                 </button>
@@ -1997,23 +2650,25 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
               
               {/* Send Button */}
               <button
+                type="button"   // tránh form submit default
+                onMouseDown={(e) => e.preventDefault()} // stop trigger click by Enter
                 onClick={sendMessage}
-                disabled={!newMessage.trim() || sending}  // ✅ Disable khi đang gửi
+                disabled={!newMessage.trim() || sending || uploadingFile}
                 className="p-3 bg-blue-600 text-white rounded-full hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-blue-600 transition-all shadow-md disabled:shadow-none flex-shrink-0 self-end"
+                title={editingMessage ? "Update message" : "Send message"}
               >
                 {sending ? (
-                  <Loader className="h-5 w-5 animate-spin" />  // ✅ Show loading
+                  <Loader className="h-5 w-5 animate-spin" />
                 ) : editingMessage ? (
                   <Check className="h-5 w-5" />
                 ) : (
                   <Send className="h-5 w-5" />
                 )}
               </button>
+              
             </div>
           </div>
         </div>
-   
-    </div>
 
       {/* New Group Modal */}
       {showNewGroupModal && (
@@ -2031,6 +2686,7 @@ const ReactionDetailsModal = ({ message, reactions, onClose, onRemoveReaction, c
           onAddParticipants={handleAddParticipants}
           onRemoveParticipants={handleRemoveParticipants}
           onLeaveGroup={handleLeaveGroup}
+          currentUser={user}
         />
       )}
     </div>
@@ -2147,11 +2803,33 @@ const NewGroupModal = ({ onClose, onCreate }) => {
 };
 
 // Conversation Info Sidebar
-const ConversationInfo = ({ conversation, onClose, onAddParticipants, onRemoveParticipants, onLeaveGroup }) => {
+const ConversationInfo = ({ conversation, onClose, onAddParticipants, onRemoveParticipants, onLeaveGroup, currentUser }) => {
+  const [showAddMembersModal, setShowAddMembersModal] = useState(false);
+  // Check if this is a project conversation
+  const isProjectConversation = conversation.participantsHash?.startsWith('PROJECT_');
+  
+  
+  // Check if current user has permission to manage members
+  const canManageMembers = () => {
+    if (!conversation.type === 'GROUP') return false;
+    
+    if (isProjectConversation) {
+      // For project conversations, only PROJECT_MANAGER and TEAM_LEAD can manage
+      const userRole = conversation.participants.find(
+        participant => participant.roleName === currentUser.role && participant.userId === currentUser.id
+      );
+
+      return userRole.roleName === 'PROJECT_MANAGER' || userRole.roleName === 'TEAM_LEAD';
+    }
+    
+    // For non-project group conversations, anyone can manage
+    return true;
+  };
+  
   const handleAddMembers = () => {
-    // This would open a modal to select users to add
-    // For now, just demonstrate the API call
-    console.log('Add members functionality would be implemented here');
+    if (canManageMembers()) {
+      setShowAddMembersModal(true);
+    }
   };
 
   const handleLeaveGroup = () => {
@@ -2161,96 +2839,293 @@ const ConversationInfo = ({ conversation, onClose, onAddParticipants, onRemovePa
   };
 
   const handleRemoveMember = (participantId) => {
+    if (!canManageMembers()) {
+      alert('You do not have permission to remove members from this conversation.');
+      return;
+    }
+    
     if (window.confirm('Are you sure you want to remove this member?')) {
       onRemoveParticipants(conversation.id, [participantId]);
     }
   };
+  
+  const handleConfirmAddMembers = (selectedUserIds) => {
+    if (selectedUserIds && selectedUserIds.length > 0) {
+      onAddParticipants(conversation.id, selectedUserIds);
+      setShowAddMembersModal(false);
+    }
+  };
 
   return (
-    <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-        <h3 className="text-lg font-semibold text-gray-900">Conversation Info</h3>
-        <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-          <XMarkIcon className="h-6 w-6" />
-        </button>
-      </div>
+    <>
+      <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
+        <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Conversation Info</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XMarkIcon className="h-6 w-6" />
+          </button>
+        </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6">
-        {/* Conversation Details */}
-        <div className="text-center">
-          <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3">
-            {conversation.type === 'GROUP' ? (
-              <UserGroupIcon className="h-10 w-10 text-primary-600" />
-            ) : (
-              <span className="text-2xl font-semibold text-primary-600">
-                {conversation.conversationName.charAt(0)}
-              </span>
+        <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          {/* Conversation Details */}
+          <div className="text-center">
+            <div className="w-20 h-20 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-3">
+              {conversation.type === 'GROUP' ? (
+                <UserGroupIcon className="h-10 w-10 text-primary-600" />
+              ) : (
+                <span className="text-2xl font-semibold text-primary-600">
+                  {conversation.conversationName.charAt(0)}
+                </span>
+              )}
+            </div>
+            <h4 className="text-lg font-medium text-gray-900">{conversation.conversationName}</h4>
+            <p className="text-sm text-gray-500">
+              {conversation.type === 'GROUP' 
+                ? `${conversation.participants.length} members`
+                : 'Direct message'
+              }
+            </p>
+            {isProjectConversation && (
+              <p className="text-xs text-blue-600 mt-1">
+                🔒 Project Conversation
+              </p>
             )}
           </div>
-          <h4 className="text-lg font-medium text-gray-900">{conversation.conversationName}</h4>
-          <p className="text-sm text-gray-500">
-            {conversation.type === 'GROUP' 
-              ? `${conversation.participants.length} members`
-              : 'Direct message'
-            }
-          </p>
-        </div>
 
-        {/* Members */}
-        <div>
-          <h5 className="text-sm font-medium text-gray-900 mb-3">
-            Members ({conversation.participants.length})
-          </h5>
-          <div className="space-y-2">
-            {conversation.participants.map(participant => (
-              <div key={participant.userId} className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
-                    <span className="text-xs font-semibold text-white">
-                      {participant.fullName?.charAt(0) || 'U'}
-                    </span>
+          {/* Members */}
+          <div>
+            <h5 className="text-sm font-medium text-gray-900 mb-3">
+              Members ({conversation.participants.length})
+            </h5>
+            <div className="space-y-2">
+              {conversation.participants.map(participant => (
+                <div key={participant.userId} className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center">
+                      <span className="text-xs font-semibold text-white">
+                        {participant.fullName?.charAt(0) || participant.firstName?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                    <div className="flex-1 mb-2">
+                      <p className="text-sm font-medium text-gray-900">
+                        {participant.firstName + " " + participant.lastName || 'Unknown User'}
+                      </p>
+                      <p className="text-xs text-gray-700">
+                        {participant.positionTitle || participant.roleName}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex-1 mb-2">
-                    <p className="text-sm font-medium text-gray-900">
-                      {participant.firstName + " " + participant.lastName || 'Unknown User'}
-                    </p>
-                    <p className="text-xs text-gray-700">
-                      {participant.positionTitle}
-                    </p>
-                  </div>
+                  {conversation.type === 'GROUP' && 
+                   conversation.createdBy !== participant.userId && 
+                   currentUser.id !== participant.userId && 
+                   canManageMembers() && (
+                    <button
+                      onClick={() => handleRemoveMember(participant.userId)}
+                      className="text-red-600 hover:text-red-800 text-sm"
+                    >
+                      Remove
+                    </button>
+                  )}
                 </div>
-                {conversation.type === 'GROUP' && conversation.createdBy !== participant.userId && (
-                  <button
-                    onClick={() => handleRemoveMember(participant.userId)}
-                    className="text-red-600 hover:text-red-800 text-sm"
-                  >
-                    Remove
-                  </button>
-                )}
+              ))}
+            </div>
+          </div>
+
+          {/* Actions */}
+          {conversation.type === 'GROUP' && (
+            <div className="space-y-2">
+              {canManageMembers() ? (
+                <button 
+                  onClick={handleAddMembers}
+                  className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100"
+                >
+                  <UserPlusIcon className="h-4 w-4 mr-2" />
+                  Add Members
+                </button>
+              ) : (
+                <div className="w-full px-4 py-2 text-xs text-center text-gray-500 bg-gray-50 rounded-lg">
+                  {isProjectConversation 
+                    ? 'Only Project Managers and Team Leads can add members'
+                    : 'You cannot add members to this conversation'}
+                </div>
+              )}
+              <button 
+                onClick={handleLeaveGroup}
+                className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
+              >
+                <ArrowLeftIcon className="h-4 w-4 mr-2" />
+                Leave Group
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+      
+      {/* Add Members Modal */}
+      {showAddMembersModal && (
+        <AddMembersModal
+          conversation={conversation}
+          onClose={() => setShowAddMembersModal(false)}
+          onConfirm={handleConfirmAddMembers}
+          currentParticipants={conversation.participants}
+        />
+      )}
+    </>
+  );
+};
+
+// Add Members Modal Component
+const AddMembersModal = ({ conversation, onClose, onConfirm, currentParticipants }) => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [availableUsers, setAvailableUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAvailableUsers();
+  }, []);
+
+  const fetchAvailableUsers = async () => {
+    try {
+      setLoading(true);
+      // Fetch all users from the API
+      const response = await apiService.getAllUsers();
+      const allUsers = response.result || [];
+      // Filter out users who are already participants
+      const currentParticipantIds = currentParticipants.map(p => p.userId);
+      
+      const filtered = allUsers.filter(user => !currentParticipantIds.includes(user.id) && user.roleName === 'EMPLOYEE');
+      
+      setAvailableUsers(filtered);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      setAvailableUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredUsers = availableUsers.filter(user => {
+    const searchLower = searchTerm.toLowerCase();
+    const fullName = `${user.firstName || ''} ${user.lastName || ''}`.toLowerCase();
+    const username = (user.username || '').toLowerCase();
+    const email = (user.email || '').toLowerCase();
+    const role = (user.roleName || user.role?.name || '').toLowerCase();
+    
+    return fullName.includes(searchLower) || 
+           username.includes(searchLower) || 
+           email.includes(searchLower) ||
+           role.includes(searchLower);
+  });
+
+  const toggleUser = (userId) => {
+    setSelectedUsers(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleConfirm = () => {
+    if (selectedUsers.length > 0) {
+      onConfirm(selectedUsers);
+      onClose();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg p-6 w-full max-w-md max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Add Members</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <XMarkIcon className="h-6 w-6" />
+          </button>
+        </div>
+
+        <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
+          {/* Search Input */}
+          <div className="relative">
+            <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search users by name, username, email, or role..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+            />
+          </div>
+
+          {/* Selected Users Count */}
+          {selectedUsers.length > 0 && (
+            <div className="text-sm text-primary-600 font-medium">
+              {selectedUsers.length} user{selectedUsers.length !== 1 ? 's' : ''} selected
+            </div>
+          )}
+
+          {/* User List */}
+          <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg">
+            {loading ? (
+              <div className="flex items-center justify-center p-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
               </div>
-            ))}
+            ) : filteredUsers.length === 0 ? (
+              <div className="text-center p-8 text-gray-500">
+                {searchTerm ? 'No users found matching your search' : 'No users available to add'}
+              </div>
+            ) : (
+              <div>
+                {filteredUsers.map(user => (
+                  <label 
+                    key={user.id} 
+                    className="flex items-center p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedUsers.includes(user.id)}
+                      onChange={() => toggleUser(user.id)}
+                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <div className="ml-3 flex-1">
+                      <p className="text-sm font-medium text-gray-900">
+                        {user.firstName} {user.lastName}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {user.email}
+                      </p>
+                      {(user.roleName || user.role?.name) && (
+                        <p className="text-xs text-gray-400">
+                          {user.roleName || user.role?.name}
+                        </p>
+                      )}
+                    </div>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
-        {/* Actions */}
-        {conversation.type === 'GROUP' && (
-          <div className="space-y-2">
-            <button 
-              onClick={handleAddMembers}
-              className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-primary-600 bg-primary-50 rounded-lg hover:bg-primary-100"
-            >
-              <UserPlusIcon className="h-4 w-4 mr-2" />
-              Add Members
-            </button>
-            <button 
-              onClick={handleLeaveGroup}
-              className="w-full flex items-center justify-center px-4 py-2 text-sm font-medium text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
-            >
-              <ArrowLeftIcon className="h-4 w-4 mr-2" />
-              Leave Group
-            </button>
-          </div>
-        )}
+        {/* Action Buttons */}
+        <div className="flex justify-end space-x-3 mt-4 pt-4 border-t border-gray-200">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={selectedUsers.length === 0}
+            className={`px-4 py-2 text-sm font-medium text-white rounded-lg ${
+              selectedUsers.length > 0
+                ? 'bg-primary-600 hover:bg-primary-700'
+                : 'bg-gray-300 cursor-not-allowed'
+            }`}
+          >
+            Add {selectedUsers.length > 0 ? `(${selectedUsers.length})` : ''}
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -16,7 +16,8 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     private static final String[] PUBLIC_ENDPOINTS = {
-        "/internal/users", "/internal/users/**", "/internal/users/inter-service"
+        "/internal/users", "/internal/users/**", "/internal/users/inter-service",
+        "/internal/profiles", "/internal/profiles/**"  // Allow ML-service to call profile endpoints
     };
 
     private final CustomJwtDecoder customJwtDecoder;

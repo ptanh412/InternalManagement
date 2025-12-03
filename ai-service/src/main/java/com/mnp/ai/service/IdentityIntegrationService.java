@@ -1,17 +1,19 @@
 package com.mnp.ai.service;
 
-import com.mnp.ai.dto.response.DepartmentInfo;
-import com.mnp.ai.dto.response.PositionInfo;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+
+import com.mnp.ai.dto.response.DepartmentInfo;
+import com.mnp.ai.dto.response.PositionInfo;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Slf4j
@@ -27,18 +29,14 @@ public class IdentityIntegrationService {
             "BACKEND", "Backend Development",
             "QA", "Quality Assurance",
             "DEVOPS", "DevOps",
-            "MOBILE", "Mobile Development"
-    );
+            "MOBILE", "Mobile Development");
 
     // Predefined seniority levels from identity-service
-    private static final List<String> SENIORITY_LEVELS = Arrays.asList(
-            "INTERN", "JUNIOR", "MID_LEVEL", "SENIOR", "LEAD", "PRINCIPAL", "DIRECTOR"
-    );
+    private static final List<String> SENIORITY_LEVELS =
+            Arrays.asList("INTERN", "JUNIOR", "MID_LEVEL", "SENIOR", "LEAD", "PRINCIPAL", "DIRECTOR");
 
     // Predefined roles from identity-service
-    private static final List<String> SYSTEM_ROLES = Arrays.asList(
-            "ADMIN", "PROJECT_MANAGER", "TEAM_LEAD", "EMPLOYEE"
-    );
+    private static final List<String> SYSTEM_ROLES = Arrays.asList("ADMIN", "PROJECT_MANAGER", "TEAM_LEAD", "EMPLOYEE");
 
     /**
      * Get all available departments from identity-service
@@ -155,8 +153,8 @@ public class IdentityIntegrationService {
         skillToDepartment.put("gcp", "DevOps");
 
         // Score each department based on skills
-        Map<String, Integer> departmentScores = DEPARTMENT_MAPPING.values().stream()
-                .collect(Collectors.toMap(dept -> dept, dept -> 0));
+        Map<String, Integer> departmentScores =
+                DEPARTMENT_MAPPING.values().stream().collect(Collectors.toMap(dept -> dept, dept -> 0));
 
         for (String skill : skills.keySet()) {
             String lowerSkill = skill.toLowerCase();
@@ -209,10 +207,11 @@ public class IdentityIntegrationService {
         if (experienceYears == null) return "EMPLOYEE";
 
         // Check for leadership/management skills
-        boolean hasLeadershipSkills = skills != null && skills.keySet().stream()
-                .anyMatch(skill -> skill.toLowerCase().contains("leadership") ||
-                         skill.toLowerCase().contains("management") ||
-                         skill.toLowerCase().contains("mentoring"));
+        boolean hasLeadershipSkills = skills != null
+                && skills.keySet().stream()
+                        .anyMatch(skill -> skill.toLowerCase().contains("leadership")
+                                || skill.toLowerCase().contains("management")
+                                || skill.toLowerCase().contains("mentoring"));
 
         // Determine role based on experience and leadership
         if (experienceYears >= 10 && hasLeadershipSkills) {
@@ -257,12 +256,11 @@ public class IdentityIntegrationService {
     private List<PositionInfo> generatePositionsFromMapping() {
         // Generate positions for each department and seniority combination
         return DEPARTMENT_MAPPING.values().stream()
-                .flatMap(department -> SENIORITY_LEVELS.stream()
-                        .map(seniority -> PositionInfo.builder()
-                                .title(generatePositionTitle(department, seniority))
-                                .department(department)
-                                .seniorityLevel(seniority)
-                                .build()))
+                .flatMap(department -> SENIORITY_LEVELS.stream().map(seniority -> PositionInfo.builder()
+                        .title(generatePositionTitle(department, seniority))
+                        .department(department)
+                        .seniorityLevel(seniority)
+                        .build()))
                 .collect(Collectors.toList());
     }
 
@@ -282,12 +280,10 @@ public class IdentityIntegrationService {
     }
 
     private List<PositionInfo> getFallbackPositions() {
-        return Arrays.asList(
-                PositionInfo.builder()
-                        .title("Software Developer")
-                        .department("Engineering")
-                        .seniorityLevel("MID_LEVEL")
-                        .build()
-        );
+        return Arrays.asList(PositionInfo.builder()
+                .title("Software Developer")
+                .department("Engineering")
+                .seniorityLevel("MID_LEVEL")
+                .build());
     }
 }

@@ -26,9 +26,23 @@ public class UserWorkloadController {
 
     // GET /api/workloads/{userId} - Get user's current workload & capacity
     @GetMapping("/{userId}")
-    public ResponseEntity<UserWorkloadResponse> getUserWorkload(@PathVariable String userId) {
-        UserWorkloadResponse response = workloadService.getUserWorkload(userId);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<ApiResponse<UserWorkloadResponse>> getUserWorkload(@PathVariable String userId) {
+        log.info("🌐 CONTROLLER: Received GET /workloads/{}", userId);
+
+        try {
+            UserWorkloadResponse response = workloadService.getUserWorkload(userId);
+
+            ApiResponse<UserWorkloadResponse> apiResponse = ApiResponse.<UserWorkloadResponse>builder()
+                    .result(response)
+                    .build();
+
+            log.info("✅ CONTROLLER: Returning workload response for user {}", userId);
+            return ResponseEntity.ok(apiResponse);
+
+        } catch (Exception e) {
+            log.error("❌ CONTROLLER ERROR getting workload for user {}: {}", userId, e.getMessage(), e);
+            throw e;
+        }
     }
 
     // PUT /api/workloads/{userId}/capacity - Update user capacity (hours/week)
@@ -42,10 +56,25 @@ public class UserWorkloadController {
 
     // GET /api/workloads/{userId}/availability - Check user availability for new tasks
     @GetMapping("/{userId}/availability")
-    public ResponseEntity<UserAvailabilityResponse> getUserAvailability(@PathVariable String userId) {
-        UserAvailabilityResponse response = workloadService.getUserAvailability(userId);
-        return ResponseEntity.ok(response);
+    public ResponseEntity<ApiResponse<UserAvailabilityResponse>> getUserAvailability(@PathVariable String userId) {
+        log.info("🌐 CONTROLLER: Received GET /workloads/{}/availability", userId);
+
+        try {
+            UserAvailabilityResponse response = workloadService.getUserAvailability(userId);
+
+            ApiResponse<UserAvailabilityResponse> apiResponse = ApiResponse.<UserAvailabilityResponse>builder()
+                    .result(response)
+                    .build();
+
+            log.info("✅ CONTROLLER: Returning availability response for user {}", userId);
+            return ResponseEntity.ok(apiResponse);
+
+        } catch (Exception e) {
+            log.error("❌ CONTROLLER ERROR getting availability for user {}: {}", userId, e.getMessage(), e);
+            throw e;
+        }
     }
+
 
     // GET /api/workloads/team/{departmentId} - Team workload overview
     @GetMapping("/team/{departmentId}")
@@ -91,5 +120,12 @@ public class UserWorkloadController {
     public ResponseEntity<Void> removeTaskFromWorkload(@PathVariable String taskId) {
         workloadService.removeTaskFromWorkload(taskId);
         return ResponseEntity.noContent().build();
+    }
+
+    // POST /api/workloads/{userId}/refresh - Manually refresh user workload (for troubleshooting)
+    @PostMapping("/{userId}/refresh")
+    public ResponseEntity<UserWorkloadResponse> refreshUserWorkload(@PathVariable String userId) {
+        UserWorkloadResponse response = workloadService.refreshUserWorkload(userId);
+        return ResponseEntity.ok(response);
     }
 }

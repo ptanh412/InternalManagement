@@ -45,7 +45,6 @@ public enum ErrorCode {
     URL_DOWNLOAD_FAILED(1031, "Failed to download content from URL", HttpStatus.BAD_REQUEST),
 
     HISTORY_NOT_FOUND(1032, "History not found", HttpStatus.NOT_FOUND),
-
     ;
 
     ErrorCode(int code, String message, HttpStatusCode statusCode) {

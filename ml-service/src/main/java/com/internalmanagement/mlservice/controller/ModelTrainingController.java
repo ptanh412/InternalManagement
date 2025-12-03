@@ -4,6 +4,7 @@ import com.internalmanagement.mlservice.dto.*;
 import com.internalmanagement.mlservice.service.ModelTrainingService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -14,7 +15,7 @@ import java.util.List;
  * REST controller for ML model training and management
  */
 @RestController
-@RequestMapping("/api/ml/training")
+@RequestMapping("/ml/training")
 @RequiredArgsConstructor
 @Slf4j
 @CrossOrigin(origins = "*")
@@ -82,10 +83,11 @@ public class ModelTrainingController {
         log.info("Getting training history: page={}, size={}, daysBack={}", page, size, daysBack);
         
         try {
-            List<TrainingHistoryDto> history = modelTrainingService
-                    .getTrainingHistory(page, size, daysBack);
-            
-            return ResponseEntity.ok(history);
+            Page<TrainingHistoryDto> history = modelTrainingService
+                    .getTrainingHistoryDto(page, size, daysBack);
+
+            return ResponseEntity.ok(
+                    history.getContent());
             
         } catch (Exception e) {
             log.error("Failed to get training history: {}", e.getMessage());
@@ -144,17 +146,30 @@ public class ModelTrainingController {
         log.info("Validating training data for last {} months", monthsBack);
         
         try {
-            DataValidationDto validation = modelTrainingService
+            TrainingDataValidationDto validation = modelTrainingService
                     .validateTrainingData(monthsBack);
             
-            return ResponseEntity.ok(validation);
-            
+            // Convert to expected DTO
+            DataValidationDto dataValidation = DataValidationDto.builder()
+                    .isValid(validation.isValid())
+                    .totalRecords(validation.getTotalRecords())
+                    .validRecords(validation.getValidRecords())
+                    .invalidRecords(validation.getInvalidRecords())
+                    .validationErrors(validation.getValidationErrors())
+                    .dataQualityScore(validation.getDataQualityScore())
+                    .validatedAt(validation.getValidatedAt())
+                    .dataSource(validation.getDataSource())
+                    .monthsValidated(validation.getMonthsValidated())
+                    .qualityMetrics(validation.getQualityMetrics())
+                    .build();
+
+            return ResponseEntity.ok(dataValidation);
+
         } catch (Exception e) {
             log.error("Failed to validate training data: {}", e.getMessage());
             
             return ResponseEntity.internalServerError()
                     .body(DataValidationDto.builder()
-                            .valid(false)
                             .message("Failed to validate training data: " + e.getMessage())
                             .build());
         }
@@ -182,14 +197,14 @@ public class ModelTrainingController {
      * Schedule or configure continuous training
      */
     @PostMapping("/continuous/configure")
-    public ResponseEntity<ContinuousTrainingConfigDto> configureContinuousTraining(
+    public ResponseEntity<ContinuousTrainingStatusDto> configureContinuousTraining(
             @Valid @RequestBody ContinuousTrainingConfigDto config) {
         
         log.info("Configuring continuous training with frequency: {} hours", 
                 config.getTrainingFrequencyHours());
         
         try {
-            ContinuousTrainingConfigDto response = modelTrainingService
+            ContinuousTrainingStatusDto response = modelTrainingService
                     .configureContinuousTraining(config);
             
             return ResponseEntity.ok(response);
@@ -198,9 +213,8 @@ public class ModelTrainingController {
             log.error("Failed to configure continuous training: {}", e.getMessage());
             
             return ResponseEntity.internalServerError()
-                    .body(ContinuousTrainingConfigDto.builder()
+                    .body(ContinuousTrainingStatusDto.builder()
                             .enabled(false)
-                            .message("Failed to configure continuous training: " + e.getMessage())
                             .build());
         }
     }
@@ -226,25 +240,25 @@ public class ModelTrainingController {
     /**
      * Export model for deployment
      */
-    @PostMapping("/export")
-    public ResponseEntity<ModelExportDto> exportModel(
-            @RequestParam(required = false) String version) {
-        
-        log.info("Exporting model version: {}", version);
-        
-        try {
-            ModelExportDto export = modelTrainingService.exportModel(version);
-            
-            return ResponseEntity.ok(export);
-            
-        } catch (Exception e) {
-            log.error("Failed to export model: {}", e.getMessage());
-            
-            return ResponseEntity.internalServerError()
-                    .body(ModelExportDto.builder()
-                            .success(false)
-                            .message("Failed to export model: " + e.getMessage())
-                            .build());
-        }
-    }
+//    @PostMapping("/export")
+//    public ResponseEntity<ModelExportDto> exportModel(
+//            @RequestParam(required = false) String version) {
+//
+//        log.info("Exporting model version: {}", version);
+//
+//        try {
+//            ModelExportDto export = modelTrainingService.exportModel(version);
+//
+//            return ResponseEntity.ok(export);
+//
+//        } catch (Exception e) {
+//            log.error("Failed to export model: {}", e.getMessage());
+//
+//            return ResponseEntity.internalServerError()
+//                    .body(ModelExportDto.builder()
+//                            .success(false)
+//                            .message("Failed to export model: " + e.getMessage())
+//                            .build());
+//        }
+//    }
 }

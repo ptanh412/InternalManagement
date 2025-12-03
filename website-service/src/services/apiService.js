@@ -6,86 +6,50 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8888/api
 const api = axios.create({
   baseURL: API_BASE_URL,
   timeout: 100000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
 });
 
-// Create a separate axios instance for AI operations with longer timeout
-const aiApi = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 120000, // 2 minutes for AI operations
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Request interceptor to add auth token for main API
+// Request interceptor
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+
+    // ✅ CRITICAL: Chỉ set Content-Type cho non-FormData requests
+    if (config.data instanceof FormData) {
+      // ❌ KHÔNG set Content-Type cho FormData - để browser tự động set
+      delete config.headers['Content-Type'];
+    } else if (!config.headers['Content-Type']) {
+      config.headers['Content-Type'] = 'application/json';
+    }
+
+    // 🔍 Debug logging
+    // console.log('🔍 Request:', {
+    //   url: config.url,
+    //   method: config.method,
+    //   contentType: config.headers['Content-Type'],
+    //   isFormData: config.data instanceof FormData
+    // });
+
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
+// Response interceptor
 api.interceptors.response.use(
   (response) => response.data,
   (error) => {
+    console.error('❌ API Error:', {
+      url: error.config?.url,
+      status: error.response?.status,
+      message: error.response?.data?.message || error.message
+    });
+
     if (error.response?.status === 401) {
-      // Token expired or invalid
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
-      // Only redirect if we're not already on the login page
-      if (window.location.pathname !== '/login') {
-        window.location.href = '/login';
-      }
-    }
-    return Promise.reject(error);
-  }
-);
-
-// Request interceptor to add auth token for AI API
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token');
-    // console.log('🔐 Interceptor - Token:', token ? 'Present' : 'Missing');
-    // console.log('🔐 Interceptor - URL:', config.url);
-    
-    if (token) {
-      // ✅ QUAN TRỌNG: Set Authorization header
-      config.headers.Authorization = `Bearer ${token}`;
-    } else {
-      console.warn('⚠️ No token found in localStorage!');
-    }
-    
-    // Đừng override Content-Type nếu đã được set
-    if (config.headers['Content-Type'] === 'multipart/form-data') {
-      delete config.headers['Content-Type']; // Let browser set boundary
-    }
-    
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
-// Response interceptor for AI API
-aiApi.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    if (error.response?.status === 401) {
-      // Token expired or invalid
-      localStorage.removeItem('token');
-      localStorage.removeItem('refreshToken');
-      // Only redirect if we're not already on the login page
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
@@ -275,11 +239,8 @@ export const apiService = {
   recalculateAllPerformanceScores: () => api.post('/identity/performance/recalculate-all'),
 
   // File uploads
-  uploadFile: (formData) => api.post('/file/media/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  }),
+  uploadFile: (formData) => api.post('/file/media/upload', formData),
+
 
   dowloadFile: (fileId) => {
   // Tạo một axios instance mới không có interceptor
@@ -425,12 +386,48 @@ export const apiService = {
     getCapacityForecast: () => api.get('/projects/resources/capacity/forecast'),
   },
 
+  
+
   // Generic API methods
   get: (url, config) => api.get(url, config),
   post: (url, data, config) => api.post(url, data, config),
   put: (url, data, config) => api.put(url, data, config),
   delete: (url, config) => api.delete(url, config),
-  }
+  },
+  // Workload Management APIs
+  workload: {
+    // Get user's current workload & capacity
+    getUserWorkload: (userId) => api.get(`/workload/workloads/${userId}`),
+
+    // Update user capacity (hours/week)
+    updateUserCapacity: (userId, data) => api.put(`/workload/workloads/${userId}/capacity`, data),
+
+    // Check user availability for new tasks
+    getUserAvailability: (userId) => api.get(`/workload/workloads/${userId}/availability`),
+
+    // Team workload overview
+    getTeamWorkload: (departmentId) => api.get(`/workload/workloads/team/${departmentId}`),
+
+    // Get available users for assignment
+    getAvailableUsers: () => api.get('/workload/workloads/available'),
+
+    // Suggest workload rebalancing for project
+    optimizeWorkloadForProject: (projectId) => api.post(`/workload/workloads/optimize/${projectId}`),
+
+    // Add task to user workload (when assigned)
+    addTaskToWorkload: (userId, data) => api.post('/workload/workloads/tasks', data, {
+      params: { userId }
+    }),
+
+    // Update task hours/progress
+    updateTaskWorkload: (taskId, data) => api.put(`/workload/workloads/tasks/${taskId}`, data),
+
+    // Remove task from workload (when completed)
+    removeTaskFromWorkload: (taskId) => api.delete(`/workload/workloads/tasks/${taskId}`),
+
+    // Manually refresh user workload (for troubleshooting)
+    refreshUserWorkload: (userId) => api.post(`/workload/workloads/${userId}/refresh`),
+  },
 }
 
 export default api;

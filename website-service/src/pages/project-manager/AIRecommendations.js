@@ -14,6 +14,8 @@ import {
   LightBulbIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth';
+import WorkloadSummaryCard from '../../components/workload/WorkloadSummaryCard';
+import apiService from '../../services/apiService';
 
 const AIRecommendations = () => {
   const { user } = useAuth();
@@ -27,12 +29,33 @@ const AIRecommendations = () => {
   const [loading, setLoading] = useState(false);
   const [recommendationType, setRecommendationType] = useState('standard');
   const [aiCapabilities, setAiCapabilities] = useState(null);
+  const [workloadData, setWorkloadData] = useState({}); // Store workload data for recommendations
 
   useEffect(() => {
     loadTasks();
     loadTeams();
     loadAICapabilities();
   }, []);
+
+  const fetchWorkloadForUser = async (userId) => {
+    try {
+      const response = await apiService.workload.getUserWorkload(userId);
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to load workload for user ${userId}:`, error);
+      return null;
+    }
+  };
+
+  const refreshWorkload = async (userId) => {
+    const workload = await fetchWorkloadForUser(userId);
+    if (workload) {
+      setWorkloadData(prev => ({
+        ...prev,
+        [userId]: workload
+      }));
+    }
+  };
 
   const loadTasks = async () => {
     try {
@@ -235,6 +258,20 @@ const AIRecommendations = () => {
         default:
           setRecommendations(mockRecommendations);
       }
+
+      // Fetch workload data for all recommended users
+      const workloadPromises = mockRecommendations.map(rec => 
+        fetchWorkloadForUser(rec.userId)
+      );
+      const workloads = await Promise.all(workloadPromises);
+      
+      const workloadMap = {};
+      mockRecommendations.forEach((rec, index) => {
+        if (workloads[index]) {
+          workloadMap[rec.userId] = workloads[index];
+        }
+      });
+      setWorkloadData(workloadMap);
 
       setLoading(false);
     } catch (error) {
@@ -562,6 +599,17 @@ const AIRecommendations = () => {
                       <span className="font-medium">{new Date(rec.estimatedCompletion).toLocaleDateString()}</span>
                     </div>
                   </div>
+                </div>
+
+                {/* Workload Summary Card */}
+                <div className="mb-4">
+                  <h4 className="font-medium text-gray-900 mb-2">Detailed Workload</h4>
+                  <WorkloadSummaryCard
+                    workloadData={workloadData[rec.userId]}
+                    compact={false}
+                    onRefresh={refreshWorkload}
+                    className="w-full"
+                  />
                 </div>
 
                 {/* AI Reasoning */}

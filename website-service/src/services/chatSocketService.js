@@ -6,6 +6,7 @@ class ChatSocketService {
     this.isConnected = false;
     this.eventHandlers = new Map();
     this.currentConversationId = null;
+    this.chatListenersSetup = false; // ✅ Track setup state
   }
 
   // Connect to the chat service Socket.IO server
@@ -73,7 +74,46 @@ class ChatSocketService {
 
   // Setup chat-specific event listeners
   setupChatEventListeners() {
-    if (!this.socket) return;
+     if (!this.socket || this.chatListenersSetup) {
+      console.log('⚠️ Chat listeners already setup or socket not ready');
+      return;
+    }
+
+    console.log('🔧 Setting up chat event listeners...');
+
+    // ✅ Remove ALL existing listeners trước khi đăng ký mới
+    this.socket.off('message');
+    this.socket.off('media-message-success');
+    this.socket.off('media-message-error');
+    this.socket.off('reply-message');
+    this.socket.off('message-status-update');
+    this.socket.off('conversation-updated');
+    this.socket.off('reaction-update');
+    this.socket.off('message-recalled');
+    this.socket.off('message-pinned');
+    this.socket.off('message-unpinned');
+    this.socket.off('media-reply-success');
+    this.socket.off('media-reply-error');
+    this.socket.off('delete-media-success');
+    this.socket.off('delete-media-error');
+    this.socket.off('create-group-success');
+    this.socket.off('create-group-error');
+    this.socket.off('add-participants-success');
+    this.socket.off('add-participants-error');
+    this.socket.off('remove-participants-success');
+    this.socket.off('remove-participants-error');
+    this.socket.off('leave-group-success');
+    this.socket.off('leave-group-error');
+    this.socket.off('pin-message-success');
+    this.socket.off('unpin-message-success');
+    this.socket.off('pin-message-error');
+    this.socket.off('reply-message-error');
+    this.socket.off('react-message-error');
+    this.socket.off('remove-reaction-error');
+    this.socket.off('recall-message-error');
+    this.socket.off('recall-message-success');
+
+    this.chatListenersSetup = true; // Đánh dấu đã setup
 
     // Core message events (matching web-app patterns)
     this.socket.on('message', (message) => {
@@ -125,6 +165,11 @@ class ChatSocketService {
     this.socket.on('message-pinned', (data) => {
       console.log('Message pinned/unpinned:', data);
       this.triggerHandler('message-pinned', data);
+    });
+
+    this.socket.on('message-unpinned', (data) => {
+      console.log('Message unpinned:', data);
+      this.triggerHandler('message-unpinned', data);
     });
 
     // Conversation events
@@ -389,14 +434,17 @@ class ChatSocketService {
     return true;
   }
 
-  // Media message actions
+  // ✅ Prevent double emit
   sendMediaMessage(request) {
     if (!this.socket || !this.isConnected) {
       console.error('Socket not connected');
       return false;
     }
 
-    console.log('Sending media message:', request);
+    // ✅ Log để debug
+    console.log('📤 Emitting send-media-message (once):', request);
+    
+    // ✅ Emit ĐÚNG 1 LẦN
     this.socket.emit('send-media-message', request);
     return true;
   }

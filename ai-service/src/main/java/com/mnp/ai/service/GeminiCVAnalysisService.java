@@ -1,23 +1,24 @@
 package com.mnp.ai.service;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
+import java.util.*;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.mnp.ai.dto.response.CVAnalysisResult;
 import com.mnp.ai.dto.response.ParsedUserProfile;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.MediaType;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-
-import java.time.LocalDate;
-import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
-import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -52,45 +53,40 @@ public class GeminiCVAnalysisService {
             String prompt = createCVAnalysisPrompt(cvContent);
 
             Map<String, Object> requestBody = Map.of(
-                    "contents", List.of(
-                            Map.of("parts", List.of(
-                                    Map.of("text", prompt)
-                            ))
-                    ),
-                    "generationConfig", Map.of(
-                            "temperature", temperature,
-                            "maxOutputTokens", maxTokens,
-                            "topP", 0.9,
-                            "topK", 10
-                    )
-            );
+                    "contents", List.of(Map.of("parts", List.of(Map.of("text", prompt)))),
+                    "generationConfig",
+                            Map.of("temperature", temperature, "maxOutputTokens", maxTokens, "topP", 0.9, "topK", 10));
 
             String apiUrl = String.format(
                     "https://generativelanguage.googleapis.com/v1/models/%s:generateContent?key=%s",
-                    model, geminiApiKey
-            );
+                    model, geminiApiKey);
 
             log.info("Calling Gemini API for CV analysis");
 
-            String response = webClient.post()
+            String response = webClient
+                    .post()
                     .uri(apiUrl)
                     .contentType(MediaType.APPLICATION_JSON)
                     .bodyValue(requestBody)
                     .retrieve()
-                    .onStatus(status -> status.is4xxClientError(),
-                            clientResponse -> clientResponse.bodyToMono(String.class)
-                                    .flatMap(errorBody -> {
-                                        log.error("Gemini API 4xx error: {} - Response: {}",
-                                                clientResponse.statusCode(), errorBody);
-                                        return Mono.error(new RuntimeException("Gemini API error: " + errorBody));
-                                    }))
-                    .onStatus(status -> status.is5xxServerError(),
-                            serverResponse -> serverResponse.bodyToMono(String.class)
-                                    .flatMap(errorBody -> {
-                                        log.error("Gemini API 5xx error: {} - Response: {}",
-                                                serverResponse.statusCode(), errorBody);
-                                        return Mono.error(new RuntimeException("Gemini API server error: " + errorBody));
-                                    }))
+                    .onStatus(status -> status.is4xxClientError(), clientResponse -> clientResponse
+                            .bodyToMono(String.class)
+                            .flatMap(errorBody -> {
+                                log.error(
+                                        "Gemini API 4xx error: {} - Response: {}",
+                                        clientResponse.statusCode(),
+                                        errorBody);
+                                return Mono.error(new RuntimeException("Gemini API error: " + errorBody));
+                            }))
+                    .onStatus(status -> status.is5xxServerError(), serverResponse -> serverResponse
+                            .bodyToMono(String.class)
+                            .flatMap(errorBody -> {
+                                log.error(
+                                        "Gemini API 5xx error: {} - Response: {}",
+                                        serverResponse.statusCode(),
+                                        errorBody);
+                                return Mono.error(new RuntimeException("Gemini API server error: " + errorBody));
+                            }))
                     .bodyToMono(String.class)
                     .block();
 
@@ -114,119 +110,121 @@ public class GeminiCVAnalysisService {
                 .map(dept -> dept.getName())
                 .collect(Collectors.joining("|"));
 
-        return String.format("""
-            You are an expert HR analyst. Analyze this CV/Resume and extract comprehensive information in valid JSON format.
-            
-            CV Content:
-            %s
-            
-            IMPORTANT: Use only these predefined values from the company's identity system:
-            
-            DEPARTMENTS (use exact names): %s
-            
-            SENIORITY LEVELS (use exact values): INTERN|JUNIOR|MID_LEVEL|SENIOR|LEAD|PRINCIPAL|DIRECTOR
-            
-            SKILL TYPES (use exact values): PROGRAMMING_LANGUAGE|FRAMEWORK|DATABASE|TOOL|DESIGN|SOFT_SKILL|DOMAIN_KNOWLEDGE
-            
-            PROFICIENCY LEVELS (use exact values): BEGINNER|INTERMEDIATE|ADVANCED|EXPERT|MASTER
-            
-            Extract and analyze the following information and return ONLY valid JSON with this exact structure:
-            
-            {
-              "personalInfo": {
-                "name": "Full Name",
-                "email": "email@example.com", 
-                "phone": "phone number",
-                "dateOfBirth": "YYYY-MM-DD or null if not found",
-                "city": "City, Country",
-                "linkedIn": "LinkedIn URL or null",
-                "github": "GitHub URL or null"
-              },
-              "professionalSummary": {
-                "title": "Current/Target Role",
-                "experienceYears": 5.5,
-                "department": "Must be one of: %s",
-                "seniority": "Must be one of: INTERN|JUNIOR|MID_LEVEL|SENIOR|LEAD|PRINCIPAL|DIRECTOR"
-              },
-              "skills": [
-                {
-                  "name": "Java",
-                  "type": "PROGRAMMING_LANGUAGE|FRAMEWORK|DATABASE|TOOL|DESIGN|SOFT_SKILL|DOMAIN_KNOWLEDGE",
-                  "proficiencyLevel": "BEGINNER|INTERMEDIATE|ADVANCED|EXPERT|MASTER",
-                  "yearsOfExperience": 3,
-                  "mandatory": true
-                }
-              ],
-              "workExperience": [
-                {
-                  "company": "Company Name",
-                  "position": "Job Title", 
-                  "startDate": "YYYY-MM-DD",
-                  "endDate": "YYYY-MM-DD or null if current",
-                  "duration": "2 years 3 months",
-                  "responsibilities": ["Key responsibility 1", "Key responsibility 2"],
-                  "achievements": ["Achievement 1", "Achievement 2"],
-                  "technologies": ["Tech1", "Tech2"]
-                }
-              ],
-              "education": [
-                {
-                  "institution": "University Name",
-                  "degree": "Bachelor of Science",
-                  "field": "Computer Science",
-                  "graduationYear": 2020,
-                  "gpa": "3.8/4.0 or null"
-                }
-              ],
-              "certifications": [
-                {
-                  "name": "AWS Certified Solutions Architect",
-                  "issuer": "Amazon Web Services",
-                  "issueDate": "YYYY-MM-DD",
-                  "expiryDate": "YYYY-MM-DD or null",
-                  "credentialId": "credential ID or null"
-                }
-              ],
-              "projects": [
-                {
-                  "name": "Project Name",
-                  "description": "Brief description",
-                  "technologies": ["React", "Node.js", "MongoDB"],
-                  "role": "Lead Developer",
-                  "duration": "3 months",
-                  "achievements": ["Achievement 1", "Achievement 2"]
-                }
-              ],
-              "languages": [
-                {
-                  "language": "English",
-                  "proficiency": "NATIVE|FLUENT|CONVERSATIONAL|BASIC"
-                }
-              ],
-              "performanceIndicators": {
-                "estimatedProductivity": 0.85,
-                "adaptabilityScore": 0.8,
-                "leadershipPotential": 0.7,
-                "technicalComplexityHandling": 0.9,
-                "collaborationScore": 0.85
-              }
-            }
-            
-            Guidelines:
-            - Extract only information explicitly mentioned in the CV
-            - Use null for missing information, don't guess
-            - MUST use exact department names from the provided list
-            - MUST use exact seniority levels: INTERN, JUNIOR, MID_LEVEL, SENIOR, LEAD, PRINCIPAL, DIRECTOR
-            - Map experience years to appropriate seniority: 0-1yr=INTERN, 1-2yr=JUNIOR, 2-5yr=MID_LEVEL, 5-8yr=SENIOR, 8-12yr=LEAD, 12-15yr=PRINCIPAL, 15+yr=DIRECTOR
-            - Infer department from skills and experience (Frontend Development, Backend Development, Quality Assurance, DevOps, Mobile Development, Engineering)
-            - Calculate experience years from work history if not explicitly stated
-            - Infer skill proficiency from job responsibilities and years of experience
-            - Set mandatory=true for core technical skills, false for nice-to-have
-            - Performance indicators should be realistic estimates (0.0-1.0) based on experience level
-            - Use standard date format YYYY-MM-DD
-            - Group similar skills with appropriate types (React=FRAMEWORK, Java=PROGRAMMING_LANGUAGE, MySQL=DATABASE, Docker=TOOL, etc.)
-            - Return ONLY the JSON object, no markdown or explanations
-            """, cvContent, availableDepartments, availableDepartments);
+        return String.format(
+                """
+			You are an expert HR analyst. Analyze this CV/Resume and extract comprehensive information in valid JSON format.
+
+			CV Content:
+			%s
+
+			IMPORTANT: Use only these predefined values from the company's identity system:
+
+			DEPARTMENTS (use exact names): %s
+
+			SENIORITY LEVELS (use exact values): INTERN|JUNIOR|MID_LEVEL|SENIOR|LEAD|PRINCIPAL|DIRECTOR
+
+			SKILL TYPES (use exact values): PROGRAMMING_LANGUAGE|FRAMEWORK|DATABASE|TOOL|DESIGN|SOFT_SKILL|DOMAIN_KNOWLEDGE
+
+			PROFICIENCY LEVELS (use exact values): BEGINNER|INTERMEDIATE|ADVANCED|EXPERT|MASTER
+
+			Extract and analyze the following information and return ONLY valid JSON with this exact structure:
+
+			{
+			"personalInfo": {
+				"name": "Full Name",
+				"email": "email@example.com",
+				"phone": "phone number",
+				"dateOfBirth": "YYYY-MM-DD or null if not found",
+				"city": "City, Country",
+				"linkedIn": "LinkedIn URL or null",
+				"github": "GitHub URL or null"
+			},
+			"professionalSummary": {
+				"title": "Current/Target Role",
+				"experienceYears": 5.5,
+				"department": "Must be one of: %s",
+				"seniority": "Must be one of: INTERN|JUNIOR|MID_LEVEL|SENIOR|LEAD|PRINCIPAL|DIRECTOR"
+			},
+			"skills": [
+				{
+				"name": "Java",
+				"type": "PROGRAMMING_LANGUAGE|FRAMEWORK|DATABASE|TOOL|DESIGN|SOFT_SKILL|DOMAIN_KNOWLEDGE",
+				"proficiencyLevel": "BEGINNER|INTERMEDIATE|ADVANCED|EXPERT|MASTER",
+				"yearsOfExperience": 3,
+				"mandatory": true
+				}
+			],
+			"workExperience": [
+				{
+				"company": "Company Name",
+				"position": "Job Title",
+				"startDate": "YYYY-MM-DD",
+				"endDate": "YYYY-MM-DD or null if current",
+				"duration": "2 years 3 months",
+				"responsibilities": ["Key responsibility 1", "Key responsibility 2"],
+				"achievements": ["Achievement 1", "Achievement 2"],
+				"technologies": ["Tech1", "Tech2"]
+				}
+			],
+			"education": [
+				{
+				"institution": "University Name",
+				"degree": "Bachelor of Science",
+				"field": "Computer Science",
+				"graduationYear": 2020,
+				"gpa": "3.8/4.0 or null"
+				}
+			],
+			"certifications": [
+				{
+				"name": "AWS Certified Solutions Architect",
+				"issuer": "Amazon Web Services",
+				"issueDate": "YYYY-MM-DD",
+				"expiryDate": "YYYY-MM-DD or null",
+				"credentialId": "credential ID or null"
+				}
+			],
+			"projects": [
+				{
+				"name": "Project Name",
+				"description": "Brief description",
+				"technologies": ["React", "Node.js", "MongoDB"],
+				"role": "Lead Developer",
+				"duration": "3 months",
+				"achievements": ["Achievement 1", "Achievement 2"]
+				}
+			],
+			"languages": [
+				{
+				"language": "English",
+				"proficiency": "NATIVE|FLUENT|CONVERSATIONAL|BASIC"
+				}
+			],
+			"performanceIndicators": {
+				"estimatedProductivity": 0.85,
+				"adaptabilityScore": 0.8,
+				"leadershipPotential": 0.7,
+				"technicalComplexityHandling": 0.9,
+				"collaborationScore": 0.85
+			}
+			}
+
+			Guidelines:
+			- Extract only information explicitly mentioned in the CV
+			- Use null for missing information, don't guess
+			- MUST use exact department names from the provided list
+			- MUST use exact seniority levels: INTERN, JUNIOR, MID_LEVEL, SENIOR, LEAD, PRINCIPAL, DIRECTOR
+			- Map experience years to appropriate seniority: 0-1yr=INTERN, 1-2yr=JUNIOR, 2-5yr=MID_LEVEL, 5-8yr=SENIOR, 8-12yr=LEAD, 12-15yr=PRINCIPAL, 15+yr=DIRECTOR
+			- Infer department from skills and experience (Frontend Development, Backend Development, Quality Assurance, DevOps, Mobile Development, Engineering)
+			- Calculate experience years from work history if not explicitly stated
+			- Infer skill proficiency from job responsibilities and years of experience
+			- Set mandatory=true for core technical skills, false for nice-to-have
+			- Performance indicators should be realistic estimates (0.0-1.0) based on experience level
+			- Use standard date format YYYY-MM-DD
+			- Group similar skills with appropriate types (React=FRAMEWORK, Java=PROGRAMMING_LANGUAGE, MySQL=DATABASE, Docker=TOOL, etc.)
+			- Return ONLY the JSON object, no markdown or explanations
+			""",
+                cvContent, availableDepartments, availableDepartments);
     }
 
     private String extractTextFromGeminiResponse(String response) throws JsonProcessingException {
@@ -289,11 +287,11 @@ public class GeminiCVAnalysisService {
         JsonNode personalInfo = rootNode.get("personalInfo");
         if (personalInfo != null) {
             builder.name(getStringValue(personalInfo, "name"))
-                   .email(getStringValue(personalInfo, "email"))
-                   .phone(getStringValue(personalInfo, "phone"))
-                   .city(getStringValue(personalInfo, "city"))
-                   .linkedIn(getStringValue(personalInfo, "linkedIn"))
-                   .github(getStringValue(personalInfo, "github"));
+                    .email(getStringValue(personalInfo, "email"))
+                    .phone(getStringValue(personalInfo, "phone"))
+                    .city(getStringValue(personalInfo, "city"))
+                    .linkedIn(getStringValue(personalInfo, "linkedIn"))
+                    .github(getStringValue(personalInfo, "github"));
 
             // Parse date of birth
             String dobStr = getStringValue(personalInfo, "dateOfBirth");
@@ -318,7 +316,8 @@ public class GeminiCVAnalysisService {
                 log.warn("Invalid department '{}', mapping based on skills", department);
                 // Parse skills first to determine department
                 Map<String, Double> skills = parseSkillsFromJson(rootNode.get("skills"));
-                department = identityIntegrationService.mapSkillsToDepartment(skills, getStringValue(professionalSummary, "title"));
+                department = identityIntegrationService.mapSkillsToDepartment(
+                        skills, getStringValue(professionalSummary, "title"));
             }
 
             // Validate and map seniority using identity-service
@@ -328,9 +327,9 @@ public class GeminiCVAnalysisService {
             }
 
             builder.currentRole(getStringValue(professionalSummary, "title"))
-                   .department(department)
-                   .seniority(seniority)
-                   .experienceYears(experienceYears);
+                    .department(department)
+                    .seniority(seniority)
+                    .experienceYears(experienceYears);
         }
 
         // Parse skills with enhanced validation
@@ -359,9 +358,9 @@ public class GeminiCVAnalysisService {
             }
 
             builder.skills(skills)
-                   .skillTypes(skillTypes)
-                   .skillExperience(skillExperience)
-                   .mandatorySkills(mandatorySkills);
+                    .skillTypes(skillTypes)
+                    .skillExperience(skillExperience)
+                    .mandatorySkills(mandatorySkills);
         }
 
         // Parse work experience
@@ -420,8 +419,7 @@ public class GeminiCVAnalysisService {
                 }
             }
 
-            builder.certifications(certifications)
-                   .certificationsDetails(certificationsDetails);
+            builder.certifications(certifications).certificationsDetails(certificationsDetails);
         }
 
         // Parse projects
@@ -459,10 +457,10 @@ public class GeminiCVAnalysisService {
         JsonNode performanceNode = rootNode.get("performanceIndicators");
         if (performanceNode != null) {
             builder.estimatedProductivity(getDoubleValue(performanceNode, "estimatedProductivity", 0.7))
-                   .adaptabilityScore(getDoubleValue(performanceNode, "adaptabilityScore", 0.7))
-                   .leadershipPotential(getDoubleValue(performanceNode, "leadershipPotential", 0.5))
-                   .technicalComplexityHandling(getDoubleValue(performanceNode, "technicalComplexityHandling", 0.7))
-                   .collaborationScore(getDoubleValue(performanceNode, "collaborationScore", 0.8));
+                    .adaptabilityScore(getDoubleValue(performanceNode, "adaptabilityScore", 0.7))
+                    .leadershipPotential(getDoubleValue(performanceNode, "leadershipPotential", 0.5))
+                    .technicalComplexityHandling(getDoubleValue(performanceNode, "technicalComplexityHandling", 0.7))
+                    .collaborationScore(getDoubleValue(performanceNode, "collaborationScore", 0.8));
         }
 
         return builder.build();
@@ -517,13 +515,20 @@ public class GeminiCVAnalysisService {
 
     private Double calculateConfidence(JsonNode rootNode) {
         int filledFields = 0;
-        int totalFields = 7; // personalInfo, professionalSummary, skills, workExperience, education, certifications, projects
+        int totalFields =
+                7; // personalInfo, professionalSummary, skills, workExperience, education, certifications, projects
 
         if (rootNode.has("personalInfo") && rootNode.get("personalInfo").has("name")) filledFields++;
         if (rootNode.has("professionalSummary")) filledFields++;
-        if (rootNode.has("skills") && rootNode.get("skills").isArray() && rootNode.get("skills").size() > 0) filledFields++;
-        if (rootNode.has("workExperience") && rootNode.get("workExperience").isArray() && rootNode.get("workExperience").size() > 0) filledFields++;
-        if (rootNode.has("education") && rootNode.get("education").isArray() && rootNode.get("education").size() > 0) filledFields++;
+        if (rootNode.has("skills")
+                && rootNode.get("skills").isArray()
+                && rootNode.get("skills").size() > 0) filledFields++;
+        if (rootNode.has("workExperience")
+                && rootNode.get("workExperience").isArray()
+                && rootNode.get("workExperience").size() > 0) filledFields++;
+        if (rootNode.has("education")
+                && rootNode.get("education").isArray()
+                && rootNode.get("education").size() > 0) filledFields++;
         if (rootNode.has("certifications")) filledFields++;
         if (rootNode.has("projects")) filledFields++;
 

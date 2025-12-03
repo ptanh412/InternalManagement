@@ -1,6 +1,6 @@
 package com.mnp.workload.configuration;
 
-import com.devteria.project.configuration.JwtAuthenticationEntryPoint;
+import com.mnp.workload.configuration.JwtAuthenticationEntryPoint;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;

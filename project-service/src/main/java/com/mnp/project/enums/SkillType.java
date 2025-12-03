@@ -21,5 +21,6 @@ public enum SkillType {
     PERFORMANCE_OPTIMIZATION,
     DESIGN_TOOL,
     COMMUNICATION_TOOL,
+    AI_ML,
     OTHER
 }

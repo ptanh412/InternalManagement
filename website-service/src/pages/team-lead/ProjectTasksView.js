@@ -13,7 +13,17 @@ import {
   CalendarDaysIcon,
   ExclamationTriangleIcon,
   Bars3BottomLeftIcon,
-  SparklesIcon
+  SparklesIcon,
+  CodeBracketIcon,
+  PaintBrushIcon,
+  BeakerIcon,
+  BugAntIcon,
+  DocumentCheckIcon,
+  ServerIcon,
+  WrenchScrewdriverIcon,
+  LightBulbIcon,
+  CircleStackIcon,
+  AcademicCapIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth';
 import { apiService } from '../../services/apiService';
@@ -80,7 +90,7 @@ const ProjectTasksView = () => {
         })
       ]);
 
-      console.log("Project response:", projectResponse);
+      // console.log("Project response:", projectResponse);
       console.log("Tasks response:", tasksResponse);
 
       // Set project info
@@ -251,6 +261,72 @@ const ProjectTasksView = () => {
     }
   };
 
+  const getTypeConfig = (type) => {
+    const typeUpper = (type || 'DEVELOPMENT').toUpperCase();
+    switch (typeUpper) {
+      case 'DEVELOPMENT':
+        return { 
+          icon: CodeBracketIcon, 
+          color: 'bg-blue-100 text-blue-800 border-blue-200', 
+          label: 'Development' 
+        };
+      case 'DESIGN':
+        return { 
+          icon: PaintBrushIcon, 
+          color: 'bg-purple-100 text-purple-800 border-purple-200', 
+          label: 'Design' 
+        };
+      case 'TESTING':
+        return { 
+          icon: BeakerIcon, 
+          color: 'bg-green-100 text-green-800 border-green-200', 
+          label: 'Testing' 
+        };
+      case 'BUG_FIX':
+        return { 
+          icon: BugAntIcon, 
+          color: 'bg-red-100 text-red-800 border-red-200', 
+          label: 'Bug Fix' 
+        };
+      case 'DOCUMENTATION':
+        return { 
+          icon: DocumentCheckIcon, 
+          color: 'bg-yellow-100 text-yellow-800 border-yellow-200', 
+          label: 'Documentation' 
+        };
+      case 'DEPLOYMENT':
+        return { 
+          icon: ServerIcon, 
+          color: 'bg-indigo-100 text-indigo-800 border-indigo-200', 
+          label: 'Deployment' 
+        };
+      case 'MAINTENANCE':
+        return { 
+          icon: WrenchScrewdriverIcon, 
+          color: 'bg-gray-100 text-gray-800 border-gray-200', 
+          label: 'Maintenance' 
+        };
+      case 'RESEARCH':
+        return { 
+          icon: LightBulbIcon, 
+          color: 'bg-amber-100 text-amber-800 border-amber-200', 
+          label: 'Research' 
+        };
+      case 'DATABASE_DEVELOPMENT':
+        return { 
+          icon: CircleStackIcon, 
+          color: 'bg-cyan-100 text-cyan-800 border-cyan-200', 
+          label: 'Database' 
+        };
+      default:
+        return { 
+          icon: CodeBracketIcon, 
+          color: 'bg-gray-100 text-gray-800 border-gray-200', 
+          label: type?.replace('_', ' ') || 'Task' 
+        };
+    }
+  };
+
   const isOverdue = (dueDate) => {
     if (!dueDate) return false;
     return new Date(dueDate) < new Date() && tasks.find(t => t.dueDate === dueDate)?.status !== 'COMPLETED';
@@ -401,87 +477,111 @@ const ProjectTasksView = () => {
       <div className="space-y-6">
         {filteredTasks.length > 0 ? (
           <div className="grid gap-4">
-            {filteredTasks.map((task) => (
-              <div key={task.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-200 p-6">
-                <div className="flex justify-between items-start mb-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      {getStatusIcon(task.status)}
-                      <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
-                      {isOverdue(task.dueDate) && (
-                        <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
-                          Overdue
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-gray-600 mb-3">{task.description}</p>
-                    
-                    {/* Task meta info */}
-                    <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-                      <div className="flex items-center">
-                        <UserIcon className="h-4 w-4 mr-1" />
-                        {task.assigneeName || 'Unassigned'}
+            {filteredTasks.map((task) => {
+              const typeConfig = getTypeConfig(task.type);
+              const TypeIcon = typeConfig.icon;
+              
+              return (
+                <div key={task.id} className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-200 p-6 border border-gray-100">
+                  {/* Header Section */}
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-start gap-3 mb-2">
+                        {getStatusIcon(task.status)}
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
+                            {isOverdue(task.dueDate) && (
+                              <span className="bg-red-100 text-red-800 text-xs px-2.5 py-1 rounded-full font-medium">
+                                Overdue
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Type Badge */}
+                          <div className="mt-2">
+                            <div className={`inline-flex items-center px-3 py-1 rounded-full border ${typeConfig.color}`}>
+                              <TypeIcon className="h-3.5 w-3.5 mr-1.5" />
+                              <span className="text-xs font-medium">{typeConfig.label}</span>
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                      {task.dueDate && (
+                      
+                      <p className="text-gray-600 mb-4 ml-7 leading-relaxed">{task.description}</p>
+                      
+                      {/* Task meta info */}
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-600 ml-7">
                         <div className="flex items-center">
-                          <CalendarDaysIcon className="h-4 w-4 mr-1" />
-                          Due: {new Date(task.dueDate).toLocaleDateString()}
+                          <UserIcon className="h-4 w-4 mr-1.5 text-gray-400" />
+                          <span className="font-medium">{task.assigneeName || 'Unassigned'}</span>
                         </div>
-                      )}
-                      {task.estimatedHours && (
-                        <div className="flex items-center">
-                          <ClockIcon className="h-4 w-4 mr-1" />
-                          {task.actualHours || 0}h / {task.estimatedHours}h
-                        </div>
-                      )}
+                        {task.dueDate && (
+                          <div className="flex items-center">
+                            <CalendarDaysIcon className="h-4 w-4 mr-1.5 text-gray-400" />
+                            <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
+                          </div>
+                        )}
+                        {task.estimatedHours && (
+                          <div className="flex items-center">
+                            <ClockIcon className="h-4 w-4 mr-1.5 text-gray-400" />
+                            <span>{task.actualHours || 0}h / {task.estimatedHours}h</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    
+                    {/* Status and Priority Badges */}
+                    <div className="flex flex-col gap-2 ml-4">
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(task.status)} whitespace-nowrap`}>
+                        {task.status.replace('_', ' ')}
+                      </span>
+                      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(task.priority)} whitespace-nowrap`}>
+                        {task.priority}
+                      </span>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center gap-2 ml-4">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(task.status)}`}>
-                      {task.status.replace('_', ' ')}
-                    </span>
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(task.priority)}`}>
-                      {task.priority}
-                    </span>
-                  </div>
-                </div>
 
-                {/* Skills */}
-                {task.skills && task.skills.length > 0 && (
-                  <div className="mb-4">
-                    <div className="flex flex-wrap gap-1">
-                      {task.skills.map((skill, index) => (
-                        <span
-                          key={index}
-                          className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 text-gray-700"
-                        >
-                          {skill}
-                        </span>
-                      ))}
+                  {/* Required Skills Section */}
+                  {(task.requiredSkills || task.skills || task.tags) && (task.requiredSkills || task.skills || task.tags).length > 0 && (
+                    <div className="mb-4 ml-7">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AcademicCapIcon className="h-4 w-4 text-gray-500" />
+                        <span className="text-xs font-medium text-gray-700 uppercase tracking-wide">Required Skills</span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {(task.requiredSkills || task.skills || task.tags || []).map((skill, index) => (
+                          <span
+                            key={index}
+                            className="inline-flex items-center px-3 py-1.5 rounded-lg text-xs font-medium bg-gradient-to-r from-indigo-50 to-purple-50 text-indigo-700 border border-indigo-200 hover:border-indigo-300 transition-colors"
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Actions */}
-                <div className="flex justify-between pt-4 border-t border-gray-200">
-                  <button
-                    onClick={() => handleViewTask(task)}
-                    className="flex items-center text-primary-600 hover:text-primary-500 text-sm font-medium"
-                  >
-                    <EyeIcon className="h-4 w-4 mr-1" />
-                    View Details
-                  </button>
-                  <button
-                    onClick={() => handleEditTask(task)}
-                    className="flex items-center text-gray-600 hover:text-gray-500 text-sm font-medium"
-                  >
-                    <PencilSquareIcon className="h-4 w-4 mr-1" />
-                    Edit Task
-                  </button>
+                  {/* Actions */}
+                  <div className="flex justify-between pt-4 border-t border-gray-200">
+                    <button
+                      onClick={() => handleViewTask(task)}
+                      className="flex items-center px-4 py-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <EyeIcon className="h-4 w-4 mr-1.5" />
+                      View Details
+                    </button>
+                    <button
+                      onClick={() => handleEditTask(task)}
+                      className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors"
+                    >
+                      <PencilSquareIcon className="h-4 w-4 mr-1.5" />
+                      Edit Task
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="text-center py-12">

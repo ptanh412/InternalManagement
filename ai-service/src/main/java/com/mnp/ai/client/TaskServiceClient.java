@@ -9,7 +9,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import com.mnp.ai.dto.ApiResponse;
 import com.mnp.ai.dto.TaskResponse;
+import com.mnp.ai.dto.TaskMetricsResponse;
 
 @FeignClient(
         name = "task-service",
@@ -31,4 +33,7 @@ public interface TaskServiceClient {
 
     @PostMapping("/internal/tasks")
     TaskResponse createTask(@RequestBody Object taskRequest);
+
+    @GetMapping("/internal/users/{userId}/metrics")
+    ApiResponse<TaskMetricsResponse> getUserTaskMetrics(@PathVariable String userId);
 }

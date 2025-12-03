@@ -1,5 +1,6 @@
 package com.internalmanagement.mlservice.entity;
 
+import com.internalmanagement.mlservice.converter.JsonMapConverter;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -49,6 +50,40 @@ public class ModelTrainingHistory {
 
     @Column(name = "f1_improvement")
     private Double f1Improvement;
+
+    @Column(name = "training_id", unique = true)
+    private String trainingId;
+
+    @Column(name = "status")
+    private String status; // STARTED, RUNNING, COMPLETED, FAILED
+
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;
+
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
+
+    @Column(name = "failed_at")
+    private LocalDateTime failedAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @Column(name = "message")
+    private String message;
+
+    @Column(name = "training_type")
+    private String trainingType; // REAL, SYNTHETIC
+
+    @Column(name = "data_source")
+    private String dataSource;
+
+    @Column(name = "training_sample_size")
+    private Integer trainingSampleSize;
+
+    @Column(name = "performance_metrics", columnDefinition = "TEXT")
+    @Convert(converter = JsonMapConverter.class)
+    private Map<String, Object> performanceMetrics;
 
     @Column(name = "deployment_status")
     @Enumerated(EnumType.STRING)

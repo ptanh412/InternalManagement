@@ -1,52 +1,61 @@
-# ML Training Package Requirements
+# ============================================================
+# ML Training Package Requirements - Cross-Platform Docker Compatible
+# ============================================================
 
-# Core ML Libraries
-scikit-learn==1.3.0
-pandas==2.0.3
-numpy==1.24.3
-scipy==1.11.1
+# Core ML Libraries - Compatible with Python 3.11
+scikit-learn>=1.3.0,<1.6.0
+pandas>=2.0.0,<2.3.0
+numpy>=1.24.0,<2.0.0
+scipy>=1.10.0,<1.15.0
+joblib>=1.3.0,<1.5.0
 
-# Deep Learning (optional for future enhancements)
-tensorflow==2.13.0
-torch==2.0.1
+# Deep Learning - Cross-platform compatible
+tensorflow>=2.13.0,<2.17.0
+torch>=2.0.0,<2.5.0
+torchvision>=0.15.0,<0.20.0
 
-# Data Processing
-joblib==1.3.1
-pickle5==0.0.12
+# Sentence Transformers for Skill Embeddings
+sentence-transformers>=2.2.0,<3.0.0
 
 # Database Connections
-psycopg2-binary==2.9.7
-sqlalchemy==2.0.19
-pymongo==4.4.1
-neo4j==5.11.0
-mysql-connector-python==8.1.0
+psycopg2-binary>=2.9.0,<3.0.0
+sqlalchemy>=2.0.0,<2.1.0
+pymongo>=4.3.0,<5.0.0
+neo4j>=5.8.0,<6.0.0
+pymysql>=1.0.0,<1.2.0
 
 # Message Queue
-kafka-python==2.0.2
+kafka-python>=2.0.0,<3.0.0
 
 # Web Framework for Model Serving
-fastapi==0.100.1
-uvicorn==0.23.1
-pydantic==2.1.1
+fastapi>=0.100.0,<0.110.0
+uvicorn[standard]>=0.20.0,<0.30.0
+pydantic>=2.0.0,<3.0.0
 
 # Configuration Management
-pyyaml==6.0.1
-python-dotenv==1.0.0
+pyyaml>=6.0.0,<7.0.0
+python-dotenv>=1.0.0,<2.0.0
 
-# Visualization and Analysis
-matplotlib==3.7.2
-seaborn==0.12.2
-plotly==5.15.0
+# Visualization and Analysis (optional for training)
+matplotlib>=3.7.0,<4.0.0
+seaborn>=0.12.0,<0.14.0
 
 # Model Evaluation and Metrics
-scikit-plot==0.3.7
+# scikit-plot>=0.3.7  # Commented out - causes conflicts
 
 # HTTP Requests
-requests==2.31.0
-aiohttp==3.8.5
+requests>=2.30.0,<3.0.0
 
 # Logging and Monitoring
-structlog==23.1.0
+structlog>=23.0.0,<25.0.0
+
+# Scheduling and Task Management
+schedule>=1.2.0,<2.0.0
+apscheduler>=3.10.0,<4.0.0
+
+# Additional utilities for ML training
+tqdm>=4.65.0,<5.0.0
+cloudpickle>=2.2.0,<4.0.0
 
 # Development and Testing
 jupyter==1.0.0
@@ -57,7 +66,7 @@ pytest-asyncio==0.21.1
 numba==0.57.1
 
 # Data Validation
-pandera==0.15.2
+pandera==0.18.0
 
 # Schedule for continuous training
 schedule==1.2.0

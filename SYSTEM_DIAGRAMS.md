@@ -1519,6 +1519,137 @@ sequenceDiagram
     Gateway-->>TeamLead: 22. Performance Report & Suggestions
 ```
 
+### 5.4 Microservices Data Flow Diagram
+
+Comprehensive data flow sequence showing complete task creation workflow across all microservices (excluding post-service).
+
+```mermaid
+sequenceDiagram
+    participant Client as 🌐 Client App
+    participant Gateway as 🚪 API Gateway<br/>(8888)
+    participant Identity as 🔐 Identity<br/>(8081)
+    participant Profile as 👤 Profile<br/>(8082)
+    participant Project as 📋 Project<br/>(8086)
+    participant Task as ✅ Task<br/>(8083)
+    participant AI as 🤖 AI Service<br/>(8089)
+    participant ML as 🧠 ML Service<br/>(8091)
+    participant MLPython as 🐍 Python API<br/>(8000)
+    participant Workload as ⏰ Workload<br/>(8084)
+    participant Chat as 💬 Chat<br/>(8087)
+    participant Notification as 🔔 Notification<br/>(8088)
+    participant File as 📁 File<br/>(8092)
+    participant Database as � Database<br/>MySQL, Neo4j<br/>MongoDB, PostgreSQL
+    
+    %% Authentication Phase
+    Note over Client,Database: Phase 1: User Authentication
+    %% Authentication Phase
+    Note over Client,Database: Phase 1: User Authentication
+    Client->>Gateway: 1. Login Request (credentials)
+    Gateway->>Identity: 2. Authenticate User
+    Identity->>Database: 3. Validate Credentials (MySQL)
+    Database-->>Identity: 4. User Data
+    Identity->>Database: 5. Store JWT Session (Redis)
+    Database-->>Identity: 6. Session Cached
+    Identity-->>Gateway: 7. JWT Token
+    Gateway-->>Client: 8. Authentication Success
+    
+    %% Project Creation Phase
+    Note over Client,Database: Phase 2: Create Project with Team
+    Client->>Gateway: 9. Create Project Request + JWT
+    Gateway->>Identity: 10. Validate JWT Token
+    Identity->>Database: 11. Check Session Cache (Redis)
+    Database-->>Identity: 12. Valid Session
+    Identity-->>Gateway: 13. Token Valid
+    Gateway->>Project: 14. Create Project
+    Project->>Profile: 15. Get Team Member Skills
+    Profile->>Database: 16. Query Skills Graph (Neo4j)
+    Database-->>Profile: 17. Team Skills Data
+    Profile-->>Project: 18. Skills Information
+    Project->>Database: 19. Save Project Data (MySQL)
+    Database-->>Project: 20. Project Saved
+    Project->>Chat: 21. Create Project Chat Room
+    Chat->>Database: 22. Store Chat Metadata (MongoDB)
+    Database-->>Chat: 23. Chat Created
+    Chat-->>Project: 24. Chat Room ID
+    Project->>Notification: 25. Notify Team Members
+    Notification->>Database: 26. Store Notifications (MongoDB)
+    Notification-->>Project: 27. Notifications Sent
+    Project-->>Gateway: 28. Project Created Successfully
+    Gateway-->>Client: 29. Project Details
+    
+    %% Task Assignment with AI Phase
+    Note over Client,Database: Phase 3: AI-Powered Task Assignment
+    Client->>Gateway: 30. Create & Assign Task
+    Gateway->>Task: 31. Create Task Request
+    Task->>AI: 32. Get Task Recommendations
+    AI->>Profile: 33. Get User Skills & Performance
+    Profile->>Database: 34. Query Skills & Relationships (Neo4j)
+    Database-->>Profile: 35. User Skill Graph
+    Profile-->>AI: 36. Skills Data
+    AI->>Workload: 37. Get Current Workload
+    Workload->>Database: 38. Query Work Hours (MySQL)
+    Database-->>Workload: 39. Workload Data
+    Workload-->>AI: 40. Capacity Info
+    AI->>ML: 41. Request ML Prediction
+    ML->>MLPython: 42. Call Python Model API
+    MLPython->>Database: 43. Get Training Features (PostgreSQL)
+    Database-->>MLPython: 44. Historical Data
+    MLPython->>Database: 45. Collect Task Data (MySQL)
+    Database-->>MLPython: 46. Task Patterns
+    MLPython->>Database: 47. Collect Skill Matches (Neo4j)
+    Database-->>MLPython: 48. Skill Correlations
+    MLPython->>Database: 49. Get Past Predictions (MongoDB)
+    Database-->>MLPython: 50. Prediction History
+    MLPython-->>ML: 51. Model Prediction Results
+    ML->>Database: 52. Cache Prediction (Redis)
+    ML->>Database: 53. Store Model Metrics (PostgreSQL)
+    ML-->>AI: 54. Recommended Assignees
+    AI->>Database: 55. Store AI Recommendation (MongoDB)
+    AI-->>Task: 56. Best User Match
+    Task->>Database: 57. Create Task Record (MySQL)
+    Database-->>Task: 58. Task Saved
+    Task->>Project: 59. Link Task to Project
+    Project-->>Task: 60. Task Linked
+    Task->>Workload: 61. Update User Workload
+    Workload->>Database: 62. Add Workload Entry (MySQL)
+    Task->>Chat: 63. Add Task to Chat
+    Chat->>Database: 64. Create Task Discussion (MongoDB)
+    Chat->>Notification: 65. Notify Task Assignment
+    Notification->>Identity: 66. Get User Preferences
+    Identity->>Database: 67. Fetch Notification Settings (MySQL)
+    Database-->>Identity: 68. User Preferences
+    Identity-->>Notification: 69. Preferences Data
+    Notification->>Database: 70. Store Notification (MongoDB)
+    Notification->>Client: 71. WebSocket Push Notification
+    Task-->>Gateway: 72. Task Created Successfully
+    Gateway-->>Client: 73. Task Details + Assignment
+    
+    %% File Upload Phase
+    Note over Client,Database: Phase 4: File Attachment to Task
+    Client->>Gateway: 74. Upload Task File
+    Gateway->>File: 75. Process File Upload
+    File->>Identity: 76. Validate User Permissions
+    Identity-->>File: 77. Permission Granted
+    File->>Database: 78. Store File Metadata (MongoDB)
+    Database-->>File: 79. Metadata Saved
+    File->>Task: 80. Link File to Task
+    Task-->>File: 81. File Linked
+    File-->>Gateway: 82. Upload Success
+    Gateway-->>Client: 83. File URL
+    
+    %% Event Processing Phase
+    Note over ML,Database: Phase 5: Asynchronous Event Processing
+    ML->>Database: 84. Update Training Dataset (PostgreSQL)
+    Notification->>Client: 85. Real-time Updates (WebSocket)
+    Profile->>Database: 86. Update Skill Proficiency (Neo4j)
+    
+    %% Monitoring Phase
+    Note over AI,Database: Phase 6: Performance Tracking
+    AI->>Database: 87. Store Analytics Data (MongoDB)
+    ML->>Database: 88. Update Prediction Cache (Redis)
+    Task->>Database: 89. Log Task Metrics (MySQL)
+```
+
 ---
 
 ## 6. System Data Models

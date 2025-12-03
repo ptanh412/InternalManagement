@@ -1,753 +1,776 @@
 package com.mnp.ai.service;
 
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.mnp.ai.algorithm.HybridRecommendationAlgorithm;
+import com.mnp.ai.client.MLServiceClient;
+import com.mnp.ai.dto.MLPredictionRequest;
+import com.mnp.ai.dto.MLPredictionResponse;
+import com.mnp.ai.dto.MLPredictionResult;
 import com.mnp.ai.model.AssignmentRecommendation;
 import com.mnp.ai.model.TaskProfile;
 import com.mnp.ai.model.UserProfile;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class AIRecommendationService {
 
-    private final HybridRecommendationAlgorithm hybridRecommendationAlgorithm;
+    private final FeatureEngineeringService featureEngineering;
+    private final MLServiceClient mlServiceClient;
     private final DataIntegrationService dataIntegrationService;
     private final GeminiRecommendationService geminiRecommendationService;
+    private final SkillCategoryMatcher skillCategoryMatcher;
 
-    /**
-     * Generate AI-powered task assignment recommendations with Gemini AI enhancement
-     */
-    public List<AssignmentRecommendation> generateTaskAssignmentRecommendations(String taskId) {
-        log.info("Generating AI recommendations for task: {}", taskId);
+    @Autowired
+    private SkillNormalizer skillNormalizer;
 
-        try {
-            // Get task profile
-            TaskProfile taskProfile = dataIntegrationService.getTaskProfile(taskId);
-            if (taskProfile == null) {
-                log.error("Task profile not found for taskId: {}", taskId);
-                throw new RuntimeException("Task profile not found");
-            }
+    // Lowered threshold from 0.40 to 0.20
+    private static final double BASE_THRESHOLD = 0.20;
 
-            // Get candidate user profiles
-            List<UserProfile> candidates = dataIntegrationService.getSmartCandidates(taskProfile);
-            if (candidates.isEmpty()) {
-                log.warn("No candidates found for task: {}", taskId);
-                return List.of();
-            }
-
-            // Filter candidates based on task creator's role (same logic as GeminiAI)
-            List<UserProfile> filteredCandidates = filterCandidatesByCreatorRole(taskProfile, candidates);
-            if (filteredCandidates.isEmpty()) {
-                log.warn("No suitable candidates found after role filtering for task: {}", taskId);
-                return List.of();
-            }
-            
-            log.info("Filtered to {} candidates based on creator role (from {} total)", 
-                     filteredCandidates.size(), candidates.size());
-
-            // Check if task has HIGH or CRITICAL priority for enhanced AI analysis
-            String priority = taskProfile.getPriority();
-            boolean useGeminiAI = "HIGH".equalsIgnoreCase(priority) || "CRITICAL".equalsIgnoreCase(priority) ||
-                                 taskProfile.getDifficulty() != null && "HARD".equalsIgnoreCase(taskProfile.getDifficulty());
-
-            List<AssignmentRecommendation> recommendations;
-
-            if (useGeminiAI) {
-                log.info("Using Gemini AI for enhanced recommendations due to {} priority task", priority);
-                try {
-                    // Use Gemini AI for intelligent analysis and team lead prioritization
-                    // GeminiAI will apply its own filtering, but we pass filtered candidates for consistency
-                    recommendations = geminiRecommendationService.generateGeminiRecommendations(taskProfile, filteredCandidates);
-
-                    // If Gemini recommendations are successful, enhance with hybrid scores for comparison
-                    recommendations = enhanceWithHybridScores(recommendations, taskProfile, filteredCandidates);
-
-                } catch (Exception e) {
-                    log.warn("Gemini AI recommendations failed, falling back to hybrid algorithm: {}", e.getMessage());
-                    recommendations = hybridRecommendationAlgorithm.generateRecommendations(taskProfile, filteredCandidates);
-                    recommendations = applyBasicTeamLeadPrioritization(recommendations, taskProfile, filteredCandidates);
-                }
-            } else {
-                // Use standard hybrid algorithm for regular priority tasks
-                log.info("Using hybrid algorithm for standard priority task");
-                recommendations = hybridRecommendationAlgorithm.generateRecommendations(taskProfile, filteredCandidates);
-                // Still apply team lead logic for HIGH/CRITICAL priority
-                recommendations = applyBasicTeamLeadPrioritization(recommendations, taskProfile, filteredCandidates);
-            }
-
-            // Clean up and ensure all fields have proper values
-            recommendations = cleanupRecommendations(recommendations, taskProfile, filteredCandidates);
-
-            log.info("Generated {} recommendations for task: {}", recommendations.size(), taskId);
-            return recommendations;
-
-        } catch (Exception e) {
-            log.error("Error generating recommendations for task: {}", taskId, e);
-            throw new RuntimeException("Failed to generate recommendations", e);
-        }
+    @Autowired
+    public AIRecommendationService(
+            FeatureEngineeringService featureEngineering,
+            MLServiceClient mlServiceClient,
+            DataIntegrationService dataIntegrationService,
+            GeminiRecommendationService geminiRecommendationService,
+            SkillCategoryMatcher skillCategoryMatcher) {
+        this.featureEngineering = featureEngineering;
+        this.mlServiceClient = mlServiceClient;
+        this.dataIntegrationService = dataIntegrationService;
+        this.geminiRecommendationService = geminiRecommendationService;
+        this.skillCategoryMatcher = skillCategoryMatcher;
     }
 
     /**
-     * Filter candidates based on task creator's role
-     * If task is created by TEAM_LEAD, only recommend EMPLOYEE role candidates
+     * Main recommendation method with hybrid approach
      */
-    private List<UserProfile> filterCandidatesByCreatorRole(TaskProfile task, List<UserProfile> candidates) {
-        // Get creator's profile to check their role
-        String creatorId = task.getCreatedBy();
-        if (creatorId == null || creatorId.isEmpty()) {
-            log.debug("No creator ID found, returning all candidates");
-            return candidates;
+    public List<AssignmentRecommendation> recommendCandidates(String taskId) {
+        TaskProfile task = dataIntegrationService.getTaskProfile(taskId);
+
+        List<UserProfile> candidates = dataIntegrationService.getSmartCandidates(task);
+        log.info("Starting hybrid recommendation for task: {}", task.getTaskId());
+
+        if (candidates == null || candidates.isEmpty()) {
+            log.warn("No candidates available for task: {}", task.getTaskId());
+            return Collections.emptyList();
         }
 
-        // Find creator in candidates list or assume they are a team lead if not in list
-        UserProfile creator = candidates.stream()
-                .filter(c -> c.getUserId().equals(creatorId))
-                .findFirst()
-                .orElse(null);
+        // STEP 0: Deduplicate raw candidates by userId (preserve order)
+        List<UserProfile> uniqueRawCandidates = candidates.stream()
+                .collect(Collectors.collectingAndThen(
+                        Collectors.toMap(UserProfile::getUserId, c -> c, (a, b) -> a, java.util.LinkedHashMap::new),
+                        m -> new ArrayList<>(m.values())));
 
-        boolean creatorIsTeamLead = false;
-        if (creator != null) {
-            String role = creator.getRole();
-            creatorIsTeamLead = role != null &&
-                (role.toUpperCase().contains("TEAM_LEAD") ||
-                 role.toUpperCase().contains("MANAGER") ||
-                 role.toUpperCase().contains("LEAD"));
-        } else {
-            // If creator not in candidates list, check if they might be a team lead
-            // by querying the data service or assuming based on context
-            log.debug("Creator {} not found in candidates list, checking role from task context", creatorId);
-            // For safety, we'll assume they might be a team lead to apply filtering
-            creatorIsTeamLead = true;
+        if (uniqueRawCandidates.size() != candidates.size()) {
+            log.info("Deduplicated raw candidates: {} original -> {} unique", candidates.size(), uniqueRawCandidates.size());
         }
 
-        // If creator is team lead, filter to only EMPLOYEE role candidates
-        if (creatorIsTeamLead) {
-            log.info("Creator is TEAM_LEAD, filtering candidates to EMPLOYEE role only");
-            List<UserProfile> filtered = candidates.stream()
-                .filter(candidate -> {
-                    String role = candidate.getRole();
-                    if (role == null) return false;
-                    
-                    String roleUpper = role.toUpperCase();
-                    // Include only EMPLOYEE role, exclude TEAM_LEAD, MANAGER, LEAD, ADMIN
-                    return roleUpper.contains("EMPLOYEE") && 
-                           !roleUpper.contains("TEAM_LEAD") &&
-                           !roleUpper.contains("MANAGER") &&
-                           !roleUpper.contains("LEAD") &&
-                           !roleUpper.contains("ADMIN");
-                })
-                .collect(java.util.stream.Collectors.toList());
-            
-            log.info("Filtered from {} to {} EMPLOYEE candidates", candidates.size(), filtered.size());
-            return filtered;
+        // STEP 1: Quick Filter with low threshold (20%)
+        List<UserProfile> filteredCandidates = uniqueRawCandidates.stream()
+                .filter(c -> quickFilter(c, task))
+                .collect(Collectors.toList());
+
+        log.info("Candidates after quick filter: {} out of {}", filteredCandidates.size(), uniqueRawCandidates.size());
+
+        if (filteredCandidates.isEmpty()) {
+            log.warn("No candidates passed quick filter for task: {}", task.getTaskId());
+            return Collections.emptyList();
         }
 
-        // For non-team-lead creators, return all candidates
-        log.debug("Creator is not TEAM_LEAD, returning all candidates");
-        return candidates;
-    }
+        // STEP 1.5: Filter out PRINCIPAL and DIRECTOR seniority levels
+        // These high-level positions should not be assigned to regular tasks
+        List<UserProfile> eligibleCandidates = filteredCandidates.stream()
+                .filter(c -> {
+                    String seniority = c.getSeniorityLevel();
+                    if (seniority == null) return true;
 
-    /**
-     * Clean up recommendations to ensure all fields have proper values and remove unused fields
-     */
-    private List<AssignmentRecommendation> cleanupRecommendations(
-            List<AssignmentRecommendation> recommendations,
-            TaskProfile taskProfile,
-            List<UserProfile> candidates) {
+                    String normalizedSeniority = seniority.toUpperCase().trim();
+                    boolean isExcluded = "PRINCIPAL".equals(normalizedSeniority) ||
+                                       "DIRECTOR".equals(normalizedSeniority);
 
-        log.info("Cleaning up recommendations to ensure all fields have proper values");
-
-        for (AssignmentRecommendation rec : recommendations) {
-            UserProfile candidate = findCandidateById(rec.getUserId(), candidates);
-
-            // Ensure isTeamLead is never null
-            if (rec.getIsTeamLead() == null) {
-                rec.setIsTeamLead(candidate != null && isTeamLeadOrSenior(candidate));
-            }
-
-            // Generate personalized reasoning based on candidate profile
-            String personalizedReasoning = generatePersonalizedReasoning(rec, candidate, taskProfile);
-            rec.setGeminiReasoning(personalizedReasoning);
-
-            // Replace recommendationReason with geminiReasoning
-            rec.setRecommendationReason(personalizedReasoning);
-
-            // Ensure geminiScore has a value (use hybridScore as fallback)
-            if (rec.getGeminiScore() == null) {
-                rec.setGeminiScore(rec.getHybridScore() != null ? rec.getHybridScore() : rec.getOverallScore());
-            }
-
-            // Calculate realistic individual scores based on candidate data
-            calculateRealisticIndividualScores(rec, candidate, taskProfile);
-
-            // Ensure all core hybrid scores have values
-            if (rec.getContentBasedScore() == null) {
-                rec.setContentBasedScore(0.5);
-            }
-            if (rec.getCollaborativeFilteringScore() == null) {
-                rec.setCollaborativeFilteringScore(0.5);
-            }
-            if (rec.getHybridScore() == null) {
-                rec.setHybridScore(rec.getOverallScore());
-            }
-        }
-
-        // Ensure proper differentiation by adding small random variations to identical scores
-        ensureScoreDifferentiation(recommendations);
-
-        return recommendations;
-    }
-
-    /**
-     * Generate personalized reasoning for each candidate
-     */
-    private String generatePersonalizedReasoning(AssignmentRecommendation rec, UserProfile candidate, TaskProfile taskProfile) {
-        if (candidate == null) {
-            return "Candidate profile not available for detailed analysis.";
-        }
-
-        StringBuilder reasoning = new StringBuilder();
-
-        // Start with candidate identification
-        String name = candidate.getName() != null ? candidate.getName() : "Candidate";
-        String role = candidate.getRole() != null ? candidate.getRole() : "Team Member";
-
-        reasoning.append(String.format("%s (%s) ", name, role));
-
-        // Add team lead context if applicable
-        if (Boolean.TRUE.equals(rec.getIsTeamLead())) {
-            reasoning.append("is identified as a team lead/senior member. ");
-        }
-
-        // Experience assessment
-        Double experience = candidate.getExperienceYears();
-        if (experience != null) {
-            if (experience >= 7) {
-                reasoning.append(String.format("With %.1f years of experience, brings deep expertise. ", experience));
-            } else if (experience >= 3) {
-                reasoning.append(String.format("Has solid %.1f years of experience. ", experience));
-            } else {
-                reasoning.append(String.format("Early career with %.1f years of experience. ", experience));
-            }
-        }
-
-        // Performance assessment
-        Double performance = candidate.getPerformanceRating();
-        if (performance != null) {
-            if (performance >= 4.5) {
-                reasoning.append("Excellent performance track record (4.5+/5.0). ");
-            } else if (performance >= 4.0) {
-                reasoning.append("Strong performance history (4.0+/5.0). ");
-            } else if (performance >= 3.5) {
-                reasoning.append("Good performance rating (3.5+/5.0). ");
-            } else {
-                reasoning.append("Developing performance (below 3.5/5.0). ");
-            }
-        }
-
-        // Skill match assessment
-        double skillScore = rec.getSkillMatchScore() != null ? rec.getSkillMatchScore() : 0.5;
-        if (skillScore >= 0.8) {
-            reasoning.append("Excellent skill alignment with task requirements. ");
-        } else if (skillScore >= 0.6) {
-            reasoning.append("Good skill match for this task. ");
-        } else if (skillScore >= 0.4) {
-            reasoning.append("Moderate skill alignment. ");
-        } else {
-            reasoning.append("Limited skill match, may need support. ");
-        }
-
-        // Workload assessment
-        Integer workload = candidate.getCurrentWorkLoadHours();
-        if (workload != null) {
-            if (workload <= 20) {
-                reasoning.append("Currently has light workload, highly available. ");
-            } else if (workload <= 35) {
-                reasoning.append("Moderate workload, good availability. ");
-            } else {
-                reasoning.append("Heavy current workload, limited availability. ");
-            }
-        }
-
-        // Department alignment
-        String candidateDept = candidate.getDepartment();
-        String taskDept = taskProfile.getDepartment();
-        if (candidateDept != null && taskDept != null && candidateDept.equalsIgnoreCase(taskDept)) {
-            reasoning.append("Perfect department alignment. ");
-        } else if (candidateDept != null && taskDept != null) {
-            reasoning.append("Cross-department assignment. ");
-        }
-
-        // Priority context
-        String priority = taskProfile.getPriority();
-        if ("HIGH".equalsIgnoreCase(priority) || "CRITICAL".equalsIgnoreCase(priority)) {
-            if (Boolean.TRUE.equals(rec.getIsTeamLead())) {
-                reasoning.append(String.format("Well-suited for this %s priority task requiring leadership.", priority.toLowerCase()));
-            } else {
-                reasoning.append(String.format("Can contribute to this %s priority task with proper support.", priority.toLowerCase()));
-            }
-        }
-
-        return reasoning.toString().trim();
-    }
-
-    /**
-     * Calculate realistic individual scores based on actual candidate data
-     */
-    private void calculateRealisticIndividualScores(AssignmentRecommendation rec, UserProfile candidate, TaskProfile taskProfile) {
-        if (candidate == null) {
-            // Set default values for missing candidate
-            rec.setSkillMatchScore(0.3);
-            rec.setWorkloadScore(0.5);
-            rec.setPerformanceScore(0.5);
-            rec.setAvailabilityScore(0.5);
-            rec.setCollaborationScore(0.5);
-            return;
-        }
-
-        // Calculate skill match score based on candidate's actual skills
-        double skillMatchScore = calculateActualSkillMatch(candidate, taskProfile);
-        rec.setSkillMatchScore(skillMatchScore);
-
-        // Calculate workload score based on current hours
-        double workloadScore = calculateActualWorkloadScore(candidate);
-        rec.setWorkloadScore(workloadScore);
-
-        // Calculate performance score from rating
-        double performanceScore = calculateActualPerformanceScore(candidate);
-        rec.setPerformanceScore(performanceScore);
-
-        // Calculate availability based on status and workload
-        double availabilityScore = calculateActualAvailabilityScore(candidate);
-        rec.setAvailabilityScore(availabilityScore);
-
-        // Calculate collaboration score (randomized for diversity)
-        double collaborationScore = 0.3 + (Math.random() * 0.4); // 0.3 to 0.7 range
-        rec.setCollaborationScore(Math.round(collaborationScore * 100.0) / 100.0);
-    }
-
-    private double calculateActualSkillMatch(UserProfile candidate, TaskProfile taskProfile) {
-        Map<String, Double> candidateSkills = candidate.getSkills();
-        Map<String, Double> requiredSkills = taskProfile.getRequiredSkills();
-
-        if (candidateSkills == null || candidateSkills.isEmpty()) {
-            return 0.2 + (Math.random() * 0.3); // 0.2 to 0.5 for no skills
-        }
-
-        if (requiredSkills == null || requiredSkills.isEmpty()) {
-            // Base score on experience and role
-            Double experience = candidate.getExperienceYears();
-            double baseScore = 0.4;
-            if (experience != null) {
-                baseScore += Math.min(0.3, experience * 0.05); // Up to 0.3 bonus for experience
-            }
-            return Math.round((baseScore + (Math.random() * 0.2)) * 100.0) / 100.0;
-        }
-
-        // Calculate actual skill matching - OPTIMIZED VERSION
-        double totalScore = 0.0;
-        int matchedSkills = 0;
-
-        // Pre-process candidate skills for faster lookup
-        Map<String, Double> normalizedCandidateSkills = new java.util.HashMap<>();
-        for (Map.Entry<String, Double> entry : candidateSkills.entrySet()) {
-            normalizedCandidateSkills.put(entry.getKey().toLowerCase().trim(), entry.getValue());
-        }
-
-        for (Map.Entry<String, Double> required : requiredSkills.entrySet()) {
-            String requiredSkillName = required.getKey().toLowerCase().trim();
-            double requiredLevel = required.getValue();
-            boolean skillMatched = false;
-
-            // First try exact match
-            if (normalizedCandidateSkills.containsKey(requiredSkillName)) {
-                double candidateLevel = normalizedCandidateSkills.get(requiredSkillName);
-                matchedSkills++;
-                if (candidateLevel >= requiredLevel) {
-                    totalScore += 1.0;
-                } else {
-                    totalScore += candidateLevel / requiredLevel;
-                }
-                skillMatched = true;
-            } else {
-                // Try partial matching - but limit iterations for performance
-                int iterations = 0;
-                for (Map.Entry<String, Double> candidateEntry : normalizedCandidateSkills.entrySet()) {
-                    if (++iterations > 20) break; // Limit iterations to prevent timeout
-
-                    String candidateSkillName = candidateEntry.getKey();
-
-                    // Use more efficient string matching
-                    if (isSkillMatch(requiredSkillName, candidateSkillName)) {
-                        matchedSkills++;
-                        double candidateLevel = candidateEntry.getValue();
-                        if (candidateLevel >= requiredLevel) {
-                            totalScore += 1.0;
-                        } else {
-                            totalScore += candidateLevel / requiredLevel;
-                        }
-                        skillMatched = true;
-                        break; // Exit inner loop once match is found
+                    if (isExcluded) {
+                        log.debug("Excluding candidate {} with seniority level: {}",
+                                c.getUserId(), seniority);
                     }
-                }
-            }
 
-            // If no skill matched, don't count it against total
-            if (!skillMatched && requiredSkills.size() <= 5) {
-                // For small skill sets, penalize missing skills less
-                totalScore += 0.1;
-            }
+                    return !isExcluded;
+                })
+                .collect(Collectors.toList());
+        log.info("Info candidate: {}" , eligibleCandidates.getFirst());
+        log.info("Candidates after seniority filter: {} out of {} (excluded PRINCIPAL/DIRECTOR)",
+                eligibleCandidates.size(), filteredCandidates.size());
+
+        if (eligibleCandidates.isEmpty()) {
+            log.warn("No candidates available after filtering out PRINCIPAL/DIRECTOR levels for task: {}",
+                    task.getTaskId());
+            return Collections.emptyList();
         }
 
-        double matchRatio = requiredSkills.size() > 0 ? totalScore / requiredSkills.size() : 0.5;
-        return Math.round(Math.min(1.0, matchRatio) * 100.0) / 100.0;
-    }
+        // STEP 2: Calculate AI scores for filtered candidates
+        // ML service will fetch full user data from databases
+        List<Map<String, Object>> candidatesWithAIScores = eligibleCandidates.stream()
+                .map(c -> {
+                    double baseMatch = calculateBaseSkillMatch(task, c);
+                    Map<String, Double> aiScores = featureEngineering.calculateAIScores(c, task, baseMatch);
 
-    /**
-     * Efficient skill matching helper method
-     */
-    private boolean isSkillMatch(String required, String candidate) {
-        if (required.equals(candidate)) {
-            return true;
+                    // Return minimal data: userId + AI scores only
+                    Map<String, Object> candidateData = new HashMap<>();
+                    candidateData.put("userId", c.getUserId());
+                    candidateData.putAll(aiScores);
+
+                    return candidateData;
+                })
+                .collect(Collectors.toList());
+
+        log.info("Calculated AI scores for {} candidates", candidatesWithAIScores.size());
+
+        // STEP 3: ML Prediction - send userIds and AI scores
+        // ML service will fetch performance, workload, skills data directly from databases
+        MLPredictionResponse mlResponse = callMLService(task, candidatesWithAIScores);
+
+        if (mlResponse == null || mlResponse.getPredictions() == null || mlResponse.getPredictions().isEmpty()) {
+            log.error("ML service returned no predictions, returning empty list");
+            return Collections.emptyList();
         }
 
-        // Check if either contains the other (but limit string operations)
-        if (required.length() <= 20 && candidate.length() <= 20) {
-            return candidate.contains(required) || required.contains(candidate);
-        }
+        log.info("Received {} ML predictions", mlResponse.getPredictions().size());
 
-        // For longer strings, just check prefix/suffix to avoid performance issues
-        return candidate.startsWith(required) || required.startsWith(candidate) ||
-               candidate.endsWith(required) || required.endsWith(candidate);
-    }
+        // STEP 4: Apply Business Rules using the eligible candidates list (already filtered)
+        List<AssignmentRecommendation> recommendations = mlResponse.getPredictions().stream()
+                .map(pred -> applyBusinessRules(pred, task, eligibleCandidates))
+                .filter(Objects::nonNull)
+                .sorted(Comparator.comparing(AssignmentRecommendation::getOverallScore).reversed())
+                .limit(10)
+                .collect(Collectors.toList());
 
-    private double calculateActualWorkloadScore(UserProfile candidate) {
-        Integer currentHours = candidate.getCurrentWorkLoadHours();
-        if (currentHours == null) {
-            return 0.5 + (Math.random() * 0.3); // 0.5 to 0.8 default
-        }
-
-        // Workload score: higher is better (less busy)
-        double score;
-        if (currentHours <= 20) {
-            score = 0.9 + (Math.random() * 0.1); // 0.9 to 1.0
-        } else if (currentHours <= 30) {
-            score = 0.7 + (Math.random() * 0.2); // 0.7 to 0.9
-        } else if (currentHours <= 40) {
-            score = 0.4 + (Math.random() * 0.3); // 0.4 to 0.7
-        } else {
-            score = 0.1 + (Math.random() * 0.3); // 0.1 to 0.4
-        }
-
-        return Math.round(score * 100.0) / 100.0;
-    }
-
-    private double calculateActualPerformanceScore(UserProfile candidate) {
-        Double rating = candidate.getPerformanceRating();
-        if (rating == null) {
-            return 0.4 + (Math.random() * 0.3); // 0.4 to 0.7 default
-        }
-
-        // Convert 5-point scale to 0-1 scale with some variation
-        double baseScore = rating / 5.0;
-        double variation = (Math.random() - 0.5) * 0.1; // ±0.05 variation
-        double finalScore = Math.max(0.0, Math.min(1.0, baseScore + variation));
-
-        return Math.round(finalScore * 100.0) / 100.0;
-    }
-
-    private double calculateActualAvailabilityScore(UserProfile candidate) {
-        String status = candidate.getAvailabilityStatus();
-        Integer workload = candidate.getCurrentWorkLoadHours();
-
-        double baseScore = 0.5;
-
-        // Status-based scoring
-        if ("AVAILABLE".equalsIgnoreCase(status)) {
-            baseScore = 0.8 + (Math.random() * 0.2); // 0.8 to 1.0
-        } else if ("BUSY".equalsIgnoreCase(status)) {
-            baseScore = 0.3 + (Math.random() * 0.4); // 0.3 to 0.7
-        } else if ("UNAVAILABLE".equalsIgnoreCase(status)) {
-            baseScore = 0.1 + (Math.random() * 0.2); // 0.1 to 0.3
-        }
-
-        // Adjust based on workload
-        if (workload != null) {
-            if (workload <= 20) {
-                baseScore = Math.min(1.0, baseScore + 0.1);
-            } else if (workload > 40) {
-                baseScore = Math.max(0.1, baseScore - 0.2);
-            }
-        }
-
-        return Math.round(baseScore * 100.0) / 100.0;
-    }
-
-    /**
-     * Ensure candidates have different scores to avoid identical rankings
-     */
-    private void ensureScoreDifferentiation(List<AssignmentRecommendation> recommendations) {
-        // Group recommendations by identical overall scores
-        var scoreGroups = recommendations.stream()
-            .collect(java.util.stream.Collectors.groupingBy(
-                rec -> Math.round(rec.getOverallScore() * 10000) // Round to 4 decimal places
-            ));
-
-        // Add small differentiation for identical scores
-        for (var group : scoreGroups.values()) {
-            if (group.size() > 1) {
-                log.debug("Found {} candidates with identical scores, adding differentiation", group.size());
-
-                for (int i = 0; i < group.size(); i++) {
-                    AssignmentRecommendation rec = group.get(i);
-
-                    // Add small variation based on secondary criteria
-                    double skillMatchBonus = (rec.getSkillMatchScore() != null ? rec.getSkillMatchScore() : 0.5) * 0.01;
-                    double performanceBonus = (rec.getPerformanceScore() != null ? rec.getPerformanceScore() : 0.5) * 0.005;
-                    double availabilityBonus = (rec.getAvailabilityScore() != null ? rec.getAvailabilityScore() : 0.5) * 0.005;
-                    double teamLeadBonus = Boolean.TRUE.equals(rec.getIsTeamLead()) ? 0.01 : 0.0;
-
-                    // Subtract small amount for lower ranking candidates in same score group
-                    double adjustment = skillMatchBonus + performanceBonus + availabilityBonus + teamLeadBonus - (i * 0.001);
-
-                    double newScore = Math.min(1.0, Math.max(0.0, rec.getOverallScore() + adjustment));
-                    rec.setOverallScore(Math.round(newScore * 10000.0) / 10000.0); // Round to 4 decimal places
-                    rec.setHybridScore(rec.getOverallScore());
-                }
-            }
-        }
-
-        // Sort again after score adjustment
-        recommendations.sort((r1, r2) -> {
-            int scoreCompare = Double.compare(r2.getOverallScore(), r1.getOverallScore());
-            if (scoreCompare != 0) {
-                return scoreCompare;
-            }
-            // Secondary sort by team lead status
-            return Boolean.compare(Boolean.TRUE.equals(r2.getIsTeamLead()), Boolean.TRUE.equals(r1.getIsTeamLead()));
-        });
-
-        // Re-assign ranks after sorting
+        // Assign ranks
         for (int i = 0; i < recommendations.size(); i++) {
             recommendations.get(i).setRank(i + 1);
         }
-    }
 
-    /**
-     * Enhance Gemini recommendations with hybrid algorithm scores for comparison
-     */
-    private List<AssignmentRecommendation> enhanceWithHybridScores(
-            List<AssignmentRecommendation> geminiRecommendations,
-            TaskProfile taskProfile,
-            List<UserProfile> candidates) {
-
-        try {
-            // Get hybrid recommendations for score comparison
-            List<AssignmentRecommendation> hybridRecommendations =
-                hybridRecommendationAlgorithm.generateRecommendations(taskProfile, candidates);
-
-            // Merge Gemini reasoning with hybrid scores
-            for (AssignmentRecommendation geminiRec : geminiRecommendations) {
-                hybridRecommendations.stream()
-                    .filter(hybridRec -> hybridRec.getUserId().equals(geminiRec.getUserId()))
-                    .findFirst()
-                    .ifPresent(hybridRec -> {
-                        // Keep Gemini's reasoning and overall score, but add hybrid details
-                        geminiRec.setContentBasedScore(hybridRec.getContentBasedScore());
-                        geminiRec.setCollaborativeFilteringScore(hybridRec.getCollaborativeFilteringScore());
-                        geminiRec.setSkillMatchScore(hybridRec.getSkillMatchScore());
-                        geminiRec.setPerformanceScore(hybridRec.getPerformanceScore());
-                        geminiRec.setAvailabilityScore(hybridRec.getAvailabilityScore());
-                        geminiRec.setWorkloadScore(hybridRec.getWorkloadScore());
-                        geminiRec.setCollaborationScore(hybridRec.getCollaborationScore());
-
-                        // Store original hybrid score for comparison
-                        geminiRec.setHybridScore(hybridRec.getHybridScore());
-
-                        // Store Gemini score separately (keep Gemini's overall score)
-                        geminiRec.setGeminiScore(geminiRec.getOverallScore());
-                    });
-            }
-
-            return geminiRecommendations;
-
-        } catch (Exception e) {
-            log.warn("Failed to enhance with hybrid scores: {}", e.getMessage());
-            return geminiRecommendations;
-        }
-    }
-
-    /**
-     * Apply basic team lead prioritization when Gemini AI is not used
-     */
-    private List<AssignmentRecommendation> applyBasicTeamLeadPrioritization(
-            List<AssignmentRecommendation> recommendations,
-            TaskProfile taskProfile,
-            List<UserProfile> candidates) {
-
-        String priority = taskProfile.getPriority();
-        boolean isHighPriority = "HIGH".equalsIgnoreCase(priority) || "CRITICAL".equalsIgnoreCase(priority);
-
-        log.info("Applying team lead identification and prioritization for {} priority task", priority);
-
-        // Always identify team leads, but only boost scores for high priority
-        for (AssignmentRecommendation rec : recommendations) {
-            UserProfile candidate = findCandidateById(rec.getUserId(), candidates);
-            boolean isTeamLead = candidate != null && isTeamLeadOrSenior(candidate);
-            rec.setIsTeamLead(isTeamLead);
-
-            if (isHighPriority && isTeamLead) {
-                // Boost overall score by 15% for high priority tasks
-                double boostedScore = Math.min(1.0, rec.getOverallScore() * 1.15);
-                rec.setOverallScore(boostedScore);
-
-                // Update recommendation reason
-                String enhancedReason = String.format(
-                    "[%s PRIORITY - TEAM LEAD PRIORITIZED] %s",
-                    priority, rec.getRecommendationReason()
-                );
-                rec.setRecommendationReason(enhancedReason);
-            }
-        }
-
-        if (isHighPriority) {
-            // Re-sort by updated scores
-            recommendations.sort((r1, r2) -> Double.compare(r2.getOverallScore(), r1.getOverallScore()));
-
-            // Re-rank
-            for (int i = 0; i < recommendations.size(); i++) {
-                recommendations.get(i).setRank(i + 1);
-            }
-        }
+        log.info("Final recommendations: {} candidates", recommendations.size());
 
         return recommendations;
     }
 
     /**
-     * Check if a candidate is a team lead or senior member
+     * Quick filter with strict department matching requirement
+     * Only allows candidates from the same department as the task type
      */
-    private boolean isTeamLeadOrSenior(UserProfile candidate) {
-        String role = candidate.getRole();
-        if (role != null) {
-            String roleLower = role.toLowerCase();
-            if (roleLower.contains("lead") || roleLower.contains("senior") ||
-                roleLower.contains("manager") || roleLower.contains("architect")) {
+    private boolean quickFilter(UserProfile candidate, TaskProfile task) {
+        // Check availability
+        if (candidate.getAvailabilityStatus() != null &&
+                "UNAVAILABLE".equalsIgnoreCase(candidate.getAvailabilityStatus())) {
+            return false;
+        }
+
+        // Department alignment check - STRICT REQUIREMENT
+        String candidateDept = candidate.getDepartment();
+        String taskType = task.getType();
+
+        if (candidateDept != null && taskType != null) {
+            String normalizedDept = candidateDept.toLowerCase().trim();
+            String normalizedTaskType = taskType.toLowerCase().trim();
+
+            boolean isDepartmentMatch = isDepartmentAlignedWithTask(normalizedDept, normalizedTaskType);
+
+            // ==================== STRICT DEPARTMENT MATCHING ====================
+            // ONLY allow candidates from the same department
+            if (!isDepartmentMatch) {
+                log.info("❌ FILTERED OUT (Cross-Dept Not Allowed): {} from {} for {} task",
+                        candidate.getName(), candidateDept, taskType);
+                return false;
+            }
+
+            // Department matches - now check skill match
+            double baseMatch = calculateBaseSkillMatch(task, candidate);
+            double minThreshold = 0.20; // 20% minimum for same department
+
+            if (baseMatch >= minThreshold) {
+                log.info("✅ QUALIFIED (Same Dept): {} from {} for {} task - Match: {}%",
+                        candidate.getName(), candidateDept, taskType,
+                        String.format("%.1f", baseMatch * 100));
                 return true;
+            } else {
+                log.info("❌ FILTERED OUT (Same Dept, Low Match): {} from {} for {} task - Match: {}% (required: {}%)",
+                        candidate.getName(), candidateDept, taskType,
+                        String.format("%.1f", baseMatch * 100),
+                        String.format("%.1f", minThreshold * 100));
+                return false;
             }
         }
 
-        // Also consider experience level (5+ years)
-        Double experience = candidate.getExperienceYears();
-        if (experience != null && experience >= 5.0) {
-            return true;
-        }
-
-        // Consider high performance rating (4.0+)
-        Double performance = candidate.getPerformanceRating();
-        if (performance != null && performance >= 4.0) {
-            return true;
-        }
-
+        // No department info: reject to enforce department matching
+        log.info("❌ FILTERED OUT (No Dept Info): {} - Cannot verify department alignment",
+                candidate.getName());
         return false;
     }
 
     /**
-     * Find candidate by ID
+     * Check if candidate's department aligns with task type
      */
-    private UserProfile findCandidateById(String userId, List<UserProfile> candidates) {
-        return candidates.stream()
-            .filter(candidate -> candidate.getUserId().equals(userId))
-            .findFirst()
-            .orElse(null);
-    }
-
-    /**
-     * Generate recommendations for emergency tasks
-     */
-    public List<AssignmentRecommendation> generateEmergencyRecommendations(String taskId) {
-        log.info("Generating emergency recommendations for task: {}", taskId);
-
-        try {
-            TaskProfile taskProfile = dataIntegrationService.getTaskProfile(taskId);
-            List<UserProfile> emergencyCandidates = dataIntegrationService.getEmergencyCandidates(taskProfile);
-
-            // Filter candidates based on task creator's role (same as main flow)
-            List<UserProfile> filteredCandidates = filterCandidatesByCreatorRole(taskProfile, emergencyCandidates);
-            if (filteredCandidates.isEmpty()) {
-                log.warn("No suitable emergency candidates found after role filtering for task: {}", taskId);
-                return List.of();
-            }
-            
-            log.info("Filtered emergency candidates to {} (from {} total)", 
-                     filteredCandidates.size(), emergencyCandidates.size());
-
-            // Always use Gemini AI for emergency tasks
-            try {
-                List<AssignmentRecommendation> recommendations =
-                    geminiRecommendationService.generateGeminiRecommendations(taskProfile, filteredCandidates);
-                return enhanceWithHybridScores(recommendations, taskProfile, filteredCandidates);
-            } catch (Exception e) {
-                log.warn("Gemini AI failed for emergency task, using hybrid fallback: {}", e.getMessage());
-                List<AssignmentRecommendation> recommendations =
-                    hybridRecommendationAlgorithm.generateRecommendations(taskProfile, filteredCandidates);
-                return applyBasicTeamLeadPrioritization(recommendations, taskProfile, filteredCandidates);
-            }
-
-        } catch (Exception e) {
-            log.error("Error generating emergency recommendations for task: {}", taskId, e);
-            throw new RuntimeException("Failed to generate emergency recommendations", e);
+    private boolean isDepartmentAlignedWithTask(String department, String taskType) {
+        log.info("Checking department alignment for {} and {} task", department, taskType);
+        // Backend Development alignment
+        if (department.contains("backend") || department.contains("back-end")) {
+            return taskType.contains("backend") || taskType.contains("back-end") ||
+                   taskType.contains("api") || taskType.contains("server") ||
+                   taskType.contains("database") || taskType.contains("microservice");
         }
+
+        // Frontend Development alignment
+        if (department.contains("frontend") || department.contains("front-end")) {
+            return taskType.contains("frontend") || taskType.contains("front-end") ||
+                   taskType.contains("ui") || taskType.contains("ux") ||
+                   taskType.contains("web") || taskType.contains("interface");
+        }
+
+        // Mobile Development alignment
+        if (department.contains("mobile") || department.contains("app")) {
+            return taskType.contains("mobile") || taskType.contains("ios") ||
+                   taskType.contains("android") || taskType.contains("app");
+        }
+
+        // DevOps alignment
+        if (department.contains("devops") || department.contains("infrastructure")) {
+            return taskType.contains("devops") || taskType.contains("deployment") ||
+                   taskType.contains("infrastructure") || taskType.contains("ci/cd") ||
+                   taskType.contains("docker") || taskType.contains("kubernetes");
+        }
+
+        // QA/Testing alignment
+        if (department.contains("qa") || department.contains("quality") || department.contains("test")) {
+            return taskType.contains("test") || taskType.contains("qa") ||
+                   taskType.contains("quality") || taskType.contains("bug");
+        }
+
+        // Engineering department - can match most development tasks
+        if (department.contains("engineering") && !department.contains("devops")) {
+            return taskType.contains("development") || taskType.contains("feature") ||
+                   taskType.contains("implementation");
+        }
+
+        // No specific match found - allow through (will be evaluated by skill match)
+        return false;
     }
 
     /**
-     * Generate team-based recommendations
+     * Calculate base skill match
      */
-    public List<AssignmentRecommendation> generateTeamBasedRecommendations(String taskId, String teamId) {
-        log.info("Generating team-based recommendations for task: {} and team: {}", taskId, teamId);
+    private double calculateBaseSkillMatch(TaskProfile task, UserProfile candidate) {
+        Map<String, Double> requiredSkills = task.getRequiredSkills();
+        Map<String, Double> candidateSkills = candidate.getSkills();
 
-        try {
-            TaskProfile taskProfile = dataIntegrationService.getTaskProfile(taskId);
-            List<UserProfile> teamCandidates = dataIntegrationService.getTeamBasedCandidates(taskProfile, teamId);
+        log.info("========================================");
+        log.info("SKILL MATCHING - Task: {} | Candidate: {} ({})",
+                task.getTaskId(), candidate.getName(), candidate.getUserId());
+        log.info("========================================");
 
-            // Filter candidates based on task creator's role (same as main flow)
-            List<UserProfile> filteredCandidates = filterCandidatesByCreatorRole(taskProfile, teamCandidates);
-            if (filteredCandidates.isEmpty()) {
-                log.warn("No suitable team candidates found after role filtering for task: {} and team: {}", taskId, teamId);
-                return List.of();
-            }
-            
-            log.info("Filtered team candidates to {} (from {} total)", 
-                     filteredCandidates.size(), teamCandidates.size());
+        if (requiredSkills == null || requiredSkills.isEmpty()) {
+            log.info("✅ No required skills for task - returning 100% match");
+            return 1.0;
+        }
+        if (candidateSkills == null || candidateSkills.isEmpty()) {
+            log.warn("❌ Candidate has NO skills - returning 0% match");
+            log.info("Required skills: {}", requiredSkills.keySet());
+            return 0.0;
+        }
 
-            // Use Gemini AI for complex or high priority team tasks
-            String priority = taskProfile.getPriority();
-            boolean useGeminiAI = "HIGH".equalsIgnoreCase(priority) || "CRITICAL".equalsIgnoreCase(priority);
+        // Log task required skills
+        log.info("📋 TASK REQUIRED SKILLS ({} total):", requiredSkills.size());
+        requiredSkills.forEach((skill, level) ->
+                log.info("  - {} (level: {})", skill, level));
 
-            if (useGeminiAI) {
-                try {
-                    List<AssignmentRecommendation> recommendations =
-                        geminiRecommendationService.generateGeminiRecommendations(taskProfile, filteredCandidates);
-                    return enhanceWithHybridScores(recommendations, taskProfile, filteredCandidates);
-                } catch (Exception e) {
-                    log.warn("Gemini AI failed for team task, using hybrid fallback: {}", e.getMessage());
+        // Log candidate skills
+        log.info("👤 CANDIDATE SKILLS ({} total):", candidateSkills.size());
+        candidateSkills.forEach((skill, prof) ->
+                log.info("  - {} (proficiency: {})", skill, prof));
+
+        // ==================== NEW: Semantic Matching ====================
+        Set<String> requiredSkillNames = requiredSkills.keySet();
+        Set<String> candidateSkillNames = candidateSkills.keySet();
+
+        Map<String, SkillNormalizer.SkillMatchResult> semanticMatches =
+                skillNormalizer.calculateSemanticMatch(candidateSkillNames, requiredSkillNames);
+
+        // Calculate weighted score with proficiency consideration
+        double totalWeightedScore = 0.0;
+        int totalSkills = requiredSkills.size();
+
+        List<String> exactMatches = new ArrayList<>();
+        List<String> partialMatches = new ArrayList<>();
+        List<String> semanticMatchList = new ArrayList<>();
+        List<String> unmatchedList = new ArrayList<>();
+
+        log.info("🔍 SEMANTIC MATCHING ANALYSIS:");
+
+        for (Map.Entry<String, SkillNormalizer.SkillMatchResult> entry : semanticMatches.entrySet()) {
+            String requiredSkill = entry.getKey();
+            SkillNormalizer.SkillMatchResult matchResult = entry.getValue();
+            Double requiredLevel = requiredSkills.get(requiredSkill);
+
+            double baseScore = matchResult.getScore();
+            double finalScore = baseScore;
+
+            // If matched, consider proficiency level
+            if (matchResult.getMatchedSkill() != null) {
+                Double candidateProficiency = candidateSkills.get(matchResult.getMatchedSkill());
+                if (candidateProficiency != null && requiredLevel != null) {
+                    // Proficiency modifier: if candidate has higher proficiency than required, boost score
+                    double proficiencyRatio = Math.min(candidateProficiency / requiredLevel, 1.2);
+                    finalScore = baseScore * proficiencyRatio;
                 }
             }
 
-            List<AssignmentRecommendation> recommendations =
-                hybridRecommendationAlgorithm.generateRecommendations(taskProfile, filteredCandidates);
-            return applyBasicTeamLeadPrioritization(recommendations, taskProfile, filteredCandidates);
+            totalWeightedScore += finalScore;
 
+            // Categorize and log
+            switch (matchResult.getMatchType()) {
+                case EXACT:
+                    exactMatches.add(String.format("%s ← %s (proficiency: %.1f)",
+                            requiredSkill, matchResult.getMatchedSkill(),
+                            candidateSkills.get(matchResult.getMatchedSkill())));
+                    log.info("  ✅ EXACT MATCH: '{}' ← '{}' (score: {}, proficiency: {})",
+                            requiredSkill, matchResult.getMatchedSkill(),
+                            String.format("%.2f", finalScore),
+                            candidateSkills.get(matchResult.getMatchedSkill()));
+                    break;
+
+                case PARTIAL:
+                    partialMatches.add(String.format("%s ← %s (partial, proficiency: %.1f)",
+                            requiredSkill, matchResult.getMatchedSkill(),
+                            candidateSkills.get(matchResult.getMatchedSkill())));
+                    log.info("  ➜ PARTIAL MATCH: '{}' ← '{}' (score: {}, proficiency: {})",
+                            requiredSkill, matchResult.getMatchedSkill(),
+                            String.format("%.2f", finalScore),
+                            candidateSkills.get(matchResult.getMatchedSkill()));
+                    break;
+
+                case SEMANTIC:
+                    semanticMatchList.add(String.format("%s ← %s (semantic, proficiency: %.1f)",
+                            requiredSkill, matchResult.getMatchedSkill(),
+                            candidateSkills.get(matchResult.getMatchedSkill())));
+                    log.info("  🔗 SEMANTIC MATCH: '{}' ← '{}' (score: {}, proficiency: {})",
+                            requiredSkill, matchResult.getMatchedSkill(),
+                            String.format("%.2f", finalScore),
+                            candidateSkills.get(matchResult.getMatchedSkill()));
+                    break;
+
+                case NO_MATCH:
+                    unmatchedList.add(requiredSkill);
+                    log.info("  ❌ NO MATCH: '{}' (not found in candidate skills)", requiredSkill);
+                    break;
+            }
+        }
+
+        double result = totalWeightedScore / totalSkills;
+
+        log.info("========================================");
+        log.info("📊 SEMANTIC SKILL MATCH SUMMARY:");
+        log.info("  Overall Match Score: {} ({} %)",
+                String.format("%.4f", result), String.format("%.1f", result * 100));
+
+        if (!exactMatches.isEmpty()) {
+            log.info("  ✅ Exact Matches ({}):", exactMatches.size());
+            exactMatches.forEach(m -> log.info("     • {}", m));
+        }
+
+        if (!partialMatches.isEmpty()) {
+            log.info("  ➜ Partial Matches ({}):", partialMatches.size());
+            partialMatches.forEach(m -> log.info("     • {}", m));
+        }
+
+        if (!semanticMatchList.isEmpty()) {
+            log.info("  🔗 Semantic Matches ({}):", semanticMatchList.size());
+            semanticMatchList.forEach(m -> log.info("     • {}", m));
+        }
+
+        if (!unmatchedList.isEmpty()) {
+            log.info("  ❌ Unmatched ({}):", unmatchedList.size());
+            unmatchedList.forEach(m -> log.info("     • {}", m));
+        }
+
+        log.info("========================================");
+
+        return result;
+    }
+
+    /**
+     * Call ML service for predictions
+     */
+    private MLPredictionResponse callMLService(TaskProfile task, List<Map<String, Object>> candidatesWithAIScores) {
+        try {
+            Map<String, Object> taskData = new HashMap<>();
+            taskData.put("task_id", task.getTaskId());
+            taskData.put("priority", task.getPriority() != null ? task.getPriority() : "MEDIUM");
+            taskData.put("difficulty", task.getDifficulty() != null ? task.getDifficulty() : "MEDIUM");
+            taskData.put("estimated_hours", task.getEstimatedHours() != null ? task.getEstimatedHours() : 40.0);
+            taskData.put("required_skills", task.getRequiredSkills() != null ?
+                new ArrayList<>(task.getRequiredSkills().keySet()) : Collections.emptyList());
+            taskData.put("task_type", task.getType() != null ? task.getType() : "GENERAL");
+            taskData.put("description", task.getDescription());
+
+            MLPredictionRequest request = MLPredictionRequest.builder()
+                    .taskId(task.getTaskId())
+                    .taskData(taskData)
+                    .candidates(candidatesWithAIScores)  // Only userIds + AI scores
+                    .build();
+
+            log.info("Calling ML service for task: {}", taskData);
+            log.info("Sending {} candidates with AI scores", candidatesWithAIScores.size());
+            if (!candidatesWithAIScores.isEmpty()) {
+                log.info("Sample candidate data: {}", candidatesWithAIScores.get(0));
+            }
+
+            MLPredictionResponse response = mlServiceClient.predictCandidates(request);
+
+            // ✅ Log what we received from ML service
+            if (response != null) {
+                log.info("ML Service Response received:");
+                log.info("  - Model Version: {}", response.getModelVersion());
+                log.info("  - Processing Time: {}ms", response.getProcessingTimeMs());
+                log.info("  - Number of predictions: {}", response.getPredictions() != null ? response.getPredictions().size() : 0);
+
+                if (response.getPredictions() != null && !response.getPredictions().isEmpty()) {
+                    log.info("  - Top 3 predictions:");
+                    for (int i = 0; i < Math.min(3, response.getPredictions().size()); i++) {
+                        MLPredictionResult pred = response.getPredictions().get(i);
+                        log.info("    {}. User: {}, Score: {}, Fallback: {}",
+                            i + 1, pred.getUserId(), String.format("%.3f", pred.getMlConfidenceScore()), pred.isFallback());
+                    }
+                } else {
+                    log.warn("  - ML service returned EMPTY predictions list!");
+                }
+            } else {
+                log.error("  - ML service returned NULL response!");
+            }
+
+            return response;
         } catch (Exception e) {
-            log.error("Error generating team-based recommendations for task: {} and team: {}", taskId, teamId, e);
-            throw new RuntimeException("Failed to generate team-based recommendations", e);
+            log.error("Error calling ML service", e);
+            // Fallback will be handled by Feign fallback
+            return null;
+        }
+    }
+
+    /**
+     * Apply business rules and calculate final score
+     */
+    private AssignmentRecommendation applyBusinessRules(
+            MLPredictionResult mlPred,
+            TaskProfile task,
+            List<UserProfile> candidates) {
+
+        UserProfile candidate = candidates.stream()
+                .filter(c -> c.getUserId().equals(mlPred.getUserId()))
+                .findFirst()
+                .orElse(null);
+
+
+        if (candidate == null) {
+            log.warn("Candidate not found for ML prediction: {}", mlPred.getUserId());
+            return null;
+        }
+
+        double mlScore = mlPred.getMlConfidenceScore();
+
+        log.info("ML Score: {}", mlScore);
+        double businessBoost = 0.0;
+        List<String> boostReasons = new ArrayList<>();
+
+        // 1. Department Alignment Boost (NEW - HIGHEST PRIORITY)
+        String candidateDept = candidate.getDepartment();
+        String taskType = task.getType();
+        if (candidateDept != null && taskType != null) {
+            boolean isDeptMatch = isDepartmentAlignedWithTask(
+                candidateDept.toLowerCase().trim(),
+                taskType.toLowerCase().trim()
+            );
+            if (isDeptMatch) {
+                businessBoost += 0.10; // Strong boost for department match
+                boostReasons.add("Department matches task type (+10%)");
+                log.info("✅ Department alignment: {} matches {} task", candidateDept, taskType);
+            } else {
+                log.info("⚠️  Cross-department: {} for {} task (no boost)", candidateDept, taskType);
+            }
+        }
+
+        // 2. Priority Boost
+        if ("URGENT".equals(task.getPriority()) || "HIGH".equals(task.getPriority())) {
+            // Convert seniority level string to numeric for comparison
+            int seniorityNum = parseSeniorityLevel(candidate.getSeniorityLevel());
+            if (seniorityNum >= 4) {
+                businessBoost += 0.05;
+                boostReasons.add("Senior developer for urgent task (+5%)");
+            }
+            Double successRate = candidate.getTaskCompletionRate();
+            if (successRate != null && successRate > 0.9) {
+                businessBoost += 0.03;
+                boostReasons.add("High success rate for urgent task (+3%)");
+            }
+        }
+
+        // 2. Priority Boost
+        if ("URGENT".equals(task.getPriority()) || "HIGH".equals(task.getPriority())) {
+            // Convert seniority level string to numeric for comparison
+            int seniorityNum = parseSeniorityLevel(candidate.getSeniorityLevel());
+            if (seniorityNum >= 4) {
+                businessBoost += 0.05;
+                boostReasons.add("Senior developer for urgent task (+5%)");
+            }
+            Double successRate = candidate.getTaskCompletionRate();
+            if (successRate != null && successRate > 0.9) {
+                businessBoost += 0.03;
+                boostReasons.add("High success rate for urgent task (+3%)");
+            }
+        }
+
+        // 3. Availability Boost
+        if ("AVAILABLE".equals(candidate.getAvailabilityStatus())) {
+            businessBoost += 0.03;
+            boostReasons.add("Currently available (+3%)");
+        }
+
+        log.info("Business Boost: {}", businessBoost);
+
+        // 4. Recent Performance Boost
+        Double successRate = candidate.getTaskCompletionRate();
+        log.info("Success Rate: {}", successRate);
+        if (successRate != null && successRate > 0.9) {
+            businessBoost += 0.03;
+            boostReasons.add("Excellent track record (+3%)");
+        }
+
+        // 5. Capacity Match
+        Double capacity = candidate.getWorkloadCapacity();
+        log.info("Capacity: {}", capacity);
+        Integer estimatedHours = task.getEstimatedHours();
+        log.info("Estimated Hours: {}", estimatedHours);
+        if (capacity != null && estimatedHours != null && estimatedHours > 0) {
+            double capacityRatio = capacity / estimatedHours;
+            if (capacityRatio >= 1.5) {
+                businessBoost += 0.02;
+                boostReasons.add("Has plenty of capacity (+2%)");
+            }
+        }
+
+        // 6. Experience Match for Difficulty
+        int seniorityNum = parseSeniorityLevel(candidate.getSeniorityLevel());
+        log.info("Seniority Num: {}", seniorityNum);
+        if ("HARD".equals(task.getDifficulty()) && seniorityNum >= 4) {
+            businessBoost += 0.04;
+            boostReasons.add("Senior for hard task (+4%)");
+        }
+        log.info("Business Boost After Experience Match: {}", businessBoost);
+        // Calculate final score: 80% ML, 20% Business Rules
+        double finalScore = (mlScore * 0.8) + (businessBoost * 0.2);
+
+        log.info("Final Score: {}", finalScore);
+
+        AssignmentRecommendation recommendation = new AssignmentRecommendation();
+        recommendation.setUserId(candidate.getUserId());
+        recommendation.setTaskId(task.getTaskId());
+        recommendation.setOverallScore(finalScore);
+        recommendation.setContentBasedScore(mlScore);
+        recommendation.setCollaborativeFilteringScore(0.0);
+        recommendation.setHybridScore(finalScore);
+
+        // Extract individual scores from feature importance if available
+        Map<String, Double> featureImportance = mlPred.getFeatureImportance();
+        if (featureImportance != null) {
+            recommendation.setSkillMatchScore(featureImportance.getOrDefault("skill_match_score", mlScore));
+            recommendation.setWorkloadScore(featureImportance.getOrDefault("workload_score", 0.0));
+            recommendation.setPerformanceScore(featureImportance.getOrDefault("performance_score", 0.0));
+            recommendation.setAvailabilityScore(featureImportance.getOrDefault("availability_score", 0.0));
+            recommendation.setCollaborationScore(featureImportance.getOrDefault("collaboration_score", 0.0));
+        } else {
+            // Use defaults based on candidate profile
+            recommendation.setSkillMatchScore(mlScore);
+            recommendation.setWorkloadScore(candidate.getWorkloadCapacity() != null ?
+                Math.min(1.0, candidate.getWorkloadCapacity() / 100.0) : 0.5);
+            recommendation.setPerformanceScore(candidate.getTaskCompletionRate() != null ?
+                candidate.getTaskCompletionRate() : 0.7);
+            recommendation.setAvailabilityScore("AVAILABLE".equals(candidate.getAvailabilityStatus()) ? 1.0 : 0.5);
+            recommendation.setCollaborationScore(0.7);
+        }
+
+        // ========== ADD SKILL MATCHING DETAILS USING EXISTING SERVICES ==========
+        // Use SkillCategoryMatcher for intelligent skill matching
+        // candidate.getSkills() returns Map<String, Double> - extract keys as skill names
+        List<String> candidateSkillNames = candidate.getSkills() != null ?
+            new ArrayList<>(candidate.getSkills().keySet()) :
+            new ArrayList<>();
+
+        // task.getRequiredSkills() also returns Map<String, Double> - extract keys
+        List<String> requiredSkills = task.getRequiredSkills() != null ?
+            new ArrayList<>(task.getRequiredSkills().keySet()) :
+            new ArrayList<>();
+
+        Set<String> candidateSkillSet = new HashSet<>(candidateSkillNames);
+        Set<String> requiredSkillSet = new HashSet<>(requiredSkills);
+
+        // Find exact matches using SkillNormalizer
+        Set<String> normalizedCandidateSkills = candidateSkillNames.stream()
+            .map(s -> s.toLowerCase().trim())
+            .collect(Collectors.toSet());
+        Set<String> normalizedRequiredSkills = requiredSkills.stream()
+            .map(s -> s.toLowerCase().trim())
+            .collect(Collectors.toSet());
+
+        List<String> matchedSkills = new ArrayList<>();
+        List<String> missingSkills = new ArrayList<>();
+
+        // Check each required skill
+        for (String required : requiredSkills) {
+            String normalizedRequired = required.toLowerCase().trim();
+            boolean found = normalizedCandidateSkills.stream()
+                .anyMatch(cs -> cs.contains(normalizedRequired) || normalizedRequired.contains(cs));
+
+            if (found) {
+                matchedSkills.add(required);
+            } else {
+                missingSkills.add(required);
+            }
+        }
+
+        // Find bonus skills (skills candidate has beyond requirements)
+        List<String> bonusSkills = new ArrayList<>();
+        for (String candidateSkill : candidateSkillNames) {
+            String normalized = candidateSkill.toLowerCase().trim();
+            boolean isRequired = normalizedRequiredSkills.stream()
+                .anyMatch(rs -> normalized.contains(rs) || rs.contains(normalized));
+            if (!isRequired) {
+                bonusSkills.add(candidateSkill);
+            }
+        }
+
+        recommendation.setMatchedSkills(matchedSkills);
+        recommendation.setMissingSkills(missingSkills);
+        recommendation.setBonusSkills(bonusSkills.size() > 5 ? bonusSkills.subList(0, 5) : bonusSkills);
+
+        // Create skill match summary using category matching
+        Set<String> matchedCategories = skillCategoryMatcher.getMatchedCategories(candidateSkillSet, requiredSkillSet);
+        Set<String> candidateCategories = skillCategoryMatcher.getCategoriesForSkills(candidateSkillSet);
+
+        StringBuilder skillSummary = new StringBuilder();
+        if (!matchedSkills.isEmpty()) {
+            skillSummary.append(String.format("%d/%d required skills matched",
+                matchedSkills.size(), requiredSkills.size()));
+            if (!matchedCategories.isEmpty()) {
+                skillSummary.append(String.format(" (%s domain)",
+                    String.join(", ", matchedCategories)));
+            }
+        }
+        if (!missingSkills.isEmpty() && !matchedCategories.isEmpty()) {
+            // If they have category overlap, they can learn the missing skills
+            if (skillSummary.length() > 0) skillSummary.append(". ");
+            skillSummary.append("Can learn: ");
+            skillSummary.append(String.join(", ", missingSkills.subList(0, Math.min(3, missingSkills.size()))));
+            if (missingSkills.size() > 3) {
+                skillSummary.append(String.format(" +%d more", missingSkills.size() - 3));
+            }
+        }
+        recommendation.setSkillMatchSummary(skillSummary.toString());
+
+        // Use FeatureEngineeringService to calculate learning potential
+        // candidate.getSkills() is already Map<String, Double> where Double is proficiency level
+        Map<String, Double> candidateSkillMap = candidate.getSkills() != null ?
+            candidate.getSkills() : new HashMap<>();
+
+        double learningPotential = featureEngineering.calculateLearningPotential(
+            requiredSkills, candidateSkillMap, candidate.getSeniorityLevel());
+
+        if (!missingSkills.isEmpty()) {
+            StringBuilder devOpportunity = new StringBuilder();
+
+            // Check which missing skills are in related categories
+            List<String> canLearnEasily = new ArrayList<>();
+            List<String> needsTraining = new ArrayList<>();
+
+            for (String missing : missingSkills) {
+                Set<String> missingCategories = skillCategoryMatcher.getCategories(missing);
+                // If candidate has experience in same category, they can learn easily
+                boolean hasRelatedExperience = missingCategories.stream()
+                    .anyMatch(candidateCategories::contains);
+
+                if (hasRelatedExperience) {
+                    canLearnEasily.add(missing);
+                } else {
+                    needsTraining.add(missing);
+                }
+            }
+
+            if (!canLearnEasily.isEmpty()) {
+                devOpportunity.append("Can quickly learn ");
+                devOpportunity.append(String.join(", ", canLearnEasily));
+                devOpportunity.append(" (has ").append(String.join(", ", matchedCategories))
+                    .append(" experience)");
+            }
+            if (!needsTraining.isEmpty()) {
+                if (devOpportunity.length() > 0) devOpportunity.append(". ");
+                devOpportunity.append("Will need training for ");
+                devOpportunity.append(String.join(", ", needsTraining.subList(0, Math.min(2, needsTraining.size()))));
+            }
+
+            // Add learning potential score info
+            if (learningPotential > 0.15) {
+                devOpportunity.append(String.format(" (High learning potential: %.1f%%)", learningPotential * 100));
+            }
+
+            recommendation.setSkillDevelopmentOpportunity(devOpportunity.toString());
+        } else if (!bonusSkills.isEmpty()) {
+            recommendation.setSkillDevelopmentOpportunity(
+                String.format("Expert with %d bonus skills including %s",
+                    bonusSkills.size(),
+                    String.join(", ", bonusSkills.subList(0, Math.min(3, bonusSkills.size())))));
+        }
+
+        // Generate concise recommendation reason using Gemini AI
+        String geminiReason = geminiRecommendationService.generateRecommendationReasonForCandidate(
+            recommendation, task, candidate);
+        recommendation.setRecommendationReason(geminiReason);
+        recommendation.setGeminiReasoning(geminiReason);
+
+        return recommendation;
+    }
+
+
+    /**
+     * Parse seniority level string to numeric value
+     */
+    private int parseSeniorityLevel(String seniorityLevel) {
+        if (seniorityLevel == null) return 2;
+
+        switch (seniorityLevel.toUpperCase()) {
+            case "INTERN":
+                return 1;
+            case "JUNIOR":
+                return 2;
+            case "MID_LEVEL":
+            case "MIDLEVEL":
+            case "MID LEVEL":
+                return 3;
+            case "SENIOR":
+                return 4;
+            case "LEAD":
+                return 5;
+            case "PRINCIPAL":
+                return 6;
+            case "DIRECTOR":
+                return 7;
+            default:
+                // Try to parse as number
+                try {
+                    return Integer.parseInt(seniorityLevel);
+                } catch (NumberFormatException e) {
+                    return 2; // Default to mid-level
+                }
         }
     }
 }
+

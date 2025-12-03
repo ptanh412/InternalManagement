@@ -2,6 +2,7 @@ package com.mnp.chat.controller;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
@@ -39,6 +40,14 @@ public class SocketHandler {
     MessageReactionService messageReactionService;
     EnhancedMessageReactionService enhancedMessageReactionService;
     private final ChatMessageRepository chatMessageRepository;
+
+    // ✅ Deduplication cache for media messages: key = userId + conversationId + fileUrl, value = timestamp
+    private final Map<String, Long> recentMediaRequests = new ConcurrentHashMap<>();
+
+    // ✅ Deduplication cache for all messages: key = userId + conversationId + message + timestamp, value = timestamp
+    private final Map<String, Long> recentMessageRequests = new ConcurrentHashMap<>();
+
+    private static final long DEDUP_WINDOW_MS = 5000; // 5 seconds deduplication window
 
     @OnConnect
     public void clientConnected(SocketIOClient client) {
@@ -154,8 +163,29 @@ public class SocketHandler {
                 client.getSessionId().toString());
         if (webSocketSession.isPresent()) {
             try {
-                // Create the reply message
                 String userId = webSocketSession.get().getUserId();
+
+                // ✅ Deduplication check for reply messages
+                String dedupKey = userId + ":" + request.getConversationId() + ":"
+                    + request.getReplyToMessageId() + ":" + request.getMessage();
+                long currentTime = System.currentTimeMillis();
+
+                Long lastRequestTime = recentMessageRequests.get(dedupKey);
+                if (lastRequestTime != null && (currentTime - lastRequestTime) < DEDUP_WINDOW_MS) {
+                    log.warn("⚠️ Duplicate reply message request detected within {}ms, ignoring. Key: {}",
+                        DEDUP_WINDOW_MS, dedupKey);
+                    return; // Silently ignore duplicate request
+                }
+
+                // Store this request timestamp
+                recentMessageRequests.put(dedupKey, currentTime);
+
+                // Clean up old entries (older than dedup window)
+                recentMessageRequests.entrySet().removeIf(entry ->
+                    (currentTime - entry.getValue()) > DEDUP_WINDOW_MS
+                );
+
+                // Create the reply message
                 var replyMessageResponse = chatMessageService.createReply(request, userId);
                 log.info("Reply message created successfully: {}", replyMessageResponse.getId());
             } catch (Exception e) {
@@ -179,6 +209,25 @@ public class SocketHandler {
         if (webSocketSession.isPresent()) {
             try {
                 String userId = webSocketSession.get().getUserId();
+
+                // ✅ Deduplication check for reactions
+                String dedupKey = userId + ":" + request.getMessageId() + ":" + request.getIcon() + ":react";
+                long currentTime = System.currentTimeMillis();
+
+                Long lastRequestTime = recentMessageRequests.get(dedupKey);
+                if (lastRequestTime != null && (currentTime - lastRequestTime) < DEDUP_WINDOW_MS) {
+                    log.warn("⚠️ Duplicate reaction request detected within {}ms, ignoring. Key: {}",
+                        DEDUP_WINDOW_MS, dedupKey);
+                    return; // Silently ignore duplicate request
+                }
+
+                // Store this request timestamp
+                recentMessageRequests.put(dedupKey, currentTime);
+
+                // Clean up old entries
+                recentMessageRequests.entrySet().removeIf(entry ->
+                    (currentTime - entry.getValue()) > DEDUP_WINDOW_MS
+                );
 
                 // Use enhanced reaction service to add reaction and create system message
                 int newCount = enhancedMessageReactionService.addReactionWithSystemMessage(
@@ -214,6 +263,25 @@ public class SocketHandler {
         if (webSocketSession.isPresent()) {
             try {
                 String userId = webSocketSession.get().getUserId();
+
+                // ✅ Deduplication check for remove reactions
+                String dedupKey = userId + ":" + request.getMessageId() + ":" + request.getIcon() + ":remove";
+                long currentTime = System.currentTimeMillis();
+
+                Long lastRequestTime = recentMessageRequests.get(dedupKey);
+                if (lastRequestTime != null && (currentTime - lastRequestTime) < DEDUP_WINDOW_MS) {
+                    log.warn("⚠️ Duplicate remove reaction request detected within {}ms, ignoring. Key: {}",
+                        DEDUP_WINDOW_MS, dedupKey);
+                    return; // Silently ignore duplicate request
+                }
+
+                // Store this request timestamp
+                recentMessageRequests.put(dedupKey, currentTime);
+
+                // Clean up old entries
+                recentMessageRequests.entrySet().removeIf(entry ->
+                    (currentTime - entry.getValue()) > DEDUP_WINDOW_MS
+                );
 
                 // Use enhanced reaction service to remove reaction and create system message
                 int newCount = enhancedMessageReactionService.removeReactionWithSystemMessage(
@@ -252,6 +320,26 @@ public class SocketHandler {
         if (webSocketSession.isPresent()) {
             try {
                 String userId = webSocketSession.get().getUserId();
+
+                // ✅ Deduplication check for recall messages
+                String dedupKey = userId + ":" + request.getMessageId() + ":" + request.getRecallType() + ":recall";
+                long currentTime = System.currentTimeMillis();
+
+                Long lastRequestTime = recentMessageRequests.get(dedupKey);
+                if (lastRequestTime != null && (currentTime - lastRequestTime) < DEDUP_WINDOW_MS) {
+                    log.warn("⚠️ Duplicate recall message request detected within {}ms, ignoring. Key: {}",
+                        DEDUP_WINDOW_MS, dedupKey);
+                    return; // Silently ignore duplicate request
+                }
+
+                // Store this request timestamp
+                recentMessageRequests.put(dedupKey, currentTime);
+
+                // Clean up old entries
+                recentMessageRequests.entrySet().removeIf(entry ->
+                    (currentTime - entry.getValue()) > DEDUP_WINDOW_MS
+                );
+
                 log.info("🔥 Found user session: {}", userId);
 
                 // Validate recall type
@@ -297,6 +385,26 @@ public class SocketHandler {
         if (webSocketSession.isPresent()) {
             try {
                 String userId = webSocketSession.get().getUserId();
+
+                // ✅ Deduplication check for pin/unpin messages
+                String dedupKey = userId + ":" + request.getMessageId() + ":" + request.isPin() + ":pin";
+                long currentTime = System.currentTimeMillis();
+
+                Long lastRequestTime = recentMessageRequests.get(dedupKey);
+                if (lastRequestTime != null && (currentTime - lastRequestTime) < DEDUP_WINDOW_MS) {
+                    log.warn("⚠️ Duplicate pin/unpin request detected within {}ms, ignoring. Key: {}",
+                        DEDUP_WINDOW_MS, dedupKey);
+                    return; // Silently ignore duplicate request
+                }
+
+                // Store this request timestamp
+                recentMessageRequests.put(dedupKey, currentTime);
+
+                // Clean up old entries
+                recentMessageRequests.entrySet().removeIf(entry ->
+                    (currentTime - entry.getValue()) > DEDUP_WINDOW_MS
+                );
+
                 log.info("Found user session: {}", userId);
 
                 ChatMessageResponse response;
@@ -336,6 +444,25 @@ public class SocketHandler {
                 client.sendEvent("media-message-error", "User not authenticated");
                 return;
             }
+
+            // ✅ Deduplication check
+            String dedupKey = userId + ":" + request.getConversationId() + ":" + request.getFileUrl();
+            long currentTime = System.currentTimeMillis();
+
+            Long lastRequestTime = recentMediaRequests.get(dedupKey);
+            if (lastRequestTime != null && (currentTime - lastRequestTime) < DEDUP_WINDOW_MS) {
+                log.warn("⚠️ Duplicate media message request detected within {}ms, ignoring. Key: {}",
+                    DEDUP_WINDOW_MS, dedupKey);
+                return; // Silently ignore duplicate request
+            }
+
+            // Store this request timestamp
+            recentMediaRequests.put(dedupKey, currentTime);
+
+            // Clean up old entries (older than dedup window)
+            recentMediaRequests.entrySet().removeIf(entry ->
+                (currentTime - entry.getValue()) > DEDUP_WINDOW_MS
+            );
 
             // Debug logging to see what data we received
             log.info(

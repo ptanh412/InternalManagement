@@ -53,6 +53,8 @@ app:
     project: http://localhost:8090/project
     profile: http://localhost:8081/profile
     identity: http://localhost:8080/identity
+    workload: http://localhost:8087/workload
+    ml: http://localhost:8000  # Python FastAPI ML service
 
 # Logging configuration
 logging:
