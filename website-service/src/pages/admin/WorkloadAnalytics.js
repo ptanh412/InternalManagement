@@ -268,12 +268,12 @@ const WorkloadAnalytics = () => {
   const teamSummary = getTeamWorkloadSummary();
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center gap-3">
               <ChartBarIcon className="h-8 w-8 text-blue-600" />
               Workload Analytics
             </h1>
@@ -291,17 +291,17 @@ const WorkloadAnalytics = () => {
           </div>
 
           {/* Controls */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4 mb-6">
             <div className="flex flex-wrap items-center gap-4">
               {/* Department Filter */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Department
                 </label>
                 <select
                   value={selectedDepartment}
                   onChange={(e) => setSelectedDepartment(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   {departments.map(dept => (
                     <option key={dept.id} value={dept.id}>{dept.name}</option>
@@ -311,13 +311,13 @@ const WorkloadAnalytics = () => {
 
               {/* Time Range */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Time Range
                 </label>
                 <select
                   value={timeRange}
                   onChange={(e) => setTimeRange(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="week">This Week</option>
                   <option value="month">This Month</option>
@@ -327,10 +327,10 @@ const WorkloadAnalytics = () => {
 
               {/* View Mode */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   View Mode
                 </label>
-                <div className="flex rounded-lg border border-gray-300 overflow-hidden">
+                <div className="flex rounded-lg border border-gray-300 dark:border-gray-600 overflow-hidden">
                   {[
                     { key: 'overview', label: 'Overview' },
                     { key: 'individual', label: 'Individual' },
@@ -368,11 +368,11 @@ const WorkloadAnalytics = () => {
         {/* Key Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total Team Members */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Total Members</p>
-                <p className="text-3xl font-bold text-gray-900">16</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Total Members</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">16</p>
               </div>
               <UserGroupIcon className="h-8 w-8 text-blue-500" />
             </div>
@@ -383,11 +383,11 @@ const WorkloadAnalytics = () => {
           </div>
 
           {/* Average Utilization */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Avg Utilization</p>
-                <p className="text-3xl font-bold text-gray-900">74%</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Avg Utilization</p>
+                <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">74%</p>
               </div>
               <ChartBarIcon className="h-8 w-8 text-green-500" />
             </div>
@@ -398,30 +398,30 @@ const WorkloadAnalytics = () => {
           </div>
 
           {/* Overloaded Users */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Overloaded</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Overloaded</p>
                 <p className="text-3xl font-bold text-red-600">3</p>
               </div>
               <ExclamationTriangleIcon className="h-8 w-8 text-red-500" />
             </div>
             <div className="mt-2 flex items-center text-sm">
-              <span className="text-gray-600">Requires attention</span>
+              <span className="text-gray-600 dark:text-gray-300">Requires attention</span>
             </div>
           </div>
 
           {/* Available Capacity */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Available Hours</p>
+                <p className="text-sm font-medium text-gray-600 dark:text-gray-300">Available Hours</p>
                 <p className="text-3xl font-bold text-green-600">116h</p>
               </div>
               <CheckCircleIcon className="h-8 w-8 text-green-500" />
             </div>
             <div className="mt-2 flex items-center text-sm">
-              <span className="text-gray-600">This week capacity</span>
+              <span className="text-gray-600 dark:text-gray-300">This week capacity</span>
             </div>
           </div>
         </div>
@@ -429,8 +429,8 @@ const WorkloadAnalytics = () => {
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
           {/* Utilization Trend Chart */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
               <TrendingUpIcon className="h-5 w-5" />
               Utilization Trend
             </h3>
@@ -440,8 +440,8 @@ const WorkloadAnalytics = () => {
           </div>
 
           {/* Department Comparison */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
               <ChartBarIcon className="h-5 w-5" />
               Department Comparison
             </h3>
@@ -453,8 +453,8 @@ const WorkloadAnalytics = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Capacity Distribution */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
               <UserGroupIcon className="h-5 w-5" />
               Capacity Distribution
             </h3>
@@ -464,8 +464,8 @@ const WorkloadAnalytics = () => {
           </div>
 
           {/* Overload Alerts */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
               <ExclamationTriangleIcon className="h-5 w-5 text-red-500" />
               Overload Alerts
             </h3>
@@ -477,15 +477,15 @@ const WorkloadAnalytics = () => {
                     <div className="flex items-start justify-between">
                       <div>
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-medium text-gray-900">{alert.userName}</span>
+                          <span className="font-medium text-gray-900 dark:text-gray-100">{alert.userName}</span>
                           <span className="px-2 py-1 bg-red-100 text-red-800 text-xs rounded-full">
                             {alert.overloadPercentage}% overloaded
                           </span>
                         </div>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
                           {alert.department} • {alert.tasksCount} active tasks
                         </p>
-                        <p className="text-sm text-gray-500 flex items-center gap-1 mt-1">
+                        <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 flex items-center gap-1 mt-1">
                           <CalendarDaysIcon className="h-4 w-4" />
                           Est. resolution: {new Date(alert.estimatedResolutionDate).toLocaleDateString()}
                         </p>
@@ -498,7 +498,7 @@ const WorkloadAnalytics = () => {
                 ))}
               </div>
             ) : (
-              <div className="text-center text-gray-500 py-8">
+              <div className="text-center text-gray-500 dark:text-gray-400 dark:text-gray-500 py-8">
                 <CheckCircleIcon className="h-12 w-12 mx-auto text-green-500 mb-2" />
                 <p>No overload alerts</p>
                 <p className="text-sm">All team members are within capacity</p>

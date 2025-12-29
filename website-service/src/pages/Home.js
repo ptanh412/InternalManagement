@@ -58,14 +58,14 @@ const Home = () => {
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
                 to="/login"
-                className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-primary-600 bg-white hover:bg-gray-50 transition-colors duration-200"
+                className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-primary-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:bg-gray-900 transition-colors duration-200"
               >
                 Get Started
                 <ArrowRightIcon className="ml-2 h-5 w-5" />
               </Link>
               <Link
                 to="/about"
-                className="inline-flex items-center px-8 py-3 border-2 border-white text-base font-medium rounded-md text-white hover:bg-white hover:text-primary-600 transition-colors duration-200"
+                className="inline-flex items-center px-8 py-3 border-2 border-white text-base font-medium rounded-md text-white hover:bg-white dark:bg-gray-800 hover:text-primary-600 transition-colors duration-200"
               >
                 Learn More
               </Link>
@@ -75,13 +75,13 @@ const Home = () => {
       </section>
 
       {/* Features Section */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white dark:bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Powerful Features for Modern Teams
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               Everything you need to manage your internal operations effectively 
               and efficiently in one integrated platform.
             </p>
@@ -97,10 +97,10 @@ const Home = () => {
                       <IconComponent className="h-8 w-8 text-primary-600" />
                     </div>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                     {feature.name}
                   </h3>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 dark:text-gray-300">
                     {feature.description}
                   </p>
                 </div>
@@ -111,13 +111,13 @@ const Home = () => {
       </section>
 
       {/* Stats Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Trusted by Teams Worldwide
             </h2>
-            <p className="text-lg text-gray-600">
+            <p className="text-lg text-gray-600 dark:text-gray-300">
               Join thousands of organizations already using our platform
             </p>
           </div>
@@ -128,7 +128,7 @@ const Home = () => {
                 <div className="text-4xl md:text-5xl font-bold text-primary-600 mb-2">
                   {stat.value}
                 </div>
-                <div className="text-gray-600 font-medium">
+                <div className="text-gray-600 dark:text-gray-300 font-medium">
                   {stat.name}
                 </div>
               </div>
@@ -149,7 +149,7 @@ const Home = () => {
           </p>
           <Link
             to="/login"
-            className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-primary-600 bg-white hover:bg-gray-50 transition-colors duration-200"
+            className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-primary-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:bg-gray-900 transition-colors duration-200"
           >
             Start Free Trial
             <CheckCircleIcon className="ml-2 h-5 w-5" />

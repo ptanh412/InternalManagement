@@ -524,20 +524,6 @@ public class CVParsingService {
         return experiences;
     }
 
-    private CVParsingResponse.WorkExperience parseWorkExperienceEntry(String entry) {
-        // Basic parsing - in a real implementation, this would be more sophisticated
-        String[] lines = entry.split("\n");
-        if (lines.length < 2) return null;
-
-        return CVParsingResponse.WorkExperience.builder()
-                .position("Position extracted from: " + lines[0])
-                .company("Company extracted from entry")
-                .description(entry.length() > 100 ? entry.substring(0, 100) + "..." : entry)
-                .achievements(Arrays.asList("Achievement extracted from CV"))
-                .technologies(extractTechnologiesFromText(entry))
-                .build();
-    }
-
     private List<CVParsingResponse.Education> extractEducation(String text) {
         List<CVParsingResponse.Education> educationList = new ArrayList<>();
 

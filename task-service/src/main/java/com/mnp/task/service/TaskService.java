@@ -5,11 +5,8 @@ import com.mnp.task.client.ProjectServiceClient;
 import com.mnp.task.client.ChatServiceClient;
 import com.mnp.task.client.RealTimeNotificationClient;
 import com.mnp.task.dto.request.*;
+import com.mnp.task.dto.response.*;
 import com.mnp.task.dto.response.ApiResponse;
-import com.mnp.task.dto.response.TaskDependencyResponse;
-import com.mnp.task.dto.response.TaskResponse;
-import com.mnp.task.dto.response.TaskSkillResponse;
-import com.mnp.task.dto.response.TaskSubmissionResponse;
 import com.mnp.task.entity.Task;
 import com.mnp.task.entity.TaskDependency;
 import com.mnp.task.entity.TaskRequiredSkill;
@@ -33,9 +30,12 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
+import java.time.DayOfWeek;
 import java.time.format.DateTimeFormatter;
-import java.util.List;
+import java.util.*;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 @Service
@@ -60,6 +60,59 @@ public class TaskService {
     IdentityClient identityClient;
     WorkloadIntegrationService workloadIntegrationService; // Add workload integration service
 
+    private void applyAutoStartAndEstimation(Task task) {
+        if (task.getAssignedTo() != null && !task.getAssignedTo().trim().isEmpty()) {
+            LocalDateTime now = LocalDateTime.now();
+
+            if (task.getAssignedAt() == null) {
+                task.setAssignedAt(now);
+            }
+
+            if (task.getDueDate() != null) {
+                if (task.getStartedAt() == null) {
+                    task.setStartedAt(now);
+                }
+
+                if (task.getStatus() == TaskStatus.TODO) {
+                    task.setStatus(TaskStatus.IN_PROGRESS);
+                }
+
+                LocalDateTime startTime = task.getStartedAt() != null ? task.getStartedAt() : now;
+
+                if (task.getDueDate().isAfter(startTime)) {
+                    long hoursDifference = Duration.between(startTime, task.getDueDate()).toHours();
+                    int newEstimated = (int) Math.max(0, hoursDifference);
+
+                    // ✅ FIX 1: LUÔN cập nhật estimatedHours khi DueDate thay đổi
+                    task.setEstimatedHours(newEstimated);
+
+                    // ✅ FIX 2: Cập nhật originalEstimatedHours CHỈ KHI nó NULL hoặc 0
+                    if (task.getOriginalEstimatedHours() == null || task.getOriginalEstimatedHours() == 0) {
+                        task.setOriginalEstimatedHours(newEstimated);
+                    }
+
+                    // ✅ FIX 3: Cập nhật originalDueDate CHỈ KHI nó NULL hoặc bị lỗi 00:00
+                    if (task.getOriginalDueDate() == null) {
+                        task.setOriginalDueDate(task.getDueDate());
+                    } else if (task.getOriginalDueDate().getHour() == 0 &&
+                            task.getOriginalDueDate().getMinute() == 0) {
+                        // Fix lỗi originalDueDate bị 00:00
+                        task.setOriginalDueDate(task.getDueDate());
+                    }
+
+                    log.info("✅ Recalculated task {}: EstimatedHours={}, OriginalEstimatedHours={}, DueDate={}, OriginalDueDate={}",
+                            task.getTitle(),
+                            task.getEstimatedHours(),
+                            task.getOriginalEstimatedHours(),
+                            task.getDueDate(),
+                            task.getOriginalDueDate());
+                } else {
+                    task.setEstimatedHours(0);
+                }
+            }
+        }
+    }
+
 
     @Transactional
     public TaskResponse createTask(TaskCreationRequest request) {
@@ -78,6 +131,8 @@ public class TaskService {
         task.setAssignedTo(assigneeId);
 
         task.setReporterId(request.getReporterId());
+
+        applyAutoStartAndEstimation(task);
 
         Task savedTask = taskRepository.save(task);
         log.info("Task created with ID: {}", savedTask.getId());
@@ -177,6 +232,8 @@ public class TaskService {
             }
         }
 
+
+
         return enrichTaskResponseWithSkills(savedTask);
     }
 
@@ -253,14 +310,33 @@ public class TaskService {
         String oldAssigneeId = task.getAssignedTo();
         String oldAssigneeName = getUserFullName(oldAssigneeId);
 
+        LocalDateTime oldDueDate = task.getDueDate(); // Capture old due date
+
         // Capture old values for workload updates
         Integer oldEstimatedHours = task.getEstimatedHours();
         Integer oldActualHours = task.getActualHours();
         Double oldProgress = task.getProgressPercentage();
 
+        // ✅ UPDATE: Lưu dueDate từ request TRƯỚC KHI gọi applyAutoStartAndEstimation
+        if (request.getDueDate() != null) {
+            task.setDueDate(request.getDueDate());
+        }
+        // ✅ APPLIED NEW LOGIC HERE
+        // Kiểm tra xem có thay đổi về người được giao HOẶC ngày hết hạn không,
+        // hoặc nếu task chưa start mà giờ mới có đủ thông tin
+        boolean isAssigneeChanged = !Objects.equals(oldAssigneeId, task.getAssignedTo());
+        if (isAssigneeChanged) {
+            // [FIX] Nếu đổi người, cập nhật lại thời gian giao việc mới
+            task.setAssignedAt(LocalDateTime.now());
+        }
+        boolean isDueDateChanged = !Objects.equals(oldDueDate, task.getDueDate());
+        boolean isNewlyAssigned = oldAssigneeId == null && task.getAssignedTo() != null;
+        if (isAssigneeChanged || isDueDateChanged || isNewlyAssigned) {
+            applyAutoStartAndEstimation(task);
+        }
         taskMapper.updateTask(task, request);
-        Task updatedTask = taskRepository.save(task);
 
+        Task updatedTask = taskRepository.save(task);
         // **UPDATE WORKLOAD SERVICE FOR TASK CHANGES**
         // Update workload if task properties changed (but not reassignment - that's handled separately)
         if (updatedTask.getAssignedTo() != null && updatedTask.getAssignedTo().equals(oldAssigneeId)) {
@@ -514,27 +590,163 @@ public class TaskService {
     }
 
     public List<TaskResponse> getTasksByAssignee(String assigneeId) {
-        return taskRepository.findByAssignedTo(assigneeId).stream()
-                .map(this::enrichTaskResponseWithSkills)
-                .toList();
+        List<Task> tasks = taskRepository.findByAssignedTo(assigneeId);
+        return enrichTasksResponsesWithSkillsBatch(tasks);
     }
 
     public List<TaskResponse> getTasksByCreator(String creatorId) {
-        return taskRepository.findByCreatedBy(creatorId).stream()
-                .map(this::enrichTaskResponseWithSkills)
-                .toList();
+        List<Task> tasks = taskRepository.findByCreatedBy(creatorId);
+        return enrichTasksResponsesWithSkillsBatch(tasks);
     }
 
     public List<TaskResponse> getMyTasks() {
 
         String currentUserId = getCurrentUserId();
         log.info("Getting my tasks for user: {}", currentUserId);
-
-        return taskRepository.findByAssignedTo(currentUserId).stream()
-                .map(this::enrichTaskResponseWithSkills)
-                .toList();
+        
+        List<Task> tasks = taskRepository.findByAssignedTo(currentUserId);
+        return enrichTasksResponsesWithSkillsBatch(tasks);
     }
 
+    /**
+     * Get task hours statistics by project
+     * Fetches project members from project-service and calculates hours per member
+     */
+    public List<TaskHoursStatsResponse> getTaskHoursStatsByProject(String projectId) {
+        try {
+            log.info("Generating task statistics for project: {}", projectId);
+
+            // 1. Lấy tất cả task của dự án (Kể cả task của người đã nghỉ)
+            List<Task> allProjectTasks = taskRepository.findByProjectId(projectId);
+
+            if (allProjectTasks.isEmpty()) {
+                log.info("No tasks found for project {}", projectId);
+                return Collections.emptyList();
+            }
+
+            // 2. Group tasks theo assignedTo (User ID)
+            // Chỉ lấy task đã được assign cho ai đó
+            Map<String, List<Task>> tasksByUserMap = allProjectTasks.stream()
+                    .filter(t -> t.getAssignedTo() != null && !t.getAssignedTo().trim().isEmpty())
+                    .collect(Collectors.groupingBy(Task::getAssignedTo));
+
+            log.info("Found tasks assigned to {} distinct users", tasksByUserMap.size());
+
+            // 3. Lấy thông tin thành viên HIỆN TẠI từ project-service (để lấy email, official name)
+            Map<String, ProjectServiceClient.ProjectMemberResponse> currentMembersMap = new HashMap<>();
+            try {
+                ApiResponse<List<ProjectServiceClient.ProjectMemberResponse>> membersResponse =
+                        projectServiceClient.getProjectMembers(projectId);
+
+                if (membersResponse.getResult() != null) {
+                    currentMembersMap = membersResponse.getResult().stream()
+                            .collect(Collectors.toMap(
+                                    ProjectServiceClient.ProjectMemberResponse::getUserId,
+                                    Function.identity(),
+                                    (existing, replacement) -> existing
+                            ));
+                }
+            } catch (Exception e) {
+                log.warn("Could not fetch current project members map, proceeding with basic info for all users", e);
+            }
+
+            // 4. Tổng hợp dữ liệu (Merge thông tin User + Task Stats)
+            List<TaskHoursStatsResponse> finalStats = new ArrayList<>();
+
+            for (Map.Entry<String, List<Task>> entry : tasksByUserMap.entrySet()) {
+                String userId = entry.getKey();
+                List<Task> userTasks = entry.getValue();
+
+                String userName;
+                String email;
+
+                // Kiểm tra xem user này còn trong dự án không
+                if (currentMembersMap.containsKey(userId)) {
+                    // CASE A: User hiện tại -> Lấy thông tin đầy đủ
+                    ProjectServiceClient.ProjectMemberResponse memberInfo = currentMembersMap.get(userId);
+                    userName = memberInfo.getUserName();
+                    email = memberInfo.getEmail();
+                } else {
+                    // CASE B: User cũ (đã rời project nhưng có history task) -> Fallback lấy tên
+                    userName = getUserFullNameSafely(userId) + " (Former Member)";
+                    email = "N/A"; // Hoặc gọi API identityClient để lấy email nếu cần thiết
+                }
+
+                // Tính toán chỉ số cho user này
+                finalStats.add(calculateTaskStatsForUser(userId, userName, email, userTasks));
+            }
+
+            // Optional: Thêm những member hiện tại CHƯA có task nào (để báo cáo đầy đủ nhân sự)
+            for (String currentMemberId : currentMembersMap.keySet()) {
+                if (!tasksByUserMap.containsKey(currentMemberId)) {
+                    ProjectServiceClient.ProjectMemberResponse member = currentMembersMap.get(currentMemberId);
+                    finalStats.add(calculateTaskStatsForUser(
+                            member.getUserId(),
+                            member.getUserName(),
+                            member.getEmail(),
+                            Collections.emptyList()
+                    ));
+                }
+            }
+
+            return finalStats;
+
+        } catch (Exception e) {
+            log.error("Failed to get task hours stats for project: {}", projectId, e);
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
+    }
+
+    /**
+     * Calculate task hours for a specific member in a project
+     */
+    private TaskHoursStatsResponse calculateTaskStatsForUser(
+            String userId, String userName, String email, List<Task> tasks) {
+
+        if (tasks == null || tasks.isEmpty()) {
+            return TaskHoursStatsResponse.builder()
+                    .userId(userId)
+                    .userName(userName)
+                    .email(email)
+                    .totalEstimatedHours(0)
+                    .totalActualHours(0)
+                    .hoursVariance(0)
+                    .taskCount(0)
+                    .tasks(Collections.emptyList())
+                    .build();
+        }
+
+        // Calculate totals
+        int totalEstimated = tasks.stream()
+                .mapToInt(task -> task.getEstimatedHours() != null ? task.getEstimatedHours() : 0)
+                .sum();
+
+        int totalActual = tasks.stream()
+                .mapToInt(task -> task.getActualHours() != null ? task.getActualHours() : 0)
+                .sum();
+
+        // Create task summaries
+        List<TaskHoursStatsResponse.TaskSummary> taskSummaries = tasks.stream()
+                .map(task -> TaskHoursStatsResponse.TaskSummary.builder()
+                        .taskId(task.getId())
+                        .title(task.getTitle())
+                        .status(task.getStatus() != null ? task.getStatus().name() : "UNKNOWN")
+                        .estimatedHours(task.getEstimatedHours())
+                        .actualHours(task.getActualHours())
+                        .build())
+                .collect(Collectors.toList());
+
+        return TaskHoursStatsResponse.builder()
+                .userId(userId)
+                .userName(userName)
+                .email(email)
+                .totalEstimatedHours(totalEstimated)
+                .totalActualHours(totalActual)
+                .hoursVariance(totalActual - totalEstimated)
+                .taskCount(tasks.size())
+                .tasks(taskSummaries)
+                .build();
+    }
 
     public List<TaskResponse> getTasksForTeamLead(String teamLeadId) {
         try {
@@ -595,9 +807,8 @@ public class TaskService {
             tasks = taskRepository.findAll();
         }
 
-        return tasks.stream()
-                .map(this::enrichTaskResponseWithSkills)
-                .toList();
+        // ⚡ Use batch enrichment to prevent N+1 queries
+        return enrichTasksResponsesWithSkillsBatch(tasks);
     }
 
     // Enhanced getAllTasks with filters for project integration
@@ -640,9 +851,12 @@ public class TaskService {
         if (request.getStatus() == TaskStatus.IN_PROGRESS && oldStatus == TaskStatus.TODO) {
             task.setStartedAt(LocalDateTime.now());
         } else if (request.getStatus() == TaskStatus.DONE) {
-            task.setCompletedAt(LocalDateTime.now());
-            // Removed automatic progressPercentage = 100% to preserve employee self-evaluation
-            // Progress percentage should reflect employee's honest self-assessment for ML training accuracy
+            // FIX: Set completedAt when status changes to DONE
+            // This is critical for performance calculation
+            if (task.getCompletedAt() == null) {
+                task.setCompletedAt(LocalDateTime.now());
+            }
+            // Note: progressPercentage is preserved as employee's self-assessment
         }
 
         if (request.getComments() != null) {
@@ -652,7 +866,7 @@ public class TaskService {
         Task updatedTask = taskRepository.save(task);
         log.info("Task status updated: {} -> {} for task ID: {}", oldStatus, request.getStatus(), taskId);
 
-        // **UPDATE WORKLOAD SERVICE FOR STATUS CHANGE**
+        // Update workload service for status change
         try {
             workloadIntegrationService.updateTaskStatusInWorkload(updatedTask, oldStatus, request.getStatus());
 
@@ -666,102 +880,6 @@ public class TaskService {
         }
 
         return enrichTaskResponseWithSkills(updatedTask);
-    }
-
-    @Transactional
-    public TaskResponse assignTask(String taskId, String userId) {
-        Task task = taskRepository.findById(taskId)
-                .orElseThrow(() -> new RuntimeException("Task not found"));
-
-        // Store the old assignedTo for comparison
-        String previousAssignedTo = task.getAssignedTo();
-
-        // Update task assignment
-        task.setAssignedTo(userId);
-        Task updatedTask = taskRepository.save(task);
-
-        log.info("Task assigned to user {} for task ID: {}", userId, taskId);
-
-        // **UPDATE WORKLOAD SERVICE FOR TASK ASSIGNMENT**
-        if (!userId.equals(previousAssignedTo)) {
-            try {
-                workloadIntegrationService.handleTaskReassignment(updatedTask, previousAssignedTo, userId);
-                log.info("Updated workload service for task assignment: {} (old: {}, new: {})",
-                        taskId, previousAssignedTo, userId);
-            } catch (Exception e) {
-                log.error("Failed to update workload service for task assignment: {}", e.getMessage());
-            }
-        }
-
-        // If this is a new assignment (not just updating existing assignment)
-        if (!userId.equals(previousAssignedTo)) {
-            try {
-                // Add user to project members table if task has a project
-                if (task.getProjectId() != null && !task.getProjectId().isEmpty()) {
-                    addUserToProjectMembers(task.getProjectId(), userId);
-
-                    // Add user to project group chat
-                    addUserToProjectGroupChat(task.getProjectId(), userId);
-                }
-            } catch (Exception e) {
-                log.error("Error during task assignment integrations for task {} and user {}: {}",
-                         taskId, userId, e.getMessage(), e);
-                // Continue execution even if integrations fail to avoid breaking task assignment
-            }
-        }
-
-        TaskResponse taskResponse = enrichTaskResponseWithSkills(updatedTask);
-
-        // Send real-time Socket.IO notification for task assignment
-        try {
-//            taskSocketIOService.notifyTaskAssigned(taskResponse);
-            log.info("Real-time task assignment notification sent via Socket.IO for task: {}", taskId);
-        } catch (Exception e) {
-            log.error("Failed to send real-time task assignment notification for task {}: {}", taskId, e.getMessage());
-            // Don't fail task assignment if Socket.IO notification fails
-        }
-
-        return taskResponse;
-    }
-
-    /**
-     * Add user to project members table
-     */
-    private void addUserToProjectMembers(String projectId, String userId) {
-        try {
-            log.info("Adding user {} to project {} members", userId, projectId);
-
-            AddProjectMemberRequest memberRequest = AddProjectMemberRequest.builder()
-                    .projectId(projectId)
-                    .userId(userId)
-                    .role("MEMBER") // Default role for task assignments
-                    .build();
-
-            projectServiceClient.addMemberToProject(memberRequest);
-            log.info("Successfully added user {} to project {} members", userId, projectId);
-
-        } catch (Exception e) {
-            log.error("Failed to add user {} to project {} members: {}", userId, projectId, e.getMessage(), e);
-            throw e; // Re-throw to be caught by calling method
-        }
-    }
-
-    /**
-     * Add user to project group chat
-     */
-    private void addUserToProjectGroupChat(String projectId, String userId) {
-        try {
-            log.info("Adding user {} to project {} group chat", userId, projectId);
-
-            // Call chat service to add user to the project group using the standardized endpoint
-            chatServiceClient.addMemberToProjectGroup(projectId, userId);
-            taskSocketIOService.notifyAddedToChatProject(projectId, userId);
-            log.info("Successfully added user {} to project {} group chat", userId, projectId);
-
-        } catch (Exception e) {
-            log.error("Failed to add user {} to project {} group chat: {}", userId, projectId, e.getMessage(), e);
-            throw e; // Re-throw to be caught by calling method
-        }
     }
 
     // Task dependencies methods
@@ -919,6 +1037,49 @@ public class TaskService {
         return response;
     }
 
+    /**
+     * ⚡ PERFORMANCE OPTIMIZATION: Batch enrich tasks with skills
+     * Prevents N+1 query problem by fetching all skills in one query
+     */
+    private List<TaskResponse> enrichTasksResponsesWithSkillsBatch(List<Task> tasks) {
+        if (tasks == null || tasks.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        // Extract all task IDs
+        List<String> taskIds = tasks.stream()
+                .map(Task::getId)
+                .toList();
+
+        // 🚀 BATCH FETCH: Get all skills for all tasks in ONE query
+        Map<String, List<TaskRequiredSkill>> skillsByTaskId = 
+                taskRequiredSkillRepository.findByTaskIdInGrouped(taskIds);
+
+        log.info("⚡ Batch fetched skills for {} tasks", taskIds.size());
+
+        // Enrich each task with its skills
+        return tasks.stream()
+                .map(task -> {
+                    TaskResponse response = taskMapper.toTaskResponse(task);
+
+                    // Get skills for this task from the batch-fetched map
+                    List<TaskRequiredSkill> skills = skillsByTaskId.getOrDefault(task.getId(), Collections.emptyList());
+                    List<String> requiredSkills = skills.stream()
+                            .map(TaskRequiredSkill::getSkillName)
+                            .toList();
+
+                    response.setRequiredSkills(requiredSkills);
+
+                    // Populate AI recommendation metadata
+                    response.setTaskType(inferTaskType(task));
+                    response.setDepartment(inferDepartment(task, skills));
+                    response.setDifficulty(inferDifficulty(task, skills));
+
+                    return response;
+                })
+                .toList();
+    }
+
     private TaskSubmissionResponse mapToTaskSubmissionResponse(TaskSubmission submission) {
         Task task = taskRepository.findById(submission.getTaskId()).orElse(null);
 
@@ -1011,7 +1172,9 @@ public class TaskService {
             for (Task task : upcomingTasks) {
                 if (task.getAssignedTo() != null) {
                     String dueDate = task.getDueDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-                    String projectName = getProjectNameById(task.getProjectId());
+                    String projectName = getProjectByIdNoToken(task.getProjectId());
+
+                    log.info("Project name:{}",projectName );
 
                     taskNotificationProducerService.sendTaskReminderNotification(
                             task.getAssignedTo(),
@@ -1031,6 +1194,33 @@ public class TaskService {
     /**
      * Get project name by project ID using project service client
      */
+
+    private String getProjectByIdNoToken(String projectId) {
+        try {
+            if (projectId == null || projectId.trim().isEmpty()) {
+                log.warn("Project ID is null or empty");
+                return "Unknown Project";
+            }
+
+            log.debug("Fetching project details for ID: {}", projectId);
+            // Call project service to get project details
+            ApiResponse<ProjectResponse> response =
+                    projectServiceClient.getProjectByIdNoToken(projectId);
+
+            if (response != null && response.getResult() != null &&
+                    response.getResult().getName() != null && !response.getResult().getName().trim().isEmpty()) {
+                String projectName = response.getResult().getName();
+                log.debug("Successfully retrieved project name: {} for ID: {}", projectName, projectId);
+                return projectName;
+            } else {
+                log.warn("Project service returned null or empty name for project ID: {} - Response: {}", projectId, response);
+                return "Unknown Project";
+            }
+        } catch (Exception e) {
+            log.error("Failed to fetch project name for ID: {} - Error: {}", projectId, e.getMessage(), e);
+            return "Unknown Project";
+        }
+    }
     private String getProjectNameById(String projectId) {
         try {
             if (projectId == null || projectId.trim().isEmpty()) {
@@ -1040,7 +1230,7 @@ public class TaskService {
 
             log.debug("Fetching project details for ID: {}", projectId);
             // Call project service to get project details
-            com.mnp.task.dto.response.ApiResponse<com.mnp.task.dto.response.ProjectResponse> response =
+            ApiResponse<ProjectResponse> response =
                     projectServiceClient.getProjectById(projectId);
 
             if (response != null && response.getResult() != null &&
@@ -1201,6 +1391,143 @@ public class TaskService {
             log.info("Real-time group chat addition notification sent for user: {}", userId);
         } catch (Exception e) {
             log.error("Failed to send real-time group chat addition notification for user: {}", userId, e);
+        }
+    }
+
+    /**
+     * Send deadline reminder notifications for tasks due in 3 days, 1 day, or overdue
+     * Called by scheduled job
+     */
+    public void sendDeadlineReminders() {
+        try {
+            LocalDateTime now = LocalDateTime.now();
+            
+            // Check if within working hours (already scheduled at 9am on weekdays, but double-check)
+            if (!isWorkingHours(now)) {
+                log.info("Not within working hours, skipping deadline reminders");
+                return;
+            }
+            
+            // 3 days before reminders - check tasks due in roughly 3 days (with 12-hour window)
+            LocalDateTime threeDaysStart = now.plusDays(3).withHour(0).withMinute(0).withSecond(0);
+            LocalDateTime threeDaysEnd = now.plusDays(3).withHour(23).withMinute(59).withSecond(59);
+            List<Task> tasksIn3Days = taskRepository.findTasksDueInRange(threeDaysStart, threeDaysEnd);
+            
+            for (Task task : tasksIn3Days) {
+                sendDeadlineReminderNotification(task, 3);
+            }
+            log.info("Sent {} deadline reminders for tasks due in 3 days", tasksIn3Days.size());
+            
+            // 1 day before reminders - check tasks due in roughly 1 day (with 12-hour window)
+            LocalDateTime oneDayStart = now.plusDays(1).withHour(0).withMinute(0).withSecond(0);
+            LocalDateTime oneDayEnd = now.plusDays(1).withHour(23).withMinute(59).withSecond(59);
+            List<Task> tasksIn1Day = taskRepository.findTasksDueInRange(oneDayStart, oneDayEnd);
+            
+            for (Task task : tasksIn1Day) {
+                sendDeadlineReminderNotification(task, 1);
+            }
+            log.info("Sent {} deadline reminders for tasks due in 1 day", tasksIn1Day.size());
+            
+            // Deadline day reminders - check tasks due today
+            LocalDateTime todayStart = now.withHour(0).withMinute(0).withSecond(0);
+            LocalDateTime todayEnd = now.withHour(23).withMinute(59).withSecond(59);
+            List<Task> tasksToday = taskRepository.findTasksDueInRange(todayStart, todayEnd);
+            
+            for (Task task : tasksToday) {
+                // Only send if not already past due
+                if (!task.getDueDate().isBefore(now)) {
+                    sendDeadlineReminderNotification(task, 0); // 0 means deadline day
+                }
+            }
+            log.info("Sent {} deadline reminders for tasks due today", tasksToday.size());
+            
+        } catch (Exception e) {
+            log.error("Failed to send deadline reminder notifications", e);
+        }
+    }
+
+    /**
+     * Send overdue reminders - separate method for 2x daily execution
+     */
+    public void sendOverdueReminders() {
+        try {
+            LocalDateTime now = LocalDateTime.now();
+            
+            // Check if within working hours
+            if (!isWorkingHours(now)) {
+                log.info("Not within working hours, skipping overdue reminders");
+                return;
+            }
+            
+            // Find all overdue tasks
+            List<Task> overdueTasks = taskRepository.findOverdueActiveTasks(now);
+            
+            for (Task task : overdueTasks) {
+                sendDeadlineReminderNotification(task, -1); // -1 means overdue
+            }
+            log.info("Sent {} overdue task reminders", overdueTasks.size());
+            
+        } catch (Exception e) {
+            log.error("Failed to send overdue reminder notifications", e);
+        }
+    }
+
+    /**
+     * Check if current time is within working hours
+     * Working hours: Monday-Friday, before 6:00 PM
+     */
+    private boolean isWorkingHours(LocalDateTime dateTime) {
+        DayOfWeek dayOfWeek = dateTime.getDayOfWeek();
+        int hour = dateTime.getHour();
+        
+        // Check if weekday (Monday to Friday)
+        boolean isWeekday = dayOfWeek != DayOfWeek.SATURDAY && dayOfWeek != DayOfWeek.SUNDAY;
+        
+        // Check if before 6 PM (18:00)
+        boolean isBeforeSixPM = hour < 18;
+        
+        return isWeekday && isBeforeSixPM;
+    }
+
+    /**
+     * Send individual deadline reminder notification
+     * @param task The task to send reminder for
+     * @param daysUntilDue 3 = 3 days before, 1 = 1 day before, 0 = deadline day, -1 = overdue
+     */
+    private void sendDeadlineReminderNotification(Task task, int daysUntilDue) {
+        try {
+            if (task.getAssignedTo() == null) {
+                return;
+            }
+
+            String dueDate = task.getDueDate().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+            String projectName = getProjectByIdNoToken(task.getProjectId());
+            log.info("Project name for deadline reminder:{}",projectName );
+            String reminderType;
+            if (daysUntilDue == 3) {
+                reminderType = "3_DAYS";
+            } else if (daysUntilDue == 1) {
+                reminderType = "1_DAY";
+            } else if (daysUntilDue == 0) {
+                reminderType = "DEADLINE_DAY";
+            } else {
+                reminderType = "OVERDUE";
+            }
+
+            RealTimeNotificationClient.DeadlineReminderNotificationRequest request =
+                    new RealTimeNotificationClient.DeadlineReminderNotificationRequest(
+                            task.getAssignedTo(),
+                            task.getId(),
+                            task.getTitle(),
+                            projectName,
+                            dueDate,
+                            reminderType
+                    );
+
+            realTimeNotificationClient.sendDeadlineReminderNotification(request);
+            log.info("Sent {} deadline reminder for task: {}", reminderType, task.getTitle());
+        } catch (Exception e) {
+            log.error("Failed to send deadline reminder notification for task: {}", task.getTitle(), e);
         }
     }
 }

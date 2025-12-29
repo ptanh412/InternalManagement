@@ -41,14 +41,15 @@ public class ChatMessageController {
     @PostMapping("/create")
     ApiResponse<ChatMessageResponse> create(@RequestBody @Valid ChatMessageRequest request)
             throws JsonProcessingException {
-        log.info("🔵 API /create called - conversationId: {}, message: {}",
+        log.info("🔵 API /create called - conversationId: {}, recipientId: {}, message: {}",
                 request.getConversationId(),
+                request.getRecipientId(),
                 request.getMessage().substring(0, Math.min(20, request.getMessage().length()))
         );
 
         // ✅ Deduplication check for API message creation
         // Get userId from security context (will be extracted in service layer)
-        String dedupKey = request.getConversationId() + ":" + request.getMessage();
+        String dedupKey = (request.getConversationId() != null ? request.getConversationId() : request.getRecipientId()) + ":" + request.getMessage();
         long currentTime = System.currentTimeMillis();
 
         Long lastRequestTime = recentApiMessageRequests.get(dedupKey);

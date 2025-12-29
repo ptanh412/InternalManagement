@@ -21,6 +21,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiService } from '../../services/apiService';
 import CreateTaskModal from '../../components/modals/CreateTaskModal';
 import TaskEditModal from '../../components/modals/TaskEditModal';
+import CustomSelect from '../../components/CustomSelect';
 
 const TaskManagement = () => {
   const { user } = useAuth();
@@ -361,14 +362,14 @@ const TaskManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Task Management</h1>
-              <p className="text-gray-600 mt-2">Track and manage all project tasks</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Task Management</h1>
+              <p className="text-gray-600 dark:text-gray-300 mt-2">Track and manage all project tasks</p>
             </div>
             <button
               onClick={handleCreateTask}
@@ -382,50 +383,50 @@ const TaskManagement = () => {
 
         {/* Task Statistics */}
         {taskStats && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Task Overview</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Task Overview</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-900">{taskStats.total}</div>
-                <div className="text-sm text-gray-600">Total</div>
+                <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{taskStats.total}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">Total</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl font-bold text-gray-500">{taskStats.todo}</div>
-                <div className="text-sm text-gray-600">To Do</div>
+                <div className="text-2xl font-bold text-gray-500 dark:text-gray-400 dark:text-gray-500">{taskStats.todo}</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">To Do</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-blue-600">{taskStats.inProgress}</div>
-                <div className="text-sm text-gray-600">In Progress</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">In Progress</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-yellow-600">{taskStats.review}</div>
-                <div className="text-sm text-gray-600">Review</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">Review</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">{taskStats.testing}</div>
-                <div className="text-sm text-gray-600">Testing</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">Testing</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-green-600">{taskStats.done}</div>
-                <div className="text-sm text-gray-600">Done</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">Done</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-red-600">{taskStats.overdue}</div>
-                <div className="text-sm text-gray-600">Overdue</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">Overdue</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-orange-600">{taskStats.thisWeekDue}</div>
-                <div className="text-sm text-gray-600">Due This Week</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">Due This Week</div>
               </div>
             </div>
           </div>
         )}
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
           {/* Header with Create Button */}
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Task Management</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Task Management</h2>
             <button
               onClick={() => setShowCreateModal(true)}
               className="inline-flex items-center px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors shadow-sm"
@@ -437,66 +438,69 @@ const TaskManagement = () => {
           
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="relative">
-              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
                 type="text"
                 placeholder="Search tasks..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
             
-            <select
+            <CustomSelect
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            >
-              <option value="all">All Statuses</option>
-              {TASK_STATUSES.map(status => (
-                <option key={status} value={status}>
-                  {status.replace('_', ' ')}
-                </option>
-              ))}
-            </select>
+              onChange={setStatusFilter}
+              options={[
+                { value: 'all', label: 'All Statuses' },
+                ...TASK_STATUSES.map(status => ({
+                  value: status,
+                  label: status.replace('_', ' ')
+                }))
+              ]}
+              variant="success"
+              icon={CheckCircleIcon}
+            />
 
-            <select
+            <CustomSelect
               value={projectFilter}
-              onChange={(e) => setProjectFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            >
-              <option value="all">All Projects</option>
-              {projects.map(project => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
+              onChange={setProjectFilter}
+              options={[
+                { value: 'all', label: 'All Projects' },
+                ...projects.map(project => ({
+                  value: project.id,
+                  label: project.name
+                }))
+              ]}
+              variant="primary"
+              icon={ChartBarIcon}
+            />
 
-            <select
+            <CustomSelect
               value={assigneeFilter}
-              onChange={(e) => setAssigneeFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            >
-              <option value="all">All Assignees</option>
-              {getUniqueAssignees().map(assignee => (
-                <option key={assignee.id} value={assignee.id}>
-                  {assignee.name}
-                </option>
-              ))}
-            </select>
+              onChange={setAssigneeFilter}
+              options={[
+                { value: 'all', label: 'All Assignees' },
+                ...getUniqueAssignees().map(assignee => ({
+                  value: assignee.id,
+                  label: assignee.name
+                }))
+              ]}
+              variant="purple"
+              icon={UserIcon}
+            />
           </div>
         </div>
 
         {/* Tasks List */}
         <div className="space-y-4">
           {filteredTasks.map((task) => (
-            <div key={task.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
+            <div key={task.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
               <div className="flex items-start justify-between">
                 {/* Task Info */}
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{task.title}</h3>
                     <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(task.status)}`}>
                       {task.status.replace('_', ' ')}
                     </span>
@@ -510,9 +514,9 @@ const TaskManagement = () => {
                     )}
                   </div>
 
-                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{task.description}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-3 line-clamp-2">{task.description}</p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 dark:text-gray-300 mb-4">
                     <div className="flex items-center">
                       <UserIcon className="h-4 w-4 mr-2" />
                       <span>{task.assigneeName}</span>
@@ -529,11 +533,11 @@ const TaskManagement = () => {
 
                   {/* Progress Bar */}
                   <div className="mb-4">
-                    <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-1">
                       <span>Progress</span>
                       <span>{task.progress}%</span>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                       <div 
                         className="h-2 rounded-full bg-gradient-to-r from-primary-500 to-primary-600"
                         style={{ width: `${task.progress}%` }}
@@ -556,7 +560,7 @@ const TaskManagement = () => {
                   </div>
 
                   {/* Task Stats */}
-                  <div className="flex items-center space-x-4 text-xs text-gray-500">
+                  <div className="flex items-center space-x-4 text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
                     <span>{task.actualHours}h / {task.estimatedHours}h</span>
                     <span>•</span>
                     <span>{task.submissionCount} submission(s)</span>
@@ -577,7 +581,7 @@ const TaskManagement = () => {
                     </button>
                     <button
                       onClick={() => handleEditTask(task)}
-                      className="flex items-center text-gray-600 hover:text-gray-500 text-sm font-medium"
+                      className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-500 dark:text-gray-400 dark:text-gray-500 text-sm font-medium"
                     >
                       <PencilSquareIcon className="h-4 w-4 mr-1" />
                       Edit
@@ -595,7 +599,7 @@ const TaskManagement = () => {
                   <select
                     value={task.status}
                     onChange={(e) => handleUpdateTaskStatus(task, e.target.value)}
-                    className="text-xs border border-gray-300 rounded px-2 py-1 focus:ring-2 focus:ring-primary-500"
+                    className="text-xs border border-gray-300 dark:border-gray-600 rounded px-2 py-1 focus:ring-2 focus:ring-primary-500"
                   >
                     {TASK_STATUSES.map(status => (
                       <option key={status} value={status}>
@@ -612,9 +616,9 @@ const TaskManagement = () => {
         {/* Empty State */}
         {filteredTasks.length === 0 && (
           <div className="text-center py-12">
-            <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-            <p className="text-gray-600 mb-6">
+            <DocumentTextIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No tasks found</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               {searchTerm || statusFilter !== 'all' || projectFilter !== 'all'
                 ? 'Try adjusting your search or filter criteria'
                 : 'Get started by creating your first task'

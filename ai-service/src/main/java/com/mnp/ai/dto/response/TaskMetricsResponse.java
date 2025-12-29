@@ -1,4 +1,4 @@
-package com.mnp.ai.dto;
+package com.mnp.ai.dto.response;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;

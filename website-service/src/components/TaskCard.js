@@ -28,12 +28,12 @@ const TaskCard = ({ task, onTaskUpdate }) => {
 
   return (
     <>
-      <div className="bg-white rounded-lg shadow-md border p-4">
-        <h3 className="font-semibold text-gray-900 mb-2">{task.title}</h3>
-        <p className="text-sm text-gray-600 mb-4">{task.description}</p>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md border p-4">
+        <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">{task.title}</h3>
+        <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">{task.description}</p>
         
         <div className="flex justify-between items-center">
-          <span className="text-sm text-gray-500">
+          <span className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
             {task.assignedTo ? `Assigned to: ${task.assignedTo}` : 'Unassigned'}
           </span>
           

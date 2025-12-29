@@ -230,15 +230,15 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center">
             <SparklesIcon className="h-8 w-8 text-primary-600 mr-3" />
             AI Requirements Import & Analysis
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
             Upload requirement documents and let AI generate tasks and analysis automatically
             {teamLeadMode && ' (Team Lead Mode)'}
           </p>
@@ -247,17 +247,17 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
         {!analysisResults ? (
           <>
             {/* Project Selection */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Project Configuration</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Project Configuration</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Select Target Project
                   </label>
                   <select
                     value={selectedProject}
                     onChange={(e) => setSelectedProject(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     <option value="">Select a project...</option>
                     {projects.map(project => (
@@ -268,7 +268,7 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Project Name (optional)
                   </label>
                   <input
@@ -276,12 +276,12 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
                     placeholder="Override project name..."
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>
               </div>
               <div className="mt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Project Description (optional)
                 </label>
                 <textarea
@@ -289,18 +289,18 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
                   onChange={(e) => setProjectDescription(e.target.value)}
                   placeholder="Additional project context..."
                   rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
             </div>
 
             {/* File Upload */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Upload Requirements Documents</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Upload Requirements Documents</h2>
               
               {/* Supported Formats */}
               <div className="mb-6">
-                <p className="text-sm text-gray-600 mb-2">Supported formats:</p>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">Supported formats:</p>
                 <div className="flex flex-wrap gap-2">
                   {supportedFormats.map(format => (
                     <span key={format} className="px-2 py-1 text-xs bg-primary-100 text-primary-700 rounded">
@@ -308,11 +308,11 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
                     </span>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">Maximum file size: 10MB per file</p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">Maximum file size: 10MB per file</p>
               </div>
 
               {/* File Drop Zone */}
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-primary-500 transition-colors">
+              <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-8 text-center hover:border-primary-500 transition-colors">
                 <input
                   type="file"
                   multiple
@@ -325,11 +325,11 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
                   htmlFor="file-upload"
                   className="cursor-pointer flex flex-col items-center"
                 >
-                  <CloudArrowUpIcon className="h-12 w-12 text-gray-400 mb-4" />
-                  <p className="text-lg font-medium text-gray-900 mb-2">
+                  <CloudArrowUpIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mb-4" />
+                  <p className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
                     Drop files here or click to browse
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-sm text-gray-600 dark:text-gray-300">
                     Upload requirement documents, specifications, or project files
                   </p>
                 </label>
@@ -338,15 +338,15 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
               {/* Selected Files */}
               {selectedFiles.length > 0 && (
                 <div className="mt-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Selected Files</h3>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Selected Files</h3>
                   <div className="space-y-2">
                     {selectedFiles.map((file, index) => (
-                      <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                      <div key={index} className="flex items-center justify-between bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
                         <div className="flex items-center">
-                          <DocumentTextIcon className="h-5 w-5 text-gray-400 mr-3" />
+                          <DocumentTextIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-3" />
                           <div>
-                            <p className="text-sm font-medium text-gray-900">{file.name}</p>
-                            <p className="text-xs text-gray-600">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{file.name}</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-300">
                               {(file.size / 1024 / 1024).toFixed(2)} MB
                             </p>
                           </div>
@@ -365,8 +365,8 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
             </div>
 
             {/* Analysis Settings */}
-            <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
                 <CogIcon className="h-5 w-5 mr-2" />
                 AI Analysis Settings
               </h2>
@@ -379,9 +379,9 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
                       id="generateTasks"
                       checked={analysisSettings.generateTasks}
                       onChange={(e) => setAnalysisSettings(prev => ({ ...prev, generateTasks: e.target.checked }))}
-                      className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                      className="h-4 w-4 text-primary-600 rounded border-gray-300 dark:border-gray-600 focus:ring-primary-500"
                     />
-                    <label htmlFor="generateTasks" className="ml-2 text-sm font-medium text-gray-700">
+                    <label htmlFor="generateTasks" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                       Generate AI Tasks
                     </label>
                   </div>
@@ -392,9 +392,9 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
                       id="analyzeRequirements"
                       checked={analysisSettings.analyzeRequirements}
                       onChange={(e) => setAnalysisSettings(prev => ({ ...prev, analyzeRequirements: e.target.checked }))}
-                      className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                      className="h-4 w-4 text-primary-600 rounded border-gray-300 dark:border-gray-600 focus:ring-primary-500"
                     />
-                    <label htmlFor="analyzeRequirements" className="ml-2 text-sm font-medium text-gray-700">
+                    <label htmlFor="analyzeRequirements" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                       Analyze Requirements
                     </label>
                   </div>
@@ -405,9 +405,9 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
                       id="detectConflicts"
                       checked={analysisSettings.detectConflicts}
                       onChange={(e) => setAnalysisSettings(prev => ({ ...prev, detectConflicts: e.target.checked }))}
-                      className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                      className="h-4 w-4 text-primary-600 rounded border-gray-300 dark:border-gray-600 focus:ring-primary-500"
                     />
-                    <label htmlFor="detectConflicts" className="ml-2 text-sm font-medium text-gray-700">
+                    <label htmlFor="detectConflicts" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                       Detect Conflicts
                     </label>
                   </div>
@@ -418,22 +418,22 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
                       id="identifySkills"
                       checked={analysisSettings.identifySkills}
                       onChange={(e) => setAnalysisSettings(prev => ({ ...prev, identifySkills: e.target.checked }))}
-                      className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+                      className="h-4 w-4 text-primary-600 rounded border-gray-300 dark:border-gray-600 focus:ring-primary-500"
                     />
-                    <label htmlFor="identifySkills" className="ml-2 text-sm font-medium text-gray-700">
+                    <label htmlFor="identifySkills" className="ml-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                       Identify Required Skills
                     </label>
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Default Priority
                   </label>
                   <select
                     value={analysisSettings.priority}
                     onChange={(e) => setAnalysisSettings(prev => ({ ...prev, priority: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     <option value="LOW">Low</option>
                     <option value="MEDIUM">Medium</option>
@@ -444,7 +444,7 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
               </div>
 
               <div className="mt-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Additional Context (optional)
                 </label>
                 <textarea
@@ -452,25 +452,25 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
                   onChange={(e) => setAdditionalContext(e.target.value)}
                   placeholder="Provide additional context to help AI understand the requirements better..."
                   rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
             </div>
 
             {/* Upload Progress */}
             {isUploading && (
-              <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
                 <div className="flex items-center mb-4">
                   <SparklesIcon className="h-5 w-5 text-primary-600 mr-2 animate-pulse" />
-                  <h3 className="text-lg font-medium text-gray-900">Processing Requirements...</h3>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Processing Requirements...</h3>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div 
                     className="h-2 rounded-full bg-gradient-to-r from-primary-500 to-primary-600 transition-all duration-300"
                     style={{ width: `${uploadProgress}%` }}
                   ></div>
                 </div>
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
                   {uploadProgress < 100 ? 'Uploading files...' : 'Analyzing requirements with AI...'}
                 </p>
               </div>
@@ -535,13 +535,13 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
             </div>
 
             {/* Requirements Analysis */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">Analyzed Requirements</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Analyzed Requirements</h3>
               <div className="space-y-4">
                 {analysisResults.analyzedRequirements.map((req) => (
-                  <div key={req.id} className="border border-gray-200 rounded-lg p-4">
+                  <div key={req.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
-                      <h4 className="text-lg font-medium text-gray-900">{req.title}</h4>
+                      <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">{req.title}</h4>
                       <div className="flex items-center space-x-2">
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(req.priority)}`}>
                           {req.priority}
@@ -551,23 +551,23 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
                         </span>
                       </div>
                     </div>
-                    <p className="text-sm text-gray-600 mb-3">{req.description}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">{req.description}</p>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                       <div>
-                        <span className="text-gray-600">Category:</span>
+                        <span className="text-gray-600 dark:text-gray-300">Category:</span>
                         <span className="ml-1 font-medium">{req.category}</span>
                       </div>
                       <div>
-                        <span className="text-gray-600">Est. Hours:</span>
+                        <span className="text-gray-600 dark:text-gray-300">Est. Hours:</span>
                         <span className="ml-1 font-medium">{req.estimatedHours}h</span>
                       </div>
                       <div>
-                        <span className="text-gray-600">Dependencies:</span>
+                        <span className="text-gray-600 dark:text-gray-300">Dependencies:</span>
                         <span className="ml-1 font-medium">{req.dependencies.length}</span>
                       </div>
                     </div>
                     <div className="mt-3">
-                      <p className="text-xs text-gray-600 mb-1">Required Skills:</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">Required Skills:</p>
                       <div className="flex flex-wrap gap-1">
                         {req.skills.map((skill, index) => (
                           <span key={index} className="px-2 py-1 text-xs bg-primary-100 text-primary-700 rounded">
@@ -582,30 +582,30 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
             </div>
 
             {/* Generated Tasks */}
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-6">AI Generated Tasks</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">AI Generated Tasks</h3>
               <div className="space-y-4">
                 {analysisResults.generatedTasks.map((task) => (
-                  <div key={task.id} className="border border-gray-200 rounded-lg p-4">
+                  <div key={task.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
                     <div className="flex items-start justify-between mb-3">
-                      <h4 className="text-lg font-medium text-gray-900">{task.title}</h4>
+                      <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">{task.title}</h4>
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(task.priority)}`}>
                         {task.priority}
                       </span>
                     </div>
-                    <p className="text-sm text-gray-600 mb-3">{task.description}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">{task.description}</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm mb-3">
                       <div>
-                        <span className="text-gray-600">Estimated Hours:</span>
+                        <span className="text-gray-600 dark:text-gray-300">Estimated Hours:</span>
                         <span className="ml-1 font-medium">{task.estimatedHours}h</span>
                       </div>
                       <div>
-                        <span className="text-gray-600">Assignment Suggestions:</span>
+                        <span className="text-gray-600 dark:text-gray-300">Assignment Suggestions:</span>
                         <span className="ml-1 font-medium">{task.assignmentSuggestions.join(', ')}</span>
                       </div>
                     </div>
                     <div>
-                      <p className="text-xs text-gray-600 mb-1">Required Skills:</p>
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">Required Skills:</p>
                       <div className="flex flex-wrap gap-1">
                         {task.skills.map((skill, index) => (
                           <span key={index} className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded">
@@ -622,8 +622,8 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
             {/* Conflicts and Skills */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
               {/* Detected Conflicts */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6 flex items-center">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
                   <ExclamationTriangleIcon className="h-5 w-5 text-yellow-500 mr-2" />
                   Detected Conflicts
                 </h3>
@@ -635,29 +635,29 @@ const RequirementsImport = ({ teamLeadMode = false }) => {
                           <span className="px-2 py-1 text-xs font-medium rounded bg-yellow-200 text-yellow-800">
                             {conflict.severity}
                           </span>
-                          <span className="ml-2 text-sm font-medium text-gray-900">{conflict.type}</span>
+                          <span className="ml-2 text-sm font-medium text-gray-900 dark:text-gray-100">{conflict.type}</span>
                         </div>
-                        <p className="text-sm text-gray-700 mb-2">{conflict.description}</p>
-                        <p className="text-xs text-gray-600">
+                        <p className="text-sm text-gray-700 dark:text-gray-300 mb-2">{conflict.description}</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-300">
                           <strong>Suggestion:</strong> {conflict.suggestion}
                         </p>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <p className="text-gray-500 text-center py-4">No conflicts detected</p>
+                  <p className="text-gray-500 dark:text-gray-400 dark:text-gray-500 text-center py-4">No conflicts detected</p>
                 )}
               </div>
 
               {/* Identified Skills */}
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h3 className="text-xl font-semibold text-gray-900 mb-6">Identified Skills</h3>
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Identified Skills</h3>
                 <div className="space-y-3">
                   {analysisResults.identifiedSkills.map((skillData, index) => (
                     <div key={index} className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-gray-900">{skillData.skill}</span>
+                      <span className="text-sm font-medium text-gray-900 dark:text-gray-100">{skillData.skill}</span>
                       <div className="flex items-center space-x-2">
-                        <span className="text-xs text-gray-600">{skillData.frequency}x</span>
+                        <span className="text-xs text-gray-600 dark:text-gray-300">{skillData.frequency}x</span>
                         <span className={`px-2 py-1 text-xs font-medium rounded ${getPriorityColor(skillData.priority)}`}>
                           {skillData.priority}
                         </span>

@@ -2,7 +2,9 @@ package com.mnp.task.dto.request;
 
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.springframework.cglib.core.Local;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Data
@@ -17,4 +19,6 @@ public class AddTaskToWorkloadRequest {
     String priority; // Using String to match task priority enum
     LocalDateTime dueDate;
     String taskTitle;
+    LocalDateTime startedAt;
+    String status;
 }

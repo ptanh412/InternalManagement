@@ -12,20 +12,6 @@ import java.util.List;
 
 @Mapper(componentModel = "spring")
 public interface TaskSubmissionMapper {
-    default TaskSubmissionResponse toTaskSubmissionResponse(TaskSubmission submission){
-        return TaskSubmissionResponse.builder()
-                .id(submission.getId())
-                .taskId(submission.getTaskId())
-                .submittedBy(submission.getSubmittedBy())
-                .description(submission.getDescription())
-                .attachments(parseAttachments(submission.getAttachmentsJson()))
-                .status(submission.getStatus())
-                .reviewComments(submission.getReviewComments())
-                .reviewedBy(submission.getReviewedBy())
-                .reviewedAt(submission.getReviewedAt())
-                .submittedAt(submission.getSubmittedAt())
-                .build();
-    }
 
     default TaskSubmissionResponse toTaskSubmissionResponse(TaskSubmission submission, String projectName, String teamLeadName, String submitByName, String reviewByName){
         return TaskSubmissionResponse.builder()
@@ -55,19 +41,6 @@ public interface TaskSubmissionMapper {
                     new TypeReference<>() {});
         } catch (Exception e) {
             return Collections.emptyList();
-        }
-    }
-
-    default String stringifyAttachments(List<TaskSubmissionRequest.AttachmentInfo> attachments) {
-        if (attachments == null || attachments.isEmpty()) {
-            return null;
-        }
-
-        try {
-            ObjectMapper mapper = new ObjectMapper();
-            return mapper.writeValueAsString(attachments);
-        } catch (Exception e) {
-            return null;
         }
     }
 }

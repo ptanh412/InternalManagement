@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { 
   PlusIcon,
   MagnifyingGlassIcon,
@@ -16,9 +17,11 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { apiService } from '../../services/apiService';
 import { useApiNotifications } from '../../hooks/useApiNotifications';
+import CustomSelect from '../../components/CustomSelect';
 
 const ProjectsManagement = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const notify = useApiNotifications();
   const [projects, setProjects] = useState([]);
   const [filteredProjects, setFilteredProjects] = useState([]);
@@ -46,6 +49,7 @@ const ProjectsManagement = () => {
     startDate: '',
     endDate: ''
   });
+  const [originalData, setOriginalData] = useState(null);
 
   // Project statuses
   const PROJECT_STATUSES = ['PLANNING', 'IN_PROGRESS', 'COMPLETED', 'ON_HOLD', 'CANCELLED'];
@@ -72,7 +76,7 @@ const ProjectsManagement = () => {
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium text-gray-900 truncate">
+            <span className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
               {user.firstName} {user.lastName}
             </span>
             {user.roleName && (
@@ -81,7 +85,7 @@ const ProjectsManagement = () => {
               </span>
             )}
           </div>
-          <div className="text-xs text-gray-500 truncate mt-1">
+          <div className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 truncate mt-1">
             <span>{user.email}</span>
             {user.departmentName && (
               <>
@@ -473,16 +477,11 @@ const ProjectsManagement = () => {
   };
 
   const handleViewProject = (project) => {
-    setSelectedProject(project);
+    navigate(`/project-manager/projects/${project.id}`);
   };
 
   const handleEditProject = async (project) => {
     console.log('Editing project:', project);
-    console.log('Current users loaded:', {
-      allUsers: users.length,
-      projectManagers: projectManagers.length,
-      teamLeads: teamLeads.length
-    });
     
     // Ensure users are loaded first
     if (users.length === 0 || projectManagers.length === 0 || teamLeads.length === 0) {
@@ -493,21 +492,24 @@ const ProjectsManagement = () => {
     const editData = {
       ...project,
       budget: project.budget || '',
+      // Cắt chuỗi để phù hợp với input type="datetime-local" (yyyy-MM-ddThh:mm)
       startDate: project.startDate ? new Date(project.startDate).toISOString().slice(0, 16) : '',
       endDate: project.endDate ? new Date(project.endDate).toISOString().slice(0, 16) : '',
-      // Ensure we have the correct IDs for the form
       projectLeaderId: project.projectLeaderId || '',
       teamLeadId: project.teamLeadId || ''
     };
     
     console.log('Edit form data:', editData);
+    
     setEditFormData(editData);
+    setOriginalData(editData); // <--- THÊM DÒNG NÀY: Lưu dữ liệu gốc
     setShowEditModal(true);
   };
 
   const handleCloseEditModal = () => {
     setShowEditModal(false);
     setEditFormData(null);
+    setOriginalData(null); // <--- THÊM DÒNG NÀY
   };
 
   const handleEditInputChange = (e) => {
@@ -518,17 +520,72 @@ const ProjectsManagement = () => {
     }));
   };
 
+  const formatLocalDateTime = (dateString) => {
+    if (!dateString) return null;
+      const date = new Date(dateString);
+      // Trừ đi chênh lệch múi giờ để khi toISOString() nó bù lại thành giờ địa phương
+      const offset = date.getTimezoneOffset() * 60000; 
+      const localISOTime = new Date(date.getTime() - offset).toISOString().slice(0, 19);
+      return localISOTime;
+    };
+
   const handleSubmitEditProject = async (e) => {
     e.preventDefault();
-    if (!editFormData) return;
+    if (!editFormData || !originalData) return;
+    
     try {
-      const updateData = {
-        ...editFormData,
-        budget: editFormData.budget ? parseFloat(editFormData.budget) : null,
-        startDate: editFormData.startDate ? new Date(editFormData.startDate).toISOString() : null,
-        endDate: editFormData.endDate ? new Date(editFormData.endDate).toISOString() : null,
-      };
+      // 1. Tạo object chứa các thay đổi
+      const updateData = {};
+      let hasChanges = false;
+
+      // 2. So sánh các trường String cơ bản
+      const textFields = ['name', 'description', 'projectLeaderId', 'teamLeadId', 'status', 'priority'];
+      
+      textFields.forEach(field => {
+        // So sánh giá trị hiện tại với giá trị gốc
+        if (editFormData[field] !== originalData[field]) {
+          updateData[field] = editFormData[field];
+          hasChanges = true;
+        }
+      });
+
+      // 3. So sánh Budget (Cần xử lý số/chuỗi)
+      // Input form thường trả về string, data gốc có thể là number
+      // Dùng so sánh lỏng (!=) hoặc parse về cùng kiểu
+      if (parseFloat(editFormData.budget) !== parseFloat(originalData.budget)) {
+        // Kiểm tra trường hợp null/empty string để tránh NaN
+        const oldVal = originalData.budget ? parseFloat(originalData.budget) : 0;
+        const newVal = editFormData.budget ? parseFloat(editFormData.budget) : 0;
+        
+        if (oldVal !== newVal) {
+           updateData.budget = editFormData.budget ? parseFloat(editFormData.budget) : null;
+           hasChanges = true;
+        }
+      }
+      
+      // 4. So sánh Date
+      // formatLocalDateTime là hàm bạn đã viết để xử lý múi giờ
+      if (editFormData.startDate !== originalData.startDate) {
+        updateData.startDate = formatLocalDateTime(editFormData.startDate);
+        hasChanges = true;
+      }
+      if (editFormData.endDate !== originalData.endDate) {
+        updateData.endDate = formatLocalDateTime(editFormData.endDate);
+        hasChanges = true;
+      }
+
+      // 5. Kiểm tra nếu không có gì thay đổi thì không gọi API
+      if (!hasChanges) {
+        console.log('No changes detected.');
+        handleCloseEditModal();
+        return;
+      }
+
+      console.log('Updating project with changes:', updateData);
+      
+      // 6. Gọi API
       await apiService.updateProject(editFormData.id, updateData);
+      
       await loadProjects();
       handleCloseEditModal();
       notify.update.success('Project');
@@ -560,14 +617,14 @@ const ProjectsManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Project Management</h1>
-              <p className="text-gray-600 mt-2">Manage and monitor all your projects</p>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Project Management</h1>
+              <p className="text-gray-600 dark:text-gray-300 mt-2">Manage and monitor all your projects</p>
             </div>
             <div className="flex space-x-4">
               <button
@@ -590,8 +647,8 @@ const ProjectsManagement = () => {
 
         {/* Analytics Panel */}
         {showAnalytics && analytics && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Project Analytics</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Project Analytics</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg p-4">
                 <div className="flex items-center justify-between">
@@ -643,35 +700,31 @@ const ProjectsManagement = () => {
         )}
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0 md:space-x-4">
             <div className="flex-1 max-w-md">
               <div className="relative">
-                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                <MagnifyingGlassIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
                 <input
                   type="text"
                   placeholder="Search projects..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="pl-10 pr-4 py-2 w-full border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 />
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-2">
-                <FunnelIcon className="h-5 w-5 text-gray-400" />
-                <select
+                <FunnelIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+                <CustomSelect
+                  label="Filter by Status"
+                  options={[{ value: 'all', label: 'All Statuses' }, ...PROJECT_STATUSES.map(status => ({ value: status, label: status.replace('_', ' ') }))]}
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                >
-                  <option value="all">All Statuses</option>
-                  {PROJECT_STATUSES.map(status => (
-                    <option key={status} value={status}>
-                      {status.replace('_', ' ')}
-                    </option>
-                  ))}
-                </select>
+                  Icon={FunnelIcon}
+                />
+               
               </div>
             </div>
           </div>
@@ -680,10 +733,10 @@ const ProjectsManagement = () => {
         {/* Projects Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {filteredProjects.map((project) => (
-            <div key={project.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
+            <div key={project.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
               {/* Project Header */}
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 truncate">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 truncate">
                   {project.name}
                 </h3>
                 <div className="flex items-center space-x-2">
@@ -697,57 +750,57 @@ const ProjectsManagement = () => {
               </div>
 
               {/* Project Description */}
-              <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-4 line-clamp-2">
                 {project.description}
               </p>
 
               {/* Project Stats */}
               <div className="space-y-3 mb-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Progress</span>
-                  <span className="font-medium">{project.completionPercentage || project.progress || 0}%</span>
+                  <span className="text-gray-600 dark:text-gray-300">Progress</span>
+                  <span className="font-medium">{Math.round(project.completionPercentage || project.progress || 0)}%</span>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <div 
                     className="h-2 rounded-full bg-gradient-to-r from-primary-500 to-primary-600"
-                    style={{ width: `${project.completionPercentage || project.progress || 0}%` }}
+                    style={{ width: `${Math.round(project.completionPercentage || project.progress || 0)}%` }}
                   ></div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div className="flex items-center text-gray-600">
+                  <div className="flex items-center text-gray-600 dark:text-gray-300">
                     <UserGroupIcon className="h-4 w-4 mr-1" />
                     <span title={`${project.memberCount || 0} members + ${project.leadersCount || 0} leaders`}>
                       {project.totalPeople || 0} members
                     </span>
                   </div>
-                  <div className="flex items-center text-gray-600">
+                  <div className="flex items-center text-gray-600 dark:text-gray-300">
                     <DocumentTextIcon className="h-4 w-4 mr-1" />
                     {project.completedTasks || 0}/{project.totalTasks || 0} tasks
                   </div>
                 </div>
 
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Budget Used</span>
+                  <span className="text-gray-600 dark:text-gray-300">Budget Used</span>
                   <span className={`font-medium ${calculateBudgetUsage(project.actualCost || project.spentBudget || 0, project.budget || 0) > 90 ? 'text-red-600' : 'text-green-600'}`}>
                     ${(project.actualCost || project.spentBudget || 0).toLocaleString()} / ${(project.budget || 0).toLocaleString()}
                   </span>
                 </div>
 
                 <div className="space-y-1">
-                  <div className="flex items-center justify-between text-sm text-gray-600">
+                  <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
                     <div className="flex items-center">
                       <CalendarDaysIcon className="h-4 w-4 mr-1" />
                       {project.endDate ? new Date(project.endDate).toLocaleDateString() : 'No deadline'}
                     </div>
                   </div>
                   {project.teamLeadName && (
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-600 dark:text-gray-300">
                       <span>Team Lead: {project.teamLeadName}</span>
                     </div>
                   )}
                   {project.projectLeaderName && (
-                    <div className="text-sm text-gray-600">
+                    <div className="text-sm text-gray-600 dark:text-gray-300">
                       <span>Project Manager: {project.projectLeaderName}</span>
                     </div>
                   )}
@@ -763,7 +816,7 @@ const ProjectsManagement = () => {
                     </span>
                   ))}
                   {(project.requiredSkills || project.skills || []).length > 3 && (
-                    <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+                    <span className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded">
                       +{(project.requiredSkills || project.skills || []).length - 3} more
                     </span>
                   )}
@@ -771,17 +824,17 @@ const ProjectsManagement = () => {
               </div>
 
               {/* Actions */}
-              <div className="flex justify-between pt-4 border-t border-gray-200">
+              <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={() => handleViewProject(project)}
                   className="flex items-center text-primary-600 hover:text-primary-500 text-sm font-medium"
                 >
                   <EyeIcon className="h-4 w-4 mr-1" />
-                  View
+                  View Details
                 </button>
                 <button
                   onClick={() => handleEditProject(project)}
-                  className="flex items-center text-gray-600 hover:text-gray-500 text-sm font-medium"
+                  className="flex items-center text-gray-600 dark:text-gray-300 hover:text-gray-500 dark:text-gray-400 dark:text-gray-500 text-sm font-medium"
                 >
                   <PencilSquareIcon className="h-4 w-4 mr-1" />
                   Edit
@@ -801,9 +854,9 @@ const ProjectsManagement = () => {
         {/* Empty State */}
         {filteredProjects.length === 0 && (
           <div className="text-center py-12">
-            <Bars3BottomLeftIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No projects found</h3>
-            <p className="text-gray-600 mb-6">
+            <Bars3BottomLeftIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No projects found</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               {searchTerm || statusFilter !== 'all' 
                 ? 'Try adjusting your search or filter criteria'
                 : 'Get started by creating your first project'
@@ -821,13 +874,13 @@ const ProjectsManagement = () => {
       {/* Edit Project Modal */}
       {showEditModal && editFormData && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Edit Project</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Edit Project</h2>
                 <button
                   onClick={handleCloseEditModal}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-300 transition-colors"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -837,7 +890,7 @@ const ProjectsManagement = () => {
               <form onSubmit={handleSubmitEditProject} className="space-y-4">
                 {/* Project Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Project Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -846,13 +899,13 @@ const ProjectsManagement = () => {
                     value={editFormData.name}
                     onChange={handleEditInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Enter project name"
                   />
                 </div>
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Description
                   </label>
                   <textarea
@@ -860,7 +913,7 @@ const ProjectsManagement = () => {
                     value={editFormData.description}
                     onChange={handleEditInputChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Project description"
                   />
                 </div>
@@ -868,7 +921,7 @@ const ProjectsManagement = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Project Leader */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Project Leader <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -876,7 +929,7 @@ const ProjectsManagement = () => {
                       value={editFormData.projectLeaderId}
                       onChange={handleEditInputChange}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Select project leader</option>
                       {(projectManagers.length > 0 ? projectManagers : users.filter(u => u.roleName === 'PROJECT_MANAGER')).map(user => (
@@ -895,7 +948,7 @@ const ProjectsManagement = () => {
                           return selectedUser ? (
                             <UserOption user={selectedUser} isSelected={true} />
                           ) : (
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                               Loading user information...
                             </div>
                           );
@@ -905,14 +958,14 @@ const ProjectsManagement = () => {
                   </div>
                   {/* Team Lead */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Team Lead
                     </label>
                     <select
                       name="teamLeadId"
                       value={editFormData.teamLeadId}
                       onChange={handleEditInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Select team lead (optional)</option>
                       {(teamLeads.length > 0 ? teamLeads : users.filter(u => u.roleName === 'TEAM_LEAD')).map(user => (
@@ -928,7 +981,7 @@ const ProjectsManagement = () => {
                           return selectedUser ? (
                             <UserOption user={selectedUser} isSelected={true} />
                           ) : (
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                               Loading user information...
                             </div>
                           );
@@ -941,14 +994,14 @@ const ProjectsManagement = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Status */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Status
                     </label>
                     <select
                       name="status"
                       value={editFormData.status}
                       onChange={handleEditInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       {PROJECT_STATUSES.map(status => (
                         <option key={status} value={status}>
@@ -959,14 +1012,14 @@ const ProjectsManagement = () => {
                   </div>
                   {/* Priority */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Priority
                     </label>
                     <select
                       name="priority"
                       value={editFormData.priority}
                       onChange={handleEditInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="LOW">Low</option>
                       <option value="MEDIUM">Medium</option>
@@ -977,7 +1030,7 @@ const ProjectsManagement = () => {
                 </div>
                 {/* Budget */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Budget ($)
                   </label>
                   <input
@@ -987,7 +1040,7 @@ const ProjectsManagement = () => {
                     onChange={handleEditInputChange}
                     min="0"
                     step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Project budget"
                   />
                 </div>
@@ -995,7 +1048,7 @@ const ProjectsManagement = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Start Date */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Start Date <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1004,12 +1057,12 @@ const ProjectsManagement = () => {
                       value={editFormData.startDate}
                       onChange={handleEditInputChange}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   {/* End Date */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       End Date <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1018,7 +1071,7 @@ const ProjectsManagement = () => {
                       value={editFormData.endDate}
                       onChange={handleEditInputChange}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                 </div>
@@ -1027,7 +1080,7 @@ const ProjectsManagement = () => {
                   <button
                     type="button"
                     onClick={handleCloseEditModal}
-                    className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+                    className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 transition-colors"
                   >
                     Cancel
                   </button>
@@ -1047,13 +1100,13 @@ const ProjectsManagement = () => {
       {/* Create Project Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">Create New Project</h2>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Create New Project</h2>
                 <button
                   onClick={handleCloseCreateModal}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-300 transition-colors"
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1063,7 +1116,7 @@ const ProjectsManagement = () => {
               <form onSubmit={handleSubmitProject} className="space-y-4">
                 {/* Project Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Project Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -1072,14 +1125,14 @@ const ProjectsManagement = () => {
                     value={formData.name}
                     onChange={handleInputChange}
                     required
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Enter project name"
                   />
                 </div>
                 
                 {/* Description */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Description
                   </label>
                   <textarea
@@ -1087,7 +1140,7 @@ const ProjectsManagement = () => {
                     value={formData.description}
                     onChange={handleInputChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Project description"
                   />
                 </div>
@@ -1096,7 +1149,7 @@ const ProjectsManagement = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Project Leader */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Project Leader <span className="text-red-500">*</span>
                     </label>
                     <select
@@ -1104,7 +1157,7 @@ const ProjectsManagement = () => {
                       value={formData.projectLeaderId}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Select project leader</option>
                       {(projectManagers.length > 0 ? projectManagers : users.filter(u => u.roleName === 'PROJECT_MANAGER')).map(user => (
@@ -1123,7 +1176,7 @@ const ProjectsManagement = () => {
                           return selectedUser ? (
                             <UserOption user={selectedUser} isSelected={true} />
                           ) : (
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                               Loading user information...
                             </div>
                           );
@@ -1134,14 +1187,14 @@ const ProjectsManagement = () => {
                   
                   {/* Team Lead */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Team Lead
                     </label>
                     <select
                       name="teamLeadId"
                       value={formData.teamLeadId}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="">Select team lead (optional)</option>
                       {(teamLeads.length > 0 ? teamLeads : users.filter(u => u.roleName === 'TEAM_LEAD')).map(user => (
@@ -1157,7 +1210,7 @@ const ProjectsManagement = () => {
                           return selectedUser ? (
                             <UserOption user={selectedUser} isSelected={true} />
                           ) : (
-                            <div className="text-sm text-gray-500">
+                            <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                               Loading user information...
                             </div>
                           );
@@ -1171,14 +1224,14 @@ const ProjectsManagement = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Status */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Status
                     </label>
                     <select
                       name="status"
                       value={formData.status}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       {PROJECT_STATUSES.map(status => (
                         <option key={status} value={status}>
@@ -1190,14 +1243,14 @@ const ProjectsManagement = () => {
                   
                   {/* Priority */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Priority
                     </label>
                     <select
                       name="priority"
                       value={formData.priority}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="LOW">Low</option>
                       <option value="MEDIUM">Medium</option>
@@ -1209,7 +1262,7 @@ const ProjectsManagement = () => {
                 
                 {/* Budget */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Budget ($)
                   </label>
                   <input
@@ -1219,7 +1272,7 @@ const ProjectsManagement = () => {
                     onChange={handleInputChange}
                     min="0"
                     step="0.01"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     placeholder="Project budget"
                   />
                 </div>
@@ -1228,7 +1281,7 @@ const ProjectsManagement = () => {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {/* Start Date */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       Start Date <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1237,13 +1290,13 @@ const ProjectsManagement = () => {
                       value={formData.startDate}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                   
                   {/* End Date */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                       End Date <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1252,7 +1305,7 @@ const ProjectsManagement = () => {
                       value={formData.endDate}
                       onChange={handleInputChange}
                       required
-                      className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     />
                   </div>
                 </div>
@@ -1262,7 +1315,7 @@ const ProjectsManagement = () => {
                   <button
                     type="button"
                     onClick={handleCloseCreateModal}
-                    className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+                    className="px-4 py-2 text-gray-700 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 rounded-md hover:bg-gray-300 transition-colors"
                   >
                     Cancel
                   </button>

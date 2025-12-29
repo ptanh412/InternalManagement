@@ -8,7 +8,8 @@ import {
   ArrowRightOnRectangleIcon,
   ChevronDownIcon,
   SunIcon,
-  MoonIcon
+  MoonIcon,
+  ComputerDesktopIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../hooks/useAuth';
 import { useNotifications } from '../hooks/useNotifications';
@@ -19,16 +20,77 @@ import NotificationDropdown from './NotificationDropdown';
 const DashboardHeader = ({ title = "Dashboard", subtitle = null }) => {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+  // Theme: 'light', 'dark', or 'system'
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('theme') || 'system';
+  });
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0 });
   const [userDropdownPosition, setUserDropdownPosition] = useState({ top: 0, left: 0 });
+  const [themeDropdownPosition, setThemeDropdownPosition] = useState({ top: 0, left: 0 });
   
   const notificationButtonRef = useRef(null);
   const userButtonRef = useRef(null);
+  const themeButtonRef = useRef(null);
   
   const { user, logout, getUserRole } = useAuth();
   const navigate = useNavigate();
   const userRole = getUserRole();
+
+  // Apply theme based on preference and system preference
+  useEffect(() => {
+    const applyTheme = () => {
+      const root = document.documentElement;
+      
+      if (theme === 'system') {
+        // Check system preference
+        const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (systemPrefersDark) {
+          root.classList.add('dark');
+        } else {
+          root.classList.remove('dark');
+        }
+      } else if (theme === 'dark') {
+        root.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+      }
+    };
+
+    applyTheme();
+
+    // Listen for system theme changes when in 'system' mode
+    if (theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = () => applyTheme();
+      
+      // Modern browsers
+      if (mediaQuery.addEventListener) {
+        mediaQuery.addEventListener('change', handleChange);
+        return () => mediaQuery.removeEventListener('change', handleChange);
+      } else {
+        // Fallback for older browsers
+        mediaQuery.addListener(handleChange);
+        return () => mediaQuery.removeListener(handleChange);
+      }
+    }
+  }, [theme]);
+
+  const handleThemeChange = (newTheme) => {
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+    setThemeMenuOpen(false);
+  };
+
+  const getCurrentThemeIcon = () => {
+    if (theme === 'system') {
+      return <ComputerDesktopIcon className="h-5 w-5" />;
+    } else if (theme === 'dark') {
+      return <MoonIcon className="h-5 w-5" />;
+    } else {
+      return <SunIcon className="h-5 w-5" />;
+    }
+  };
   
   // Use the notifications hook
   const {
@@ -52,10 +114,10 @@ const DashboardHeader = ({ title = "Dashboard", subtitle = null }) => {
     setUserMenuOpen(false);
   };
 
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    // Here you would implement actual dark mode toggle
-  };
+  // const toggleTheme = () => {
+  //   setIsDarkMode(!isDarkMode);
+  //   // Here you would implement actual dark mode toggle
+  // };
 
   const calculateDropdownPosition = (buttonRef) => {
     if (!buttonRef.current) return { top: 0, left: 0 };
@@ -77,6 +139,16 @@ const DashboardHeader = ({ title = "Dashboard", subtitle = null }) => {
     };
   };
 
+  const calculateThemeDropdownPosition = (buttonRef) => {
+    if (!buttonRef.current) return { top: 0, left: 0 };
+    
+    const rect = buttonRef.current.getBoundingClientRect();
+    return {
+      top: rect.bottom + 8,
+      left: rect.right - 180 // Adjust based on dropdown width
+    };
+  };
+
   const toggleNotifications = () => {
     if (!notificationsOpen) {
       setDropdownPosition(calculateDropdownPosition(notificationButtonRef));
@@ -93,6 +165,13 @@ const DashboardHeader = ({ title = "Dashboard", subtitle = null }) => {
     setUserMenuOpen(!userMenuOpen);
   };
 
+  const toggleThemeMenu = () => {
+    if (!themeMenuOpen) {
+      setThemeDropdownPosition(calculateThemeDropdownPosition(themeButtonRef));
+    }
+    setThemeMenuOpen(!themeMenuOpen);
+  };
+
   const handleViewAllNotifications = () => {
     navigate('/notifications');
     setNotificationsOpen(false);
@@ -102,10 +181,10 @@ const DashboardHeader = ({ title = "Dashboard", subtitle = null }) => {
     <>
       <header className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 shadow-lg relative overflow-hidden z-30">
       {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-1/2 -right-1/4 w-96 h-96 bg-white/10 rounded-full blur-3xl animate-pulse"></div>
-        <div className="absolute -bottom-1/4 -left-1/4 w-96 h-96 bg-white/5 rounded-full blur-3xl animate-pulse animation-delay-1000"></div>
-      </div>
+      {/* <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-1/2 -right-1/4 w-96 h-96 bg-white dark:bg-gray-800/10 dark:bg-black rounded-full blur-3xl animate-pulse text-black"></div>
+        <div className="absolute -bottom-1/4 -left-1/4 w-96 h-96 bg-white dark:bg-gray-800/5 dark:bg-black rounded-full blur-3xl animate-pulse animation-delay-1000"></div>
+      </div> */}
       
       <div className="relative z-10 px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
@@ -127,7 +206,7 @@ const DashboardHeader = ({ title = "Dashboard", subtitle = null }) => {
           <div className="hidden md:flex flex-1 max-w-lg mx-8">
             <div className="w-full relative">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <MagnifyingGlassIcon className="h-5 w-5 text-white/70" />
+                <MagnifyingGlassIcon className="h-5 w-5 dark:text-white/70" />
               </div>
               <input
                 type="text"
@@ -140,29 +219,25 @@ const DashboardHeader = ({ title = "Dashboard", subtitle = null }) => {
           {/* Right section - Actions */}
           <div className="flex items-center space-x-3">
             {/* Theme toggle */}
-            <button
-              onClick={toggleTheme}
-              className="p-2 rounded-xl bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-all duration-300 hover:scale-105"
-            >
-              {isDarkMode ? (
-                <SunIcon className="h-5 w-5" />
-              ) : (
-                <MoonIcon className="h-5 w-5" />
-              )}
-            </button>
-
-            
+            <div className="relative">
+              <button
+                ref={themeButtonRef}
+                onClick={toggleThemeMenu}
+                className="p-2 rounded-xl bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-all duration-300 hover:scale-105 relative"
+              >
+                {getCurrentThemeIcon()}
+              </button>
+            </div>
 
             {/* Notifications Bell */}
             <div className="relative">
               <button
                 ref={notificationButtonRef}
                 onClick={toggleNotifications}
-                className="p-2 rounded-xl bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-all duration-300 hover:scale-105 relative"
-              >
-                <BellIcon className="h-5 w-5" />
+                className="p-2 rounded-xl bg-white/20 backdrop-blur-sm text-white hover:bg-white/30 transition-all duration-300 hover:scale-105 relative"> 
+                                <BellIcon className="h-5 w-5" />
                 {totalUnreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse">
+                  <span className="absolute -top-1 -right-1 bg-red-500 dark:text-white text-xs rounded-full h-5 w-5 flex items-center justify-center animate-pulse ">
                     {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
                   </span>
                 )}
@@ -225,7 +300,7 @@ const DashboardHeader = ({ title = "Dashboard", subtitle = null }) => {
 
       {userMenuOpen && createPortal(
         <div 
-          className="fixed bg-white rounded-xl shadow-2xl border border-gray-200 animate-fadeInScale"
+          className="fixed bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 animate-fadeInScale"
           style={{ 
             top: `${userDropdownPosition.top}px`, 
             left: `${userDropdownPosition.left}px`,
@@ -233,16 +308,16 @@ const DashboardHeader = ({ title = "Dashboard", subtitle = null }) => {
             width: '224px'
           }}
         >
-          <div className="p-4 border-b border-gray-200">
+          <div className="p-4 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                <span className="text-white font-bold">
+                <span className="dark:text-white font-bold">
                   {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
                 </span>
               </div>
               <div>
-                <p className="text-sm font-medium text-gray-900">{user?.name || 'User'}</p>
-                <p className="text-xs text-gray-500">{user?.email}</p>
+                <p className="text-sm font-bold text-black dark:text-gray-100">{user?.name || 'User'}</p>
+                <p className="text-xs text-black dark:text-gray-400 dark:text-gray-500">{user?.email}</p>
               </div>
             </div>
           </div>
@@ -252,7 +327,7 @@ const DashboardHeader = ({ title = "Dashboard", subtitle = null }) => {
                 navigate('/profile');
                 setUserMenuOpen(false);
               }}
-              className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:bg-gray-800 rounded-lg transition-colors"
             >
               <UserCircleIcon className="h-4 w-4" />
               <span>Profile</span>
@@ -262,7 +337,7 @@ const DashboardHeader = ({ title = "Dashboard", subtitle = null }) => {
                 navigate('/settings');
                 setUserMenuOpen(false);
               }}
-              className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              className="w-full flex items-center space-x-3 px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:bg-gray-800 rounded-lg transition-colors"
             >
               <Cog6ToothIcon className="h-4 w-4" />
               <span>Settings</span>
@@ -280,14 +355,74 @@ const DashboardHeader = ({ title = "Dashboard", subtitle = null }) => {
         document.body
       )}
 
+      {/* Theme dropdown menu */}
+      {themeMenuOpen && createPortal(
+        <div 
+          className="fixed bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 animate-fadeInScale"
+          style={{ 
+            top: `${themeDropdownPosition.top}px`, 
+            left: `${themeDropdownPosition.left}px`,
+            zIndex: 10000,
+            width: '180px'
+          }}
+        >
+          <div className="p-2">
+            <button
+              onClick={() => handleThemeChange('light')}
+              className={`w-full flex items-center space-x-3 px-3 py-2 text-sm rounded-lg transition-colors ${
+                theme === 'light' 
+                  ? 'bg-blue-50 text-blue-700 font-medium dark:hover:bg-gray-700' 
+                  : 'text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white'
+              }`}
+            >
+              <SunIcon className="h-4 w-4" />
+              <span>Light</span>
+              {theme === 'light' && (
+                <span className="ml-auto">✓</span>
+              )}
+            </button>
+            <button
+              onClick={() => handleThemeChange('dark')}
+              className={`w-full flex items-center space-x-3 px-3 py-2 text-sm rounded-lg transition-colors ${
+                theme === 'dark' 
+                  ? 'bg-blue-50 text-blue-700 font-medium' 
+                  : 'text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white'
+              }`}
+            >
+              <MoonIcon className="h-4 w-4" />
+              <span>Dark</span>
+              {theme === 'dark' && (
+                <span className="ml-auto">✓</span>
+              )}
+            </button>
+            <button
+              onClick={() => handleThemeChange('system')}
+              className={`w-full flex items-center space-x-3 px-3 py-2 text-sm rounded-lg transition-colors ${
+                theme === 'system' 
+                  ? 'bg-blue-50 text-blue-700 font-medium' 
+                  : 'text-gray-700 hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-white'
+              }`}
+            >
+              <ComputerDesktopIcon className="h-4 w-4" />
+              <span>System</span>
+              {theme === 'system' && (
+                <span className="ml-auto">✓</span>
+              )}
+            </button>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* Click outside to close dropdowns */}
-      {(userMenuOpen || notificationsOpen) && (
+      {(userMenuOpen || notificationsOpen || themeMenuOpen) && (
         <div
           className="fixed inset-0"
           style={{ zIndex: 9999 }}
           onClick={() => {
             setUserMenuOpen(false);
             setNotificationsOpen(false);
+            setThemeMenuOpen(false);
           }}
         />
       )}

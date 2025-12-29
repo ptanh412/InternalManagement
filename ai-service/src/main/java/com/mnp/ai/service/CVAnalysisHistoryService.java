@@ -251,36 +251,6 @@ public class CVAnalysisHistoryService {
     }
 
     /**
-     * Delete history by ID
-     */
-    public void deleteHistory(String historyId) {
-        if (!historyRepository.existsById(historyId)) {
-            throw new AppException(ErrorCode.HISTORY_NOT_FOUND);
-        }
-
-        historyRepository.deleteById(historyId);
-        log.info("✓ Deleted history {} from MongoDB", historyId);
-    }
-
-    /**
-     * Search history by file name
-     */
-    public List<CVAnalysisHistoryResponse> searchByFileName(String fileName) {
-        List<CVAnalysisHistory> histories = historyRepository.findByFileNameContainingIgnoreCase(fileName);
-
-        return histories.stream().map(this::toResponse).collect(Collectors.toList());
-    }
-
-    /**
-     * Get high confidence analyses (>= 0.8)
-     */
-    public List<CVAnalysisHistoryResponse> getHighConfidenceAnalyses() {
-        List<CVAnalysisHistory> histories = historyRepository.findByConfidenceScoreGreaterThanEqual(0.8);
-
-        return histories.stream().map(this::toResponse).collect(Collectors.toList());
-    }
-
-    /**
      * Convert entity to response DTO
      */
     private CVAnalysisHistoryResponse toResponse(CVAnalysisHistory history) {

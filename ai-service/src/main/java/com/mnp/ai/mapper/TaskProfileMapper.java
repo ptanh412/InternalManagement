@@ -6,7 +6,7 @@ import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
-import com.mnp.ai.dto.TaskResponse;
+import com.mnp.ai.dto.response.TaskResponse;
 import com.mnp.ai.model.TaskProfile;
 
 @Component

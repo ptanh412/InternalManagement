@@ -1,25 +1,25 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   XMarkIcon,
   CalendarIcon,
   UserIcon,
-  ClockIcon,
-  ExclamationTriangleIcon,
   DocumentTextIcon,
   TagIcon,
   PlusIcon,
   TrashIcon,
   CheckCircleIcon,
-  SparklesIcon
+  SparklesIcon,
+  BriefcaseIcon
 } from '@heroicons/react/24/outline';
 import { apiService } from '../../services/apiService';
 import { useAuth } from '../../hooks/useAuth';
 import { useNotification } from '../../contexts/NotificationContext';
-
+import CustomSelect from '../CustomSelect';
 const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProjectId }) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [employees, setEmployees] = useState([]);
+  const [employeesLoaded, setEmployeesLoaded] = useState(false); // ⚡ Cache flag
   const [availableSkills, setAvailableSkills] = useState([]);
   const [formData, setFormData] = useState({
     title: '',
@@ -40,7 +40,6 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
   
   // Task Types Enum
   const TASK_TYPES = [
-    'DEVELOPMENT',
     'FRONTEND_DEVELOPMENT',
     'BACKEND_DEVELOPMENT',
     'DATABASE_DEVELOPMENT',
@@ -95,12 +94,15 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
     'MASTER'
   ];
 
-  const TASK_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
-  const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'REVIEW', 'TESTING', 'DONE'];
+  const TASK_PRIORITIES = ['LOW', 'MEDIUM', 'HIGH', 'URGENT'];
+  // const TASK_STATUSES = ['TODO', 'IN_PROGRESS', 'REVIEW', 'TESTING', 'DONE'];
 
   useEffect(() => {
     if (isOpen) {
-      loadEmployees();
+      // ⚡ Only load employees once (cache)
+      if (!employeesLoaded) {
+        loadEmployees();
+      }
       loadSkills();
       // Set default project if provided
       if (defaultProjectId) {
@@ -110,12 +112,16 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
         }));
       }
     }
-  }, [isOpen, defaultProjectId]);
+  }, [isOpen, defaultProjectId, employeesLoaded]);
 
   const loadEmployees = async () => {
     try {
-      const response = await apiService.getUsersByRole('EMPLOYEE');
+      // ⚡ Use optimized endpoint - only fetches EMPLOYEE role users
+      // This is much faster than getAllProfile() which fetches all 832+ users
+      const response = await apiService.getEmployeesOnly();
+      console.log('⚡ Loaded employees only:', response.result?.length || 0);
       setEmployees(response.result || []);
+      setEmployeesLoaded(true); // ⚡ Mark as loaded (cache)
     } catch (error) {
       console.error('Failed to load employees:', error);
     }
@@ -246,6 +252,17 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
       if (dueDate < today) {
         newErrors.dueDate = 'Due date cannot be in the past';
       }
+      
+      // Validate dueDate must be before project endDate
+      if (formData.projectId) {
+        const selectedProject = projects.find(p => p.id === formData.projectId);
+        if (selectedProject && selectedProject.endDate) {
+          const projectEndDate = new Date(selectedProject.endDate);
+          if (dueDate > projectEndDate) {
+            newErrors.dueDate = `Due date must be before project end date (${new Date(selectedProject.endDate).toLocaleDateString()})`;
+          }
+        }
+      }
     }
 
     if (formData.estimatedHours && (isNaN(formData.estimatedHours) || formData.estimatedHours < 0)) {
@@ -273,6 +290,17 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
 
     setLoading(true);
     try {
+      const formatDueDate = (dateString) => {
+      if (!dateString) return null;
+      
+      // Nếu đã có giờ (từ datetime-local)
+      if (dateString.includes('T')) {
+        return dateString;
+      }
+      
+      // Nếu chỉ có ngày (từ type="date") → Set 23:59:59
+      return `${dateString}T23:59:59`;
+    };
       const taskData = {
         title: formData.title,
         description: formData.description,
@@ -283,7 +311,7 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
         priority: formData.priority,
         status: formData.status,
         estimatedHours: formData.estimatedHours ? parseInt(formData.estimatedHours) : null,
-        dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null,
+        dueDate: formatDueDate(formData.dueDate),
         tags: formData.tags,
         requiredSkills: formData.requiredSkills,
         createdBy: user.id
@@ -329,22 +357,85 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
     }
   };
 
+
+
+  const getAllowedDepartments = (taskType) => {
+    const type = (taskType || '').toUpperCase();
+    
+    // Luôn bao gồm 'Engineering' vì đây là phòng ban kỹ thuật chung
+    const baseDepts = ['Engineering']; 
+
+    switch (true) {
+      case ['FRONTEND_DEVELOPMENT', 'DESIGN'].includes(type):
+        return [...baseDepts, 'Frontend Development'];
+        
+      case ['BACKEND_DEVELOPMENT', 'DATABASE_DEVELOPMENT', 'API_TECHNOLOGY'].includes(type):
+        return [...baseDepts, 'Backend Development'];
+        
+      case ['MOBILE_DEVELOPMENT'].includes(type):
+        return [...baseDepts, 'Mobile Development'];
+        
+      case ['TESTING', 'UNIT_TESTING', 'INTEGRATION_TESTING', 'QA'].includes(type):
+        return [...baseDepts, 'Quality Assurance'];
+        
+      case ['DEPLOYMENT', 'MAINTENANCE', 'SECURITY', 'PERFORMANCE', 'DEVOPS_TOOL'].includes(type):
+        return [...baseDepts, 'DevOps'];
+        
+      default:
+        // Các loại task chung (RESEARCH, PLANNING...) thì hiển thị tất cả các phòng ban kỹ thuật
+        return ['Engineering', 'Frontend Development', 'Backend Development', 'Mobile Development', 'Quality Assurance', 'DevOps'];
+    }
+  };
+
+  // --- CẬP NHẬT BIẾN filteredEmployees ---
+  // Lọc employees dựa trên Task Type đã chọn
+  // Lọc và khử trùng lặp nhân viên dựa trên Task Type đã chọn
+  const filteredEmployees = useMemo(() => {
+    if (!employees || employees.length === 0) return [];
+
+    const allowedDepts = getAllowedDepartments(formData.type);
+
+    // Bước 1: Lọc theo điều kiện Role và Department
+    const eligibleList = employees.filter(profile => {
+      const emp = profile.user; 
+      if (!emp) return false;
+
+      const isEmployee = emp.roleName === 'EMPLOYEE';
+      const matchesDept = allowedDepts.includes(emp.departmentName);
+
+      return isEmployee && matchesDept;
+    });
+
+    // Bước 2: Khử trùng lặp bằng Map (dùng userId làm khóa duy nhất)
+    const uniqueEmployeesMap = new Map();
+    eligibleList.forEach(profile => {
+      // Nếu chưa có userId này trong Map thì mới thêm vào
+      if (!uniqueEmployeesMap.has(profile.userId)) {
+        uniqueEmployeesMap.set(profile.userId, profile);
+      }
+    });
+
+    // Chuyển Map quay lại thành Array để render
+    return Array.from(uniqueEmployeesMap.values());
+  }, [employees, formData.type]);
+
+  console.log('Filtered Employees:', filteredEmployees);
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
+        <div className="sticky top-0 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4 flex items-center justify-between rounded-t-2xl z-10">
           <div>
-            <h3 className="text-xl font-semibold text-gray-900">Create New Task</h3>
-            <p className="text-sm text-gray-600 mt-1">Add a new task with detailed requirements</p>
+            <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Create New Task</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">Add a new task with detailed requirements</p>
           </div>
           <button 
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            className="p-2 hover:bg-gray-100 dark:bg-gray-800 rounded-lg transition-colors"
           >
-            <XMarkIcon className="w-5 h-5 text-gray-500" />
+            <XMarkIcon className="w-5 h-5 text-gray-500 dark:text-gray-400 dark:text-gray-500" />
           </button>
         </div>
 
@@ -359,17 +450,17 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
 
           {/* Title */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Task Title <span className="text-red-500">*</span>
             </label>
             <div className="relative">
-              <DocumentTextIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <DocumentTextIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
                 type="text"
                 name="title"
                 value={formData.title}
                 onChange={handleChange}
-                className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 ${
                   errors.title ? 'border-red-300 bg-red-50' : 'border-gray-300'
                 }`}
                 placeholder="Enter task title..."
@@ -382,7 +473,7 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
 
           {/* Description */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Description <span className="text-red-500">*</span>
             </label>
             <textarea
@@ -390,7 +481,7 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
               value={formData.description}
               onChange={handleChange}
               rows={4}
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none ${
+              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700 ${
                 errors.description ? 'border-red-300 bg-red-50' : 'border-gray-300'
               }`}
               placeholder="Describe the task in detail..."
@@ -404,156 +495,103 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Project */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Project <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="projectId"
-                value={formData.projectId}
-                onChange={handleChange}
-                className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                  errors.projectId ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                }`}
-              >
-                <option value="">Select a project</option>
-                {projects.map(project => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-              {errors.projectId && (
-                <p className="mt-1 text-sm text-red-600">{errors.projectId}</p>
-              )}
-            </div>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">
+                    Project <span className="text-red-500">*</span>
+                </label>
+                  <CustomSelect
+                    name="projectId"
+                    value={formData.projectId}
+                    onChange={handleChange}
+                    error={errors.projectId}
+                    required={true}
+                    options={[
+                      { value: '', label: 'Select a project' },
+                      ...projects.map(project => ({
+                        value: project.id,
+                        label: project.name
+                      }))
+                    ]}
+                    icon={BriefcaseIcon}
+                    placeholder="Select a project"
+                  />
+              </div>
 
             {/* Task Type */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">
                 Task Type <span className="text-red-500">*</span>
               </label>
-              <select
-                name="type"
-                value={formData.type}
-                onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                {TASK_TYPES.map(type => (
-                  <option key={type} value={type}>
-                    {type.replace(/_/g, ' ')}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <CustomSelect
+              label="Task Type"
+              name="type"
+              value={formData.type}
+              onChange={handleChange}
+              required={true}
+              options={TASK_TYPES.map(type => ({
+                  value: type,
+                  label: type.replace(/_/g, ' ')
+              }))}
+              placeholder="Select Task Type"
+            />
+              </div>
 
             {/* Assignee */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">
                 Assignee
               </label>
-              <div className="relative">
-                <UserIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                <select
-                  name="assigneeId"
-                  value={formData.assigneeId}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                >
-                  <option value="">Unassigned</option>
-                  {employees.map(employee => (
-                    <option key={employee.id} value={employee.id}>
-                      {employee.firstName} {employee.lastName}
-                    </option>
-                  ))}
-                </select>
+            <CustomSelect
+              label="Assignee"
+              name="assigneeId"
+              value={formData.assigneeId}
+              onChange={handleChange}
+              options={[
+                // Unassigned là option đầu tiên (đã thêm vào state employees)
+                ...filteredEmployees.map(profile => ({
+                  value: profile.userId,
+                  label: profile.userId === '' ? 'Unassigned' : `${profile.user.firstName} ${profile.user.lastName} • ${profile.user.positionTitle}`,
+                  skills: profile.skills || []
+                }))
+              ]}
+              icon={UserIcon}
+              placeholder="Select Assignee"
+              showSkills={true}
+            />
               </div>
-            </div>
           </div>
 
           {/* Priority and Status Row */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Priority */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Priority
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">
+                Priority <span className="text-red-500">*</span>
               </label>
-              <div className="relative">
-                <ExclamationTriangleIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                <select
-                  name="priority"
-                  value={formData.priority}
-                  onChange={handleChange}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                >
-                  {TASK_PRIORITIES.map(priority => (
-                    <option key={priority} value={priority}>
-                      {priority}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Status */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Initial Status
-              </label>
-              <select
-                name="status"
-                value={formData.status}
+              <CustomSelect
+                label="Priority"
+                name="priority"
+                value={formData.priority}
                 onChange={handleChange}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                {TASK_STATUSES.map(status => (
-                  <option key={status} value={status}>
-                    {status.replace('_', ' ')}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Estimated Hours and Due Date Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Estimated Hours */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Estimated Hours
-              </label>
-              <div className="relative">
-                <ClockIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-                <input
-                  type="number"
-                  name="estimatedHours"
-                  value={formData.estimatedHours}
-                  onChange={handleChange}
-                  min="0"
-                  step="0.5"
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
-                    errors.estimatedHours ? 'border-red-300 bg-red-50' : 'border-gray-300'
-                  }`}
-                  placeholder="Hours"
-                />
+                required={true}
+                options={TASK_PRIORITIES.map(priority => ({
+                    value: priority,
+                    label: priority.replace(/_/g, ' ')
+                }))}
+                placeholder="Select Priority"
+              />
               </div>
-              {errors.estimatedHours && (
-                <p className="mt-1 text-sm text-red-600">{errors.estimatedHours}</p>
-              )}
-            </div>
-
-            {/* Due Date */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Due Date <span className="text-red-500">*</span>
               </label>
               <div className="relative">
-                <CalendarIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+                <CalendarIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
                 <input
                   type="date"
                   name="dueDate"
                   value={formData.dueDate}
                   onChange={handleChange}
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700 ${
                     errors.dueDate ? 'border-red-300 bg-red-50' : 'border-gray-300'
                   }`}
                 />
@@ -566,17 +604,17 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
 
           {/* Tags */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               Tags
             </label>
             <div className="relative">
-              <TagIcon className="h-5 w-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <TagIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 absolute left-3 top-1/2 transform -translate-y-1/2" />
               <input
                 type="text"
                 value={tagInput}
                 onChange={(e) => setTagInput(e.target.value)}
                 onKeyDown={handleAddTag}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent dark:bg-gray-900 dark:text-gray-100 dark:border-gray-700"
                 placeholder="Type tag and press Enter..."
               />
             </div>
@@ -602,16 +640,16 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
           </div>
 
           {/* Required Skills Section */}
-          <div className="border-t border-gray-200 pt-6">
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <SparklesIcon className="h-5 w-5 text-purple-600 mr-2" />
-                <h4 className="text-lg font-semibold text-gray-900">Required Skills</h4>
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Required Skills</h4>
               </div>
               <button
                 type="button"
                 onClick={handleAddSkill}
-                className="flex items-center px-3 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
+                className="flex items-center px-3 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors "
               >
                 <PlusIcon className="h-4 w-4 mr-1" />
                 Add Skill
@@ -619,25 +657,25 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
             </div>
 
             {formData.requiredSkills.length === 0 ? (
-              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <SparklesIcon className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-                <p className="text-gray-600">No required skills added yet</p>
-                <p className="text-sm text-gray-500 mt-1">Click "Add Skill" to define skill requirements</p>
+              <div className="text-center py-8 bg-gray-50 dark:bg-gray-900 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600">
+                <SparklesIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-3" />
+                <p className="text-gray-600 dark:text-gray-300">No required skills added yet</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">Click "Add Skill" to define skill requirements</p>
               </div>
             ) : (
               <div className="space-y-4">
                 {formData.requiredSkills.map((skill, index) => (
-                  <div key={index} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
+                  <div key={index} className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
                     <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
                       {/* Skill Type */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Skill Type <span className="text-red-500">*</span>
                         </label>
                         <select
                           value={skill.skillType}
                           onChange={(e) => handleSkillChange(index, 'skillType', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
                         >
                           {SKILL_TYPES.map(type => (
                             <option key={type} value={type}>
@@ -649,14 +687,14 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
 
                       {/* Skill Name - Dropdown or Input */}
                       <div className="md:col-span-2">
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Skill Name <span className="text-red-500">*</span>
                         </label>
                         {getSkillsByType(skill.skillType).length > 0 ? (
                           <select
                             value={skill.skillName}
                             onChange={(e) => handleSkillChange(index, 'skillName', e.target.value)}
-                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700 ${
                               errors[`skill_${index}`] ? 'border-red-300 bg-red-50' : 'border-gray-300'
                             }`}
                           >
@@ -674,7 +712,7 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
                             value={skill.skillName}
                             onChange={(e) => handleSkillChange(index, 'skillName', e.target.value)}
                             placeholder="Enter skill name..."
-                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent ${
+                            className={`w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700 ${
                               errors[`skill_${index}`] ? 'border-red-300 bg-red-50' : 'border-gray-300'
                             }`}
                           />
@@ -684,7 +722,7 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
                             type="text"
                             onChange={(e) => handleSkillChange(index, 'skillName', e.target.value)}
                             placeholder="Enter custom skill name..."
-                            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg mt-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg mt-2 focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
                           />
                         )}
                         {errors[`skill_${index}`] && (
@@ -694,13 +732,13 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
 
                       {/* Required Level */}
                       <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                        <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
                           Level <span className="text-red-500">*</span>
                         </label>
                         <select
                           value={skill.requiredLevel}
                           onChange={(e) => handleSkillChange(index, 'requiredLevel', e.target.value)}
-                          className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent dark:bg-gray-800 dark:text-gray-100 dark:border-gray-700"
                         >
                           {PROFICIENCY_LEVELS.map(level => (
                             <option key={level} value={level}>
@@ -718,9 +756,9 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
                               type="checkbox"
                               checked={skill.mandatory}
                               onChange={(e) => handleSkillChange(index, 'mandatory', e.target.checked)}
-                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                              className="w-4 h-4 text-purple-600 border-gray-300 dark:border-gray-600 rounded focus:ring-purple-500"
                             />
-                            <span className="ml-2 text-xs text-gray-700">Mandatory</span>
+                            <span className="ml-2 text-xs text-gray-700 dark:text-gray-300">Mandatory</span>
                           </label>
                         </div>
                         <button
@@ -735,11 +773,11 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
                     </div>
 
                     {/* Skill Summary Badge */}
-                    <div className="mt-2 flex items-center text-xs text-gray-600">
+                    <div className="mt-2 flex items-center text-xs text-gray-600 dark:text-gray-300">
                       {skill.mandatory ? (
                         <CheckCircleIcon className="h-4 w-4 text-green-600 mr-1" />
                       ) : (
-                        <span className="text-gray-400 mr-1">○</span>
+                        <span className="text-gray-400 dark:text-gray-500 mr-1">○</span>
                       )}
                       <span>
                         {skill.mandatory ? 'Mandatory' : 'Optional'} • 
@@ -754,11 +792,11 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
             <button
               type="button"
               onClick={onClose}
-              className="px-5 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              className="px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:bg-gray-900 transition-colors"
             >
               Cancel
             </button>
@@ -782,5 +820,4 @@ const CreateTaskModal = ({ isOpen, onClose, onTaskCreated, projects, defaultProj
     </div>
   );
 };
-
 export default CreateTaskModal;

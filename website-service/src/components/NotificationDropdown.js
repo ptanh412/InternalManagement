@@ -34,6 +34,7 @@ const NotificationDropdown = ({
   const [mergedNotifications, setMergedNotifications] = useState([]);
   const [totalUnreadCount, setTotalUnreadCount] = useState(0);
 
+  console.log('Socket Notifications:', mergedNotifications);
   useEffect(() => {
     setLocalNotifications(notifications);
   }, [notifications]);
@@ -106,7 +107,7 @@ const NotificationDropdown = ({
       case 'task_transfer':
         return <span className="text-lg">📌</span>;
       default:
-        return <InformationCircleIcon className="h-5 w-5 text-gray-500" />;
+        return <InformationCircleIcon className="h-5 w-5 text-gray-500 dark:text-gray-400 dark:text-gray-500" />;
     }
   };
 
@@ -191,24 +192,24 @@ const NotificationDropdown = ({
 
   if (loading) {
     return (
-      <div className="w-80 bg-white rounded-xl shadow-2xl border border-gray-200">
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Notifications</h3>
+      <div className="w-80 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Notifications</h3>
         </div>
         <div className="p-8 text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
-          <p className="text-sm text-gray-500 mt-2">Loading notifications...</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-2">Loading notifications...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="w-96 bg-white rounded-xl shadow-2xl border border-gray-200 animate-fadeInScale">
-      <div className="p-4 border-b border-gray-200">
+    <div className="w-96 bg-white dark:bg-gray-800 rounded-xl shadow-2xl border border-gray-200 dark:border-gray-700 animate-fadeInScale">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Notifications
             </h3>
             {totalUnreadCount > 0 && (
@@ -216,17 +217,6 @@ const NotificationDropdown = ({
                 {totalUnreadCount}
               </span>
             )}
-            {/* Connection Status */}
-            {/* <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-              isConnected   
-                ? 'bg-green-100 text-green-800' 
-                : 'bg-red-100 text-red-800'
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-1 ${
-                isConnected ? 'bg-green-600' : 'bg-red-600'
-              }`}></span>
-              {isConnected ? 'Live' : 'Offline'}
-            </span> */}
           </div>
           {totalUnreadCount > 0 && (
             <button
@@ -240,14 +230,14 @@ const NotificationDropdown = ({
         </div>
       </div>
       
-      <div className="max-h-[32rem] overflow-y-auto">
+      <div className="max-h-[32rem] overflow-y-auto dark:text-white sidebar-scrollbar">
         {mergedNotifications.length === 0 ? (
           <div className="p-8 text-center">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-              <CheckCircleIcon className="h-8 w-8 text-gray-400" />
+            <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-3">
+              <CheckCircleIcon className="h-8 w-8 text-gray-400 dark:text-gray-500" />
             </div>
-            <p className="text-sm font-medium text-gray-900">No notifications</p>
-            <p className="text-xs text-gray-500 mt-1">You're all caught up!</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-gray-100">No notifications</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">You're all caught up!</p>
           </div>
         ) : (
           mergedNotifications.map((notification) => {
@@ -257,21 +247,21 @@ const NotificationDropdown = ({
               <div
                 key={`${notification.source}-${notification.id}`}
                 onClick={() => handleNotificationClick(notification)}
-                className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-all cursor-pointer ${
-                  isUnread ? `bg-blue-50 border-l-4 ${getNotificationPriorityColor(notification)}` : ''
+                className={`p-4 border-b border-gray-100 hover:bg-gray-50 transition-all cursor-pointer dark:bg-gray-800 dark:border-gray-700 dark:hover:bg-gray-700 ${
+                  isUnread ? ` ${getNotificationPriorityColor(notification)}` : ''
                 }`}
               >
-                <div className="flex items-start space-x-3">
+                <div className="flex items-start space-x-3 dark:text-white">
                   <div className="flex-shrink-0 mt-0.5">
                     {getNotificationIcon(notification.type, notification.source)}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold text-gray-900 mb-1">
+                  <div className="flex-1 min-w-0 dark:text-white">
+                    <div className="flex items-start justify-between dark:text-white">
+                      <div className="flex-1 dark:text-white">
+                        <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-1">
                           {notification.title}
                         </p>
-                        <p className="text-sm text-gray-600 line-clamp-2">
+                        <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
                           {notification.message}
                         </p>
                         
@@ -282,8 +272,8 @@ const NotificationDropdown = ({
                         />
                         
                         <div className="flex items-center mt-2 space-x-2">
-                          <ClockIcon className="h-3 w-3 text-gray-400" />
-                          <p className="text-xs text-gray-500">
+                          <ClockIcon className="h-3 w-3 text-gray-400 dark:text-gray-500" />
+                          <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
                             {notification.source === 'socket' 
                               ? notification.timestamp?.toLocaleString() || 'Just now'
                               : getTimeAgo(notification.createdAt)
@@ -312,7 +302,7 @@ const NotificationDropdown = ({
       </div>
       
       {mergedNotifications.length > 0 && (
-        <div className="p-4 text-center border-t border-gray-200 bg-gray-50">
+        <div className="p-4 text-center border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
           <button 
             onClick={onViewAll}
             className="text-sm text-blue-600 hover:text-blue-800 font-medium transition-colors"

@@ -5,10 +5,7 @@ import com.mnp.ai.model.UserProfile;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Dynamic Skill Threshold Calculator
@@ -354,144 +351,97 @@ public class DynamicSkillThresholdCalculator {
             return 0.0; // User has no skills
         }
 
-        Set<String> userSkills = user.getSkills().keySet();
-        Set<String> requiredSkills = task.getRequiredSkills().keySet();
+        Map<String, Double> userSkills = user.getSkills();
+        Map<String, Double> requiredSkills = task.getRequiredSkills();
 
-        // Try AI embeddings first (most sophisticated)
+        // Try AI embeddings first if available
+        Set<String> userSkillNames = userSkills.keySet();
+        Set<String> requiredSkillNames = requiredSkills.keySet();
+
         AISkillEmbeddingService.AISkillMatchResult aiResult =
-            aiSkillEmbeddingService.calculateEnhancedMatch(userSkills, requiredSkills);
+                aiSkillEmbeddingService.calculateEnhancedMatch(userSkillNames, requiredSkillNames);
 
         if (aiResult.usedAI) {
-            // AI service available - use its sophisticated matching
-            log.debug("Using AI-powered skill matching: {:.1f}%", aiResult.overallScore * 100);
+            log.debug("✨ Using AI-powered skill matching: {:.1f}%", aiResult.overallScore * 100);
             return aiResult.overallScore;
         }
 
-        // Fallback to category-based matching
-        log.debug("Using category-based skill matching (AI unavailable)");
+        // Fallback to enhanced semantic matching
+        log.debug("🧠 Using enhanced semantic skill matching (AI unavailable)");
 
-        // 1. Normalized exact match (handles synonyms like JS → JavaScript)
-        double normalizedMatch = skillNormalizer.calculateNormalizedMatch(userSkills, requiredSkills);
+        // 1. Semantic match with proficiency consideration
+        double semanticScore = skillNormalizer.calculateOverallSemanticScore(
+                userSkills, requiredSkills);
 
-        // 2. Category-based transferability (e.g., React → Vue = high transferability)
-        double transferability = skillCategoryMatcher.calculateTransferabilityScore(userSkills, requiredSkills);
+        // 2. Category-based transferability
+        double transferabilityScore = skillCategoryMatcher.calculateTransferabilityScore(
+                userSkillNames, requiredSkillNames);
 
-        // Combine: 80% normalized match + 20% transferability
-        // This gives more weight to exact matches but considers transferable skills
-        return (0.8 * normalizedMatch) + (0.2 * transferability);
+        // 3. Learning potential based on seniority
+        double learningBonus = calculateLearningPotentialBonus(user, task);
+
+        // Combined score: 70% semantic + 20% transferability + 10% learning potential
+        double combinedScore = (0.70 * semanticScore)
+                + (0.20 * transferabilityScore)
+                + (0.10 * learningBonus);
+
+        log.debug("📊 Enhanced matching breakdown:");
+        log.debug("   Semantic: {:.1f}%", semanticScore * 100);
+        log.debug("   Transferability: {:.1f}%", transferabilityScore * 100);
+        log.debug("   Learning potential: {:.1f}%", learningBonus * 100);
+        log.debug("   Combined: {:.1f}%", combinedScore * 100);
+
+        return combinedScore;
     }
 
-    /**
-     * Check if user qualifies for task using enhanced skill matching
-     */
-    public boolean isQualifiedWithEnhancedMatching(UserProfile user, TaskProfile task) {
-        // Calculate dynamic threshold
-        double minThreshold = calculateMinimumSkillThreshold(task, user);
 
-        // Calculate enhanced skill match
-        double skillMatch = calculateEnhancedSkillMatch(user, task);
+    private double calculateLearningPotentialBonus(UserProfile user, TaskProfile task) {
+        int seniorityLevel = getSeniorityLevel(user);
+        Double experienceYears = user.getExperienceYears();
 
-        return skillMatch >= minThreshold;
-    }
+        double bonus = 0.0;
 
-    /**
-     * Get detailed match explanation with enhanced metrics
-     */
-    public String explainEnhancedMatch(UserProfile user, TaskProfile task) {
-        Set<String> userSkills = user.getSkills() != null ? user.getSkills().keySet() : Set.of();
-        Set<String> requiredSkills = task.getRequiredSkills() != null ? task.getRequiredSkills().keySet() : Set.of();
+        // Senior developers can learn new skills faster
+        if (seniorityLevel >= 4) {
+            bonus += 0.15; // Senior/Lead/Principal
+        } else if (seniorityLevel >= 3) {
+            bonus += 0.10; // Mid-level
+        } else if (seniorityLevel >= 2) {
+            bonus += 0.05; // Junior
+        }
 
-        // Try AI embeddings first
-        AISkillEmbeddingService.AISkillMatchResult aiResult =
-            aiSkillEmbeddingService.calculateEnhancedMatch(userSkills, requiredSkills);
-
-        StringBuilder explanation = new StringBuilder();
-        explanation.append("=== ENHANCED SKILL MATCHING ===\n");
-
-        if (aiResult.usedAI) {
-            // AI-powered explanation
-            explanation.append("🤖 AI-Powered Semantic Matching\n");
-            explanation.append(String.format("Exact Match: %.1f%%\n", aiResult.exactMatchScore * 100));
-            explanation.append(String.format("Semantic Similarity: %.1f%%\n", aiResult.similarityMatchScore * 100));
-            explanation.append(String.format("Overall AI Score: %.1f%%\n", aiResult.overallScore * 100));
-
-            if (!aiResult.matchedSkills.isEmpty()) {
-                explanation.append("Perfect Matches: ")
-                    .append(String.join(", ", aiResult.matchedSkills))
-                    .append("\n");
-            }
-
-            if (!aiResult.similarSkills.isEmpty()) {
-                explanation.append("Transferable Skills (AI detected):\n");
-                for (Map<String, Object> match : aiResult.similarSkills) {
-                    explanation.append(String.format("  - %s ≈ %s (%.0f%% similar)\n",
-                        match.get("required"),
-                        match.get("user_has"),
-                        getDoubleFromMap(match, "similarity") * 100));
-                }
-            }
-        } else {
-            // Fallback to category-based
-            explanation.append("📊 Category-Based Matching (AI unavailable)\n");
-            double normalizedMatch = skillNormalizer.calculateNormalizedMatch(userSkills, requiredSkills);
-            double categoryMatch = skillCategoryMatcher.calculateCategoryMatch(userSkills, requiredSkills);
-            double transferability = skillCategoryMatcher.calculateTransferabilityScore(userSkills, requiredSkills);
-
-            explanation.append(String.format("Normalized Match (with synonyms): %.1f%%\n", normalizedMatch * 100));
-            explanation.append(String.format("Category Match: %.1f%%\n", categoryMatch * 100));
-            explanation.append(String.format("Transferability Score: %.1f%%\n", transferability * 100));
-
-            // Add matched categories
-            Set<String> matchedCategories = skillCategoryMatcher.getMatchedCategories(userSkills, requiredSkills);
-            if (!matchedCategories.isEmpty()) {
-                explanation.append("Matched Categories: ")
-                    .append(String.join(", ", matchedCategories))
-                    .append("\n");
-            }
-
-            // Add matched skills (normalized)
-            Set<String> matchedSkills = skillNormalizer.getMatchedSkills(userSkills, requiredSkills);
-            if (!matchedSkills.isEmpty()) {
-                explanation.append("Matched Skills: ")
-                    .append(String.join(", ", matchedSkills))
-                    .append("\n");
-            }
-
-            // Add missing skills
-            Set<String> missingSkills = skillNormalizer.getMissingSkills(userSkills, requiredSkills);
-            if (!missingSkills.isEmpty()) {
-                explanation.append("Missing Skills: ")
-                    .append(String.join(", ", missingSkills))
-                    .append("\n");
+        // Experience bonus
+        if (experienceYears != null) {
+            if (experienceYears >= 10) {
+                bonus += 0.10;
+            } else if (experienceYears >= 5) {
+                bonus += 0.05;
+            } else if (experienceYears >= 3) {
+                bonus += 0.03;
             }
         }
 
-        double enhancedScore = calculateEnhancedSkillMatch(user, task);
-        double threshold = calculateMinimumSkillThreshold(task, user);
+        // Check if candidate has foundation skills for the required skills
+        // Example: Has JavaScript → can learn React/Vue easily
+        Set<String> userSkillNames = user.getSkills() != null ? user.getSkills().keySet() : Set.of();
+        Set<String> requiredSkillNames = task.getRequiredSkills() != null ?
+                task.getRequiredSkills().keySet() : Set.of();
 
-        explanation.append(String.format("\nEnhanced Score: %.1f%%\n", enhancedScore * 100));
-        explanation.append(String.format("Required Threshold: %.1f%%\n", threshold * 100));
-        explanation.append(String.format("Qualified: %s\n", enhancedScore >= threshold ? "✅ YES" : "❌ NO"));
+        // Get categories for both
+        Set<String> userCategories = skillCategoryMatcher.getCategoriesForSkills(userSkillNames);
+        Set<String> requiredCategories = skillCategoryMatcher.getCategoriesForSkills(requiredSkillNames);
 
-        if (isHighlySpecialized(task)) {
-            explanation.append("\n⚠️ Highly specialized task: minimum 50% required");
+        // If they have strong foundation in same categories
+        long matchedCategories = requiredCategories.stream()
+                .filter(userCategories::contains)
+                .count();
+
+        if (matchedCategories > 0 && !requiredCategories.isEmpty()) {
+            double categoryOverlap = (double) matchedCategories / requiredCategories.size();
+            bonus += categoryOverlap * 0.15; // Up to 15% bonus for category overlap
         }
 
-        double experience = getExperienceBonus(user.getExperienceYears());
-        explanation.append(String.format("\n- Experience bonus (%.1f years): -%.1f%%",
-            user.getExperienceYears() != null ? user.getExperienceYears() : 0.0,
-            experience * 100));
-
-        double workload = getWorkloadPenalty(getUtilization(user));
-        explanation.append(String.format("\n- Workload penalty (%.0f%%): +%.1f%%",
-            getUtilization(user) * 100, workload * 100));
-
-        return explanation.toString();
-    }
-
-    private double getDoubleFromMap(Map<String, Object> map, String key) {
-        Object value = map.get(key);
-        return value instanceof Number ? ((Number) value).doubleValue() : 0.0;
+        return Math.min(1.0, bonus); // Cap at 100%
     }
 }
 

@@ -79,25 +79,29 @@ public class PerformanceCalculationService {
 
         // Calculate score impact based on task performance
         double scoreImpact = calculateTaskScoreImpact(
-            request.getQualityRating(),
-            request.isCompletedOnTime(),
-            request.getTaskComplexity(),
-            request.getEstimatedHours(),
-            request.getActualHours()
+                request.getQualityRating(),
+                request.isCompletedOnTime(),
+                request.getTaskComplexity(),
+                request.getEstimatedHours(),          // Current estimate (after extensions)
+                request.getActualHours(),
+                request.getOriginalEstimatedHours(),  // NEW
+                request.getExtensionCount(),          // NEW
+                request.getTotalExtensionHours(),     // NEW
+                request.getHadExtension()             // NEW
         );
 
         // Apply weighted update to existing score (70% existing, 30% new impact)
         double newScore = (currentScore * 0.7) + (scoreImpact * 0.3);
-        
+
         // Ensure score is within valid range (0-100)
         newScore = Math.max(0.0, Math.min(100.0, newScore));
 
         user.setPerformanceScore(newScore);
         userRepository.save(user);
 
-        log.info("Performance score updated for user {} after task review: {} -> {}", 
-                request.getUserId(), currentScore, newScore);
-        
+        log.info("Performance score updated for user {} after task review: {} -> {} (extension: {})",
+                request.getUserId(), currentScore, newScore, request.getHadExtension());
+
         return newScore;
     }
 
@@ -141,38 +145,97 @@ public class PerformanceCalculationService {
      * Calculate score impact for a single task review
      */
     private double calculateTaskScoreImpact(
-            Integer qualityRating, // 4 x 20 = 80
-            boolean completedOnTime, // true = 90
-            String taskComplexity, // high
-            Integer estimatedHours, //32
-            Integer actualHours) { // 12
+            Integer qualityRating,
+            boolean completedOnTime,       // Based on FINAL deadline
+            String taskComplexity,
+            Integer estimatedHours,        // Current estimate (after extensions)
+            Integer actualHours,
+            Integer originalEstimatedHours, // NEW
+            Integer extensionCount,        // NEW
+            Integer totalExtensionHours,   // NEW
+            Boolean hadExtension)
+    {        // NEW
 
-        // Base score components
-        double qualityComponent = qualityRating != null ? (qualityRating * 20.0) : 70.0; // 1-5 rating * 20
+        // ===== 1. QUALITY COMPONENT (40% weight) =====
+        double qualityComponent = qualityRating != null ? (qualityRating * 20.0) : 70.0;
+
+        // ===== 2. TIMELINESS COMPONENT (30% weight) =====
+        // Use FINAL deadline after approved extensions
         double timelinessComponent = completedOnTime ? 90.0 : 50.0;
-        
-        // Efficiency component based on estimated vs actual hours
+
+        // ===== 3. EFFICIENCY COMPONENT (30% weight) =====
         double efficiencyComponent = 70.0; // default
+
+        // Compare actualHours with CURRENT estimatedHours (after extensions)
+        // This is fair because extensions were approved
         if (estimatedHours != null && actualHours != null && estimatedHours > 0) {
-            double ratio = (double) actualHours / estimatedHours; // 0.375
-            if (ratio <= 1.0) {
-                efficiencyComponent = 100.0 - (ratio * 10.0); // Bonus for completing under estimate /100 96.25
+            double ratio = (double) actualHours / estimatedHours;
+
+            if (ratio <= 0.8) {
+                // Excellent: finished well under revised estimate
+                efficiencyComponent = 100.0;
+            } else if (ratio <= 1.0) {
+                // Good: finished within revised estimate
+                efficiencyComponent = 95.0 - ((ratio - 0.8) * 25.0); // 95-90
+            } else if (ratio <= 1.2) {
+                // Acceptable: slight overrun
+                efficiencyComponent = 90.0 - ((ratio - 1.0) * 100.0); // 90-70
             } else if (ratio <= 1.5) {
-                efficiencyComponent = 90.0 - ((ratio - 1.0) * 40.0); // Moderate penalty
+                // Poor: significant overrun even after extensions
+                efficiencyComponent = 70.0 - ((ratio - 1.2) * 66.67); // 70-50
             } else {
-                efficiencyComponent = 50.0; // Higher penalty for significant overrun
+                // Very poor: major overrun
+                efficiencyComponent = 50.0;
             }
         }
 
-        // Complexity bonus/adjustment
-        double complexityMultiplier = getComplexityMultiplier(taskComplexity); //1.1
+        // ===== 4. EXTENSION PENALTY/ADJUSTMENT (separate factor) =====
+        double extensionFactor = 1.0;
 
-        // Calculate weighted task score
-        double taskScore = (qualityComponent * 0.4) + 
-                          (timelinessComponent * 0.3) + 
-                          (efficiencyComponent * 0.3);
+        if (hadExtension != null && hadExtension) {
+            // Small penalty for needing extensions, but not too harsh
+            // This reflects planning accuracy, not performance under new deadline
 
-        return taskScore * complexityMultiplier;
+            if (extensionCount != null && originalEstimatedHours != null && originalEstimatedHours > 0) {
+                double extensionRatio = (double) totalExtensionHours / originalEstimatedHours;
+
+                if (extensionCount == 1) {
+                    // First extension: minimal penalty (2-5%)
+                    extensionFactor = 0.98 - (Math.min(extensionRatio, 0.5) * 0.06); // 0.98-0.95
+                } else if (extensionCount == 2) {
+                    // Second extension: moderate penalty (5-10%)
+                    extensionFactor = 0.95 - (Math.min(extensionRatio, 0.5) * 0.10); // 0.95-0.90
+                } else {
+                    // More than 2: higher penalty (10-15%)
+                    extensionFactor = 0.90 - (Math.min(extensionRatio, 0.5) * 0.10); // 0.90-0.85
+                }
+            } else {
+                // Default penalty if we don't have full data
+                extensionFactor = extensionCount == 1 ? 0.97 : (extensionCount == 2 ? 0.94 : 0.90);
+            }
+
+            log.debug("Extension factor applied: {} (count: {}, hours: {})",
+                    extensionFactor, extensionCount, totalExtensionHours);
+        }
+
+        // ===== 5. COMPLEXITY MULTIPLIER =====
+        double complexityMultiplier = getComplexityMultiplier(taskComplexity);
+
+        // ===== 6. CALCULATE FINAL SCORE =====
+        // Weighted average of components
+        double baseTaskScore = (qualityComponent * 0.4) +
+                (timelinessComponent * 0.3) +
+                (efficiencyComponent * 0.3);
+
+        // Apply complexity multiplier and extension factor
+        double finalScore = baseTaskScore * complexityMultiplier * extensionFactor;
+
+        log.info("Task score breakdown - Quality: {}, Timeliness: {}, Efficiency: {}, " +
+                        "Complexity: {}, Extension Factor: {}, Final: {}",
+                qualityComponent, timelinessComponent, efficiencyComponent,
+                complexityMultiplier, extensionFactor, finalScore);
+
+        return finalScore;
     }
 
     private double calculateQualityScore(Double averageQualityRating) {

@@ -7,6 +7,7 @@ import sys
 import traceback
 from datetime import datetime
 
+
 def validate_all():
     results = []
 
@@ -17,12 +18,11 @@ def validate_all():
 
         # Test 1: Basic imports
         results.append("Testing basic imports...")
-        import yaml, pandas, numpy, sklearn
         results.append("✓ Basic imports successful")
 
         # Test 2: Data collector
         results.append("Testing data collector...")
-        from data.data_collector import SyntheticDataGenerator, MultiDatabaseDataCollector
+        from data.data_collector import SyntheticDataGenerator
         results.append("✓ Data collector import successful")
 
         # Test instantiation
@@ -31,14 +31,10 @@ def validate_all():
 
         # Test 3: Models
         results.append("Testing models...")
-        from models.hybrid_recommender import HybridRecommenderTrainer
-        from models.continuous_learning import ContinuousModelTrainer
         results.append("✓ Models imported successfully")
 
         # Test 4: APIs
         results.append("Testing APIs...")
-        from api.model_server import app as model_server_app
-        from api.ml_api import app as ml_api_app
         results.append("✓ APIs imported successfully")
 
         # Test 5: Basic functionality

@@ -13,31 +13,49 @@ public class TaskReminderService {
     private final TaskService taskService;
 
     /**
-     * Send task reminder notifications every hour for tasks due within 24 hours
+     * Send deadline reminders for tasks due in 3 days or 1 day, or on deadline day
+     * Runs daily at 9:00 AM (Monday to Friday)
+     * Cron: second, minute, hour, day, month, weekday
+     * 0 0 9 * * MON-FRI = At 9:00 AM, Monday through Friday
      */
-    @Scheduled(fixedRate = 3600000) // Run every hour (3600000 ms)
-    public void sendTaskReminders() {
-        log.info("Starting task reminder notification job");
+    @Scheduled(cron = "0 0 9 * * MON-FRI", zone = "Asia/Ho_Chi_Minh")
+    public void sendDeadlineReminders() {
+        log.info("Starting deadline reminder notification job at 9:00 AM");
         try {
-            taskService.sendTaskReminders();
-            log.info("Task reminder notification job completed successfully");
+            taskService.sendDeadlineReminders();
+            log.info("Deadline reminder notification job completed successfully");
         } catch (Exception e) {
-            log.error("Error in task reminder notification job", e);
+            log.error("Error in deadline reminder notification job", e);
         }
     }
 
     /**
-     * Send urgent task reminders for tasks due within 2 hours - runs every 30 minutes
+     * Send overdue task reminders - Morning shift
+     * Runs daily at 9:00 AM (Monday to Friday)
      */
-    @Scheduled(fixedRate = 1800000) // Run every 30 minutes (1800000 ms)
-    public void sendUrgentTaskReminders() {
-        log.info("Starting urgent task reminder notification job");
+    @Scheduled(cron = "0 0 9 * * MON-FRI", zone = "Asia/Ho_Chi_Minh")
+    public void sendOverdueRemindersMorning() {
+        log.info("Starting overdue reminder notification job at 9:00 AM");
         try {
-            // You can implement this method in TaskService for more urgent reminders
-            // taskService.sendUrgentTaskReminders();
-            log.info("Urgent task reminder notification job completed successfully");
+            taskService.sendOverdueReminders();
+            log.info("Overdue reminder notification job (morning) completed successfully");
         } catch (Exception e) {
-            log.error("Error in urgent task reminder notification job", e);
+            log.error("Error in overdue reminder notification job (morning)", e);
+        }
+    }
+
+    /**
+     * Send overdue task reminders - Noon shift
+     * Runs daily at 12:00 PM (Monday to Friday)
+     */
+    @Scheduled(cron = "0 0 12 * * MON-FRI", zone = "Asia/Ho_Chi_Minh")
+    public void sendOverdueRemindersNoon() {
+        log.info("Starting overdue reminder notification job at 12:00 PM");
+        try {
+            taskService.sendOverdueReminders();
+            log.info("Overdue reminder notification job (noon) completed successfully");
+        } catch (Exception e) {
+            log.error("Error in overdue reminder notification job (noon)", e);
         }
     }
 }

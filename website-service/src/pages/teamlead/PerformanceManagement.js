@@ -32,7 +32,7 @@ const PerformanceManagement = () => {
   const loadTeamMembers = async () => {
     try {
       // Get team members (you may need to adjust this endpoint based on your API)
-      const response = await apiService.getUsers();
+      const response = await apiService.getAllUsers();
       const users = response.result || response || [];
       
       // Filter to show employees only (not other team leads/admins)
@@ -121,34 +121,34 @@ const PerformanceManagement = () => {
 
   if (!canViewPerformance) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white p-8 rounded-lg shadow-md text-center">
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="bg-white dark:bg-gray-800 p-8 rounded-lg shadow-md text-center">
           <ExclamationTriangleIcon className="h-12 w-12 text-yellow-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Access Restricted</h2>
-          <p className="text-gray-600">You don't have permission to view performance management.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Access Restricted</h2>
+          <p className="text-gray-600 dark:text-gray-300">You don't have permission to view performance management.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center">
             <ChartBarIcon className="h-8 w-8 mr-3" />
             Performance Management
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
             View and manage team member performance scores and metrics
           </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Team Member Selection */}
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
               <UserIcon className="h-5 w-5 mr-2" />
               Select Team Member
             </h2>
@@ -160,7 +160,7 @@ const PerformanceManagement = () => {
                 placeholder="Search team members..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
 
@@ -177,14 +177,14 @@ const PerformanceManagement = () => {
                   }`}
                 >
                   <div className="font-medium">{member.firstName} {member.lastName}</div>
-                  <div className="text-sm text-gray-500">{member.email}</div>
-                  <div className="text-xs text-gray-400 capitalize">{member.role?.toLowerCase()}</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{member.email}</div>
+                  <div className="text-xs text-gray-400 dark:text-gray-500 capitalize">{member.role?.toLowerCase()}</div>
                 </button>
               ))}
             </div>
 
             {filteredTeamMembers.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-8 text-gray-500 dark:text-gray-400 dark:text-gray-500">
                 <UserIcon className="h-12 w-12 mx-auto mb-2 text-gray-300" />
                 <p>No team members found</p>
               </div>
@@ -192,27 +192,27 @@ const PerformanceManagement = () => {
           </div>
 
           {/* Performance Details */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow-md p-6">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
             {!selectedUserId ? (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400 dark:text-gray-500">
                 <ChartBarIcon className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Select a Team Member</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Select a Team Member</h3>
                 <p>Choose a team member from the list to view their performance details</p>
               </div>
             ) : loading ? (
               <div className="text-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-                <p className="text-gray-500 mt-4">Loading performance data...</p>
+                <p className="text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-4">Loading performance data...</p>
               </div>
             ) : performanceDetails ? (
               <div className="space-y-6">
                 {/* Header with Recalculate Button */}
                 <div className="flex items-center justify-between">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900">
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                       {performanceDetails.userName}
                     </h2>
-                    <p className="text-gray-600">{performanceDetails.userEmail}</p>
+                    <p className="text-gray-600 dark:text-gray-300">{performanceDetails.userEmail}</p>
                   </div>
                   <button
                     onClick={handleRecalculate}
@@ -228,8 +228,8 @@ const PerformanceManagement = () => {
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="text-lg font-medium text-gray-900">Overall Performance Score</h3>
-                      <p className="text-sm text-gray-600">Weighted average of all performance metrics</p>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Overall Performance Score</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">Weighted average of all performance metrics</p>
                     </div>
                     <div className="text-right">
                       <div className={`text-3xl font-bold ${getScoreColor(performanceDetails.performanceScore)}`}>
@@ -292,32 +292,32 @@ const PerformanceManagement = () => {
                 </div>
 
                 {/* Task Statistics */}
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Task Statistics</h3>
+                <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-6">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Task Statistics</h3>
                   <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
-                      <div className="text-2xl font-bold text-gray-900">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                         {performanceDetails.totalTasksAssigned || 0}
                       </div>
-                      <div className="text-sm text-gray-600">Tasks Assigned</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">Tasks Assigned</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-gray-900">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                         {performanceDetails.totalTasksCompleted || 0}
                       </div>
-                      <div className="text-sm text-gray-600">Tasks Completed</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">Tasks Completed</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-gray-900">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                         {performanceDetails.totalTasksOnTime || 0}
                       </div>
-                      <div className="text-sm text-gray-600">On-Time Completions</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">On-Time Completions</div>
                     </div>
                     <div>
-                      <div className="text-2xl font-bold text-gray-900">
+                      <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                         {performanceDetails.totalActualHours?.toFixed(1) || 0}h
                       </div>
-                      <div className="text-sm text-gray-600">Total Hours Worked</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-300">Total Hours Worked</div>
                     </div>
                   </div>
                 </div>
@@ -366,8 +366,8 @@ const PerformanceManagement = () => {
                 </div>
 
                 {/* Last Updated */}
-                <div className="text-center pt-4 border-t border-gray-200">
-                  <div className="flex items-center justify-center text-sm text-gray-500">
+                <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center justify-center text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                     <InformationCircleIcon className="h-4 w-4 mr-1" />
                     Last updated: {performanceDetails.lastPerformanceUpdate 
                       ? new Date(performanceDetails.lastPerformanceUpdate).toLocaleString()
@@ -377,9 +377,9 @@ const PerformanceManagement = () => {
                 </div>
               </div>
             ) : (
-              <div className="text-center py-12 text-gray-500">
+              <div className="text-center py-12 text-gray-500 dark:text-gray-400 dark:text-gray-500">
                 <ExclamationTriangleIcon className="h-16 w-16 mx-auto mb-4 text-gray-300" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No Performance Data</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No Performance Data</h3>
                 <p>Performance data could not be loaded for this user</p>
               </div>
             )}

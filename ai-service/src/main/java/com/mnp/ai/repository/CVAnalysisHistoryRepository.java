@@ -23,7 +23,6 @@ public interface CVAnalysisHistoryRepository extends MongoRepository<CVAnalysisH
     List<CVAnalysisHistory> findAllByOrderByCreatedAtDesc();
 
     // Find by created user ID
-    Optional<CVAnalysisHistory> findByCreatedUserId(String userId);
 
     // Find recent history (within date range)
     List<CVAnalysisHistory> findByCreatedAtAfterOrderByCreatedAtDesc(LocalDateTime fromDate);
@@ -32,14 +31,9 @@ public interface CVAnalysisHistoryRepository extends MongoRepository<CVAnalysisH
     long countByStatus(CVAnalysisHistory.AnalysisStatus status);
 
     // Check if exists by created user ID
-    boolean existsByCreatedUserId(String userId);
 
     // Find by file name (for duplicate check)
     List<CVAnalysisHistory> findByFileNameContainingIgnoreCase(String fileName);
-
-    // Custom query: Find by multiple statuses
-    @Query("{ 'status': { $in: ?0 } }")
-    List<CVAnalysisHistory> findByStatusIn(List<CVAnalysisHistory.AnalysisStatus> statuses);
 
     // Custom query: Find with confidence above threshold
     @Query("{ 'confidenceScore': { $gte: ?0 } }")

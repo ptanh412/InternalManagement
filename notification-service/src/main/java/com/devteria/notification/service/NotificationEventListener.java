@@ -16,21 +16,21 @@ public class NotificationEventListener {
     private final EmailService emailService;
     private final WebSocketNotificationService webSocketNotificationService;
 
-    @KafkaListener(topics = "notification-delivery")
-    public void handleEmailNotification(NotificationEvent event) {
+    @KafkaListener(topics = "notification-delivery", groupId = "notification-group")
+    public void consumeNotification(NotificationEvent event) {
+        log.info("📥 Received notification event: channel={}, recipient={}",
+                event.getChannel(), event.getRecipient());
+
         try {
-            log.info("Received email notification event for: {}", event.getRecipient());
-
-            if ("EMAIL".equals(event.getChannel())) {
-                // Handle email notification
-                emailService.sendEmail(event);
+            if ("EMAIL".equalsIgnoreCase(event.getChannel())) {
+                emailService.sendEmailFromEvent(event);
+            } else {
+                log.warn("⚠️ Unsupported notification channel: {}", event.getChannel());
             }
-
         } catch (Exception e) {
-            log.error("Failed to process email notification event", e);
+            log.error("❌ Failed to process notification event", e);
         }
     }
-
     @KafkaListener(topics = "websocket-notification")
     public void handleWebSocketNotification(NotificationEvent event) {
         try {

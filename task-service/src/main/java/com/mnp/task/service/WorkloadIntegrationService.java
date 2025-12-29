@@ -36,6 +36,8 @@ public class WorkloadIntegrationService {
                     .priority(task.getPriority() != null ? task.getPriority().toString() : "MEDIUM")
                     .dueDate(task.getDueDate())
                     .taskTitle(task.getTitle())
+                    .startedAt(task.getStartedAt())
+                    .status(task.getStatus().toString())
                     .build();
 
             workloadServiceClient.addTaskToWorkload(task.getAssignedTo(), request);

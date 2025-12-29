@@ -23,7 +23,8 @@ import {
   WrenchScrewdriverIcon,
   LightBulbIcon,
   CircleStackIcon,
-  AcademicCapIcon
+  AcademicCapIcon,
+  AdjustmentsHorizontalIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth';
 import { apiService } from '../../services/apiService';
@@ -32,8 +33,9 @@ import AITaskRecommendationModal from '../../components/modals/AITaskRecommendat
 import TaskDetailModal from '../../components/modals/TaskDetailModal';
 import TaskEditModal from '../../components/modals/TaskEditModal';
 import CreateTaskModal from '../../components/modals/CreateTaskModal';
+import CustomSelect from '../../components/CustomSelect';
 
-const ProjectTasksView = () => {
+const ProjectTasksView = ({ embedded = false }) => {
   const { projectId } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -180,8 +182,10 @@ const ProjectTasksView = () => {
           
           // Get assignee name if assigneeId exists and name is not already present
           if (task.assigneeId && !task.assigneeName) {
+            console.log("Fetching assignee for task:", task.id, "Assignee ID:", task.assigneeId);
             try {
               const assigneeResponse = await apiService.getUser(task.assigneeId);
+              console.log("Assignee response for task:", task.id, assigneeResponse);
               if (assigneeResponse.result) {
                 enrichedTask.assigneeName = `${assigneeResponse.result.firstName} ${assigneeResponse.result.lastName}`;
               }
@@ -257,7 +261,7 @@ const ProjectTasksView = () => {
       case 'IN_REVIEW':
         return <EyeIcon className="h-4 w-4 text-purple-600" />;
       default:
-        return <ExclamationTriangleIcon className="h-4 w-4 text-gray-600" />;
+        return <ExclamationTriangleIcon className="h-4 w-4 text-gray-600 dark:text-gray-300" />;
     }
   };
 
@@ -371,82 +375,70 @@ const ProjectTasksView = () => {
   }
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <button
-          onClick={handleBackToProjects}
-          className="flex items-center text-primary-600 hover:text-primary-500 mb-4"
-        >
-          <ArrowLeftIcon className="h-4 w-4 mr-2" />
-          Back to Projects
-        </button>
-        
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">{projectName}</h1>
-        <p className="text-gray-600">Manage tasks and assignments for this project</p>
-        
-        {project && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(project.status)}`}>
-              {project.status?.replace('_', ' ')}
-            </span>
-            {project.priority && (
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getPriorityColor(project.priority)}`}>
-                {project.priority}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
+    <div className={embedded ? "" : "p-6 max-w-7xl mx-auto"}>
+      {/* Header - Hidden when embedded */}
+      {!embedded && (
+        <div className="mb-8">
+          <button
+            onClick={handleBackToProjects}
+            className="flex items-center text-primary-600 hover:text-primary-500 mb-4"
+          >
+            <ArrowLeftIcon className="h-4 w-4 mr-2" />
+            Back to Projects
+          </button>
+          
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">{projectName}</h1>
+          <p className="text-gray-600 dark:text-gray-300">Manage tasks and assignments for this project</p>
+        </div>
+      )}
 
       {/* Filters */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="flex flex-col sm:flex-row gap-2">
+          <div className="flex flex-col sm:flex-row gap-2 items-center flex-1">
             {/* Search */}
             <div className="relative">
-              <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-5 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 placeholder="Search tasks..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-64"
+                className="pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 min-w-64 dark:bg-gray-900 dark:text-gray-100"
               />
             </div>
 
             {/* Status Filter */}
-            <div className="relative">
-              <FunnelIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <select
+              <CustomSelect
+                label="Status"
+                name="statusFilter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none bg-white"
-              >
-                <option value="all">All Status</option>
-                {TASK_STATUSES.map(status => (
-                  <option key={status} value={status}>
-                    {status.replace('_', ' ')}
-                  </option>
-                ))}
-              </select>
-            </div>
+                options={[{ value: 'all', label: 'All Status' }, ...TASK_STATUSES.map(status => ({
+                  value: status,
+                  label: status.replace('_', ' ')
+                }))]}
+                Icon={FunnelIcon}
+                required={false}
+                error={null}
+                placeholder="Select status"
+              />
 
             {/* Priority Filter */}
-            <div className="relative">
-              <select
+              <CustomSelect
+                label="Priority"
+                name="priorityFilter"
                 value={priorityFilter}
                 onChange={(e) => setPriorityFilter(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 appearance-none bg-white"
-              >
-                <option value="all">All Priority</option>
-                {TASK_PRIORITIES.map(priority => (
-                  <option key={priority} value={priority}>
-                    {priority}
-                  </option>
-                ))}
-              </select>
-            </div>
+                options={[{ value: 'all', label: 'All Priority' }, ...TASK_PRIORITIES.map(priority => ({
+                  value: priority,
+                  label: priority
+                }))]}
+                Icon={AdjustmentsHorizontalIcon}
+                required={false}
+                error={null}
+                placeholder="Select priority"
+              />
           </div>
 
           <div className="flex items-center gap-3">
@@ -468,7 +460,7 @@ const ProjectTasksView = () => {
             
           </div>
         </div>
-            <div className="text-sm text-gray-600 whitespace-nowrap text-end mt-4">
+            <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-nowrap text-end mt-4">
               {filteredTasks.length} of {tasks.length} tasks
             </div>
       </div>
@@ -482,7 +474,7 @@ const ProjectTasksView = () => {
               const TypeIcon = typeConfig.icon;
               
               return (
-                <div key={task.id} className="bg-white rounded-xl shadow-md hover:shadow-xl transition-all duration-200 p-6 border border-gray-100">
+                <div key={task.id} className="bg-white dark:bg-gray-800 rounded-xl shadow-md hover:shadow-xl transition-all duration-200 p-6 border border-gray-100 dark:border-gray-700">
                   {/* Header Section */}
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
@@ -490,7 +482,7 @@ const ProjectTasksView = () => {
                         {getStatusIcon(task.status)}
                         <div className="flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="text-lg font-semibold text-gray-900">{task.title}</h3>
+                            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{task.title}</h3>
                             {isOverdue(task.dueDate) && (
                               <span className="bg-red-100 text-red-800 text-xs px-2.5 py-1 rounded-full font-medium">
                                 Overdue
@@ -508,23 +500,23 @@ const ProjectTasksView = () => {
                         </div>
                       </div>
                       
-                      <p className="text-gray-600 mb-4 ml-7 leading-relaxed">{task.description}</p>
+                      <p className="text-gray-600 dark:text-gray-300 mb-4 ml-7 leading-relaxed">{task.description}</p>
                       
                       {/* Task meta info */}
-                      <div className="flex flex-wrap gap-4 text-sm text-gray-600 ml-7">
+                      <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-300 ml-7">
                         <div className="flex items-center">
-                          <UserIcon className="h-4 w-4 mr-1.5 text-gray-400" />
+                          <UserIcon className="h-4 w-4 mr-1.5 text-gray-400 dark:text-gray-500" />
                           <span className="font-medium">{task.assigneeName || 'Unassigned'}</span>
                         </div>
                         {task.dueDate && (
                           <div className="flex items-center">
-                            <CalendarDaysIcon className="h-4 w-4 mr-1.5 text-gray-400" />
+                            <CalendarDaysIcon className="h-4 w-4 mr-1.5 text-gray-400 dark:text-gray-500" />
                             <span>Due: {new Date(task.dueDate).toLocaleDateString()}</span>
                           </div>
                         )}
                         {task.estimatedHours && (
                           <div className="flex items-center">
-                            <ClockIcon className="h-4 w-4 mr-1.5 text-gray-400" />
+                            <ClockIcon className="h-4 w-4 mr-1.5 text-gray-400 dark:text-gray-500" />
                             <span>{task.actualHours || 0}h / {task.estimatedHours}h</span>
                           </div>
                         )}
@@ -546,8 +538,8 @@ const ProjectTasksView = () => {
                   {(task.requiredSkills || task.skills || task.tags) && (task.requiredSkills || task.skills || task.tags).length > 0 && (
                     <div className="mb-4 ml-7">
                       <div className="flex items-center gap-2 mb-2">
-                        <AcademicCapIcon className="h-4 w-4 text-gray-500" />
-                        <span className="text-xs font-medium text-gray-700 uppercase tracking-wide">Required Skills</span>
+                        <AcademicCapIcon className="h-4 w-4 text-gray-500 dark:text-gray-400 dark:text-gray-500" />
+                        <span className="text-xs font-medium text-gray-700 dark:text-gray-300 uppercase tracking-wide">Required Skills</span>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         {(task.requiredSkills || task.skills || task.tags || []).map((skill, index) => (
@@ -563,7 +555,7 @@ const ProjectTasksView = () => {
                   )}
 
                   {/* Actions */}
-                  <div className="flex justify-between pt-4 border-t border-gray-200">
+                  <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                     <button
                       onClick={() => handleViewTask(task)}
                       className="flex items-center px-4 py-2 text-primary-600 hover:text-primary-700 hover:bg-primary-50 rounded-lg text-sm font-medium transition-colors"
@@ -573,7 +565,7 @@ const ProjectTasksView = () => {
                     </button>
                     <button
                       onClick={() => handleEditTask(task)}
-                      className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-700 hover:bg-gray-100 rounded-lg text-sm font-medium transition-colors"
+                      className="flex items-center px-4 py-2 text-gray-600 dark:text-gray-300 hover:text-gray-700 hover:bg-gray-100 dark:bg-gray-800 rounded-lg text-sm font-medium transition-colors"
                     >
                       <PencilSquareIcon className="h-4 w-4 mr-1.5" />
                       Edit Task
@@ -585,9 +577,9 @@ const ProjectTasksView = () => {
           </div>
         ) : (
           <div className="text-center py-12">
-            <Bars3BottomLeftIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
-            <p className="text-gray-600">
+            <Bars3BottomLeftIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No tasks found</h3>
+            <p className="text-gray-600 dark:text-gray-300">
               {searchTerm || statusFilter !== 'all' || priorityFilter !== 'all'
                 ? 'Try adjusting your search or filter criteria'
                 : 'No tasks have been created for this project yet'

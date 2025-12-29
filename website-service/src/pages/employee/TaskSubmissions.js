@@ -198,7 +198,7 @@ const TaskSubmissions = () => {
     try {
       // Only load pending reviews if user has review permissions (TEAM_LEAD, PROJECT_MANAGER, etc.)
       if (user.role === 'TEAM_LEAD' || user.role === 'PROJECT_MANAGER' || user.role === 'ADMIN') {
-        const response = await apiService.getMySubmmission();
+        const response = await apiService.getPendingSubmissions();
         const apiPendingReviews = response.result || response || [];
         
         console.log('API Pending Reviews:', apiPendingReviews);
@@ -215,7 +215,7 @@ const TaskSubmissions = () => {
                 const taskResponse = await apiService.getTask(submission.taskId);
                 const task = taskResponse.result || taskResponse;
                 taskTitle = task.title || 'Unknown Task';
-                projectName = task.projectName || 'Unknown Project';
+                projectName = task.projectName || 'Unknown Project' || submission.projectName;
               } catch (taskError) {
                 console.warn(`Failed to fetch task details for ${submission.taskId}:`, taskError);
               }
@@ -225,7 +225,7 @@ const TaskSubmissions = () => {
               id: submission.id,
               taskId: submission.taskId,
               taskTitle,
-              projectName,
+              projectName: submission.projectName,
               submittedBy: submission.submittedBy || 'Unknown User',
               submittedAt: submission.submittedAt,
               status: submission.status || 'PENDING',
@@ -235,6 +235,8 @@ const TaskSubmissions = () => {
             };
           })
         );
+
+        console.log('Transformed Pending Reviews:', transformedPendingReviews);
 
         setPendingReviews(transformedPendingReviews);
       } else {
@@ -293,7 +295,7 @@ const TaskSubmissions = () => {
       case 'PENDING':
         return <ClockIcon className="h-5 w-5 text-yellow-600" />;
       default:
-        return <DocumentCheckIcon className="h-5 w-5 text-gray-600" />;
+        return <DocumentCheckIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />;
     }
   };
 
@@ -310,7 +312,7 @@ const TaskSubmissions = () => {
             }`}
           />
         ))}
-        <span className="text-sm text-gray-600 ml-1">({rating}/5)</span>
+        <span className="text-sm text-gray-600 dark:text-gray-300 ml-1">({rating}/5)</span>
       </div>
     );
   };
@@ -393,14 +395,14 @@ const TaskSubmissions = () => {
   }
 
    return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Task Submissions</h1>
-              <p className="text-gray-600 mt-2">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Task Submissions</h1>
+              <p className="text-gray-600 dark:text-gray-300 mt-2">
                 Track your task submissions and review others' work
               </p>
             </div>
@@ -430,8 +432,8 @@ const TaskSubmissions = () => {
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-lg shadow-md mb-8">
-          <div className="border-b border-gray-200">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8">
+          <div className="border-b border-gray-200 dark:border-gray-700">
             <nav className="-mb-px flex space-x-8 px-6">
               <button
                 onClick={() => setActiveTab('my-submissions')}
@@ -464,11 +466,11 @@ const TaskSubmissions = () => {
         {activeTab === 'my-submissions' && (
           <div className="space-y-6">
             {submissions.map((submission) => (
-              <div key={submission.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
+              <div key={submission.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex-1">
                     <div className="flex items-center space-x-3 mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{submission.taskTitle}</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{submission.taskTitle}</h3>
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(submission.status)}`}>
                         {submission.status.replace('_', ' ')}
                       </span>
@@ -477,20 +479,20 @@ const TaskSubmissions = () => {
 
                     {/* Description and Progress - Editable */}
                     <div className='flex items-start space-x-3 mb-4'>
-                      <p className="text-gray-800 font-bold whitespace-nowrap">Description:</p>
+                      <p className="text-gray-800 dark:text-gray-200 font-bold whitespace-nowrap">Description:</p>
                       {editingSubmissionId === submission.id ? (
                         <div className="flex-1">
                           <textarea
                             value={editedDescription}
                             onChange={(e) => setEditedDescription(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                             rows={3}
                             placeholder="Describe your work and what you've accomplished..."
                           />
                           
                           {/* Progress Percentage Input */}
                           <div className="mt-3 flex items-center space-x-4">
-                            <label className="text-sm font-medium text-gray-700">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                               Progress Percentage:
                             </label>
                             <div className="flex items-center space-x-2">
@@ -500,11 +502,11 @@ const TaskSubmissions = () => {
                                 max="100"
                                 value={editedProgressPercentage}
                                 onChange={(e) => setEditedProgressPercentage(Number(e.target.value))}
-                                className="w-20 px-2 py-1 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                                className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                               />
-                              <span className="text-sm text-gray-500">%</span>
+                              <span className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">%</span>
                               <div className="flex-1 max-w-32">
-                                <div className="w-full bg-gray-200 rounded-full h-2">
+                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                                   <div 
                                     className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                                     style={{ width: `${Math.min(100, Math.max(0, editedProgressPercentage))}%` }}
@@ -523,7 +525,7 @@ const TaskSubmissions = () => {
                             </button>
                             <button
                               onClick={handleCancelEdit}
-                              className="px-3 py-1.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                              className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:bg-gray-900"
                             >
                               Cancel
                             </button>
@@ -531,14 +533,14 @@ const TaskSubmissions = () => {
                         </div>
                       ) : (
                         <div className="flex-1">
-                          <p className="text-sm text-gray-600 mb-2">{submission.description}</p>
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{submission.description}</p>
                           
                           {/* Display current progress percentage */}
-                          <div className="flex items-center space-x-2 text-sm text-gray-600">
+                          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
                             <span className="font-medium">Progress:</span>
                             <span>{submission.progressPercentage || 100}%</span>
                             <div className="flex-1 max-w-24">
-                              <div className="w-full bg-gray-200 rounded-full h-2">
+                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                                 <div 
                                   className="bg-green-600 h-2 rounded-full"
                                   style={{ width: `${submission.progressPercentage || 100}%` }}
@@ -550,7 +552,7 @@ const TaskSubmissions = () => {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600 mb-4">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600 dark:text-gray-300 mb-4">
                       <div className="flex items-center">
                         <DocumentTextIcon className="h-4 w-4 mr-2" />
                         <span>{submission.projectName}</span>
@@ -572,10 +574,10 @@ const TaskSubmissions = () => {
                     {/* Files */}
                     {submission.files && submission.files.length > 0 && (
                       <div className="mb-4">
-                        <h4 className="text-sm font-medium text-gray-700 mb-2">Submitted Files:</h4>
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Submitted Files:</h4>
                         <div className="flex flex-wrap gap-2">
                           {submission.files.map((file, index) => (
-                            <span key={index} className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">
+                            <span key={index} className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded">
                               <DocumentTextIcon className="h-3 w-3 mr-1" />
                               {file.name} ({file.size})
                             </span>
@@ -586,25 +588,27 @@ const TaskSubmissions = () => {
 
                     {/* Review Feedback */}
                     {submission.reviewedBy && (
-                      <div className="bg-gray-50 rounded-lg p-4 mb-4">
+                      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 mb-4">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center">
-                            <UserIcon className="h-4 w-4 mr-2 text-gray-500" />
-                            <span className="text-sm font-medium text-gray-700">
-                              Reviewed by {submission.reviewedBy}
+                            <UserIcon className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400 dark:text-gray-500" />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              {submission.reviewedBy}
                             </span>
                           </div>
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xs text-gray-500">
-                              {new Date(submission.reviewedAt).toLocaleDateString()}
-                            </span>
-                            {getRatingStars(submission.rating)}
-                          </div>
+                          {submission.reviewedBy !== 'Have not comment yet' && (
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                                {new Date(submission.reviewedAt).toLocaleDateString()}
+                              </span>
+                              {getRatingStars(submission.rating)}
+                            </div>
+                          )}
                         </div>
                         {submission.feedback && (
                           <div className="flex items-start space-x-2">
-                            <ChatBubbleLeftRightIcon className="h-4 w-4 text-gray-400 mt-0.5 flex-shrink-0" />
-                            <p className="text-sm text-gray-600">{submission.feedback}</p>
+                            <ChatBubbleLeftRightIcon className="h-4 w-4 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm text-gray-600 dark:text-gray-300">{submission.feedback}</p>
                           </div>
                         )}
                       </div>
@@ -613,13 +617,13 @@ const TaskSubmissions = () => {
 
                   {/* Actions */}
                   <div className="flex flex-col items-end space-y-2 ml-6">
-                    <button
+                    {/* <button
                       onClick={() => handleViewSubmission(submission)}
                       className="flex items-center text-primary-600 hover:text-primary-500 text-sm font-medium"
                     >
                       <EyeIcon className="h-4 w-4 mr-1" />
                       View Details
-                    </button>
+                    </button> */}
                     
                     {/* Show Edit button for PENDING or NEEDS_REVISION status */}
                     {(submission.status === 'PENDING' || submission.status === 'NEEDS_REVISION') && 
@@ -643,16 +647,184 @@ const TaskSubmissions = () => {
         {activeTab === 'pending-reviews' && (
           <div className="space-y-6">
             {pendingReviews.map((submission) => (
-              <div key={submission.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
-                {/* Pending review content */}
+              <div key={submission.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <div className="flex items-center space-x-3 mb-2">
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{submission.taskTitle}</h3>
+                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(submission.status)}`}>
+                        {submission.status.replace('_', ' ')}
+                      </span>
+                      {getStatusIcon(submission.status)}
+                    </div>
+
+                    {/* Description and Progress - Editable */}
+                    <div className='flex items-start space-x-3 mb-4'>
+                      <p className="text-gray-800 dark:text-gray-200 font-bold whitespace-nowrap">Description:</p>
+                      {editingSubmissionId === submission.id ? (
+                        <div className="flex-1">
+                          <textarea
+                            value={editedDescription}
+                            onChange={(e) => setEditedDescription(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                            rows={3}
+                            placeholder="Describe your work and what you've accomplished..."
+                          />
+                          
+                          {/* Progress Percentage Input */}
+                          <div className="mt-3 flex items-center space-x-4">
+                            <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                              Progress Percentage:
+                            </label>
+                            <div className="flex items-center space-x-2">
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={editedProgressPercentage}
+                                onChange={(e) => setEditedProgressPercentage(Number(e.target.value))}
+                                className="w-20 px-2 py-1 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+                              />
+                              <span className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">%</span>
+                              <div className="flex-1 max-w-32">
+                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                  <div 
+                                    className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                    style={{ width: `${Math.min(100, Math.max(0, editedProgressPercentage))}%` }}
+                                  ></div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex space-x-2 mt-3">
+                            <button
+                              onClick={() => handleSaveEdit(submission.id, submission.taskId)}
+                              className="px-3 py-1.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+                            >
+                              Save Changes
+                            </button>
+                            <button
+                              onClick={handleCancelEdit}
+                              className="px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:bg-gray-900"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex-1">
+                          <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{submission.description}</p>
+                          
+                          {/* Display current progress percentage */}
+                          <div className="flex items-center space-x-2 text-sm text-gray-600 dark:text-gray-300">
+                            <span className="font-medium">Progress:</span>
+                            <span>{submission.progressPercentage || 100}%</span>
+                            <div className="flex-1 max-w-24">
+                              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                                <div 
+                                  className="bg-green-600 h-2 rounded-full"
+                                  style={{ width: `${submission.progressPercentage || 100}%` }}
+                                ></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm text-gray-600 dark:text-gray-300 mb-4">
+                      <div className="flex items-center">
+                        <DocumentTextIcon className="h-4 w-4 mr-2" />
+                        <span>{submission.projectName}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <UserIcon className="h-4 w-4 mr-2" />
+                        <span>{submission.submittedBy}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <CalendarDaysIcon className="h-4 w-4 mr-2" />
+                        <span>Submitted: {new Date(submission.submittedAt).toLocaleDateString()}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <ClockIcon className="h-4 w-4 mr-2" />
+                        <span>{submission.workHours}h logged</span>
+                      </div>
+                    </div>
+
+                    {/* Files */}
+                    {submission.files && submission.files.length > 0 && (
+                      <div className="mb-4">
+                        <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Submitted Files:</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {submission.files.map((file, index) => (
+                            <span key={index} className="inline-flex items-center px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded">
+                              <DocumentTextIcon className="h-3 w-3 mr-1" />
+                              {file.name} ({file.size})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Review Feedback */}
+                    {submission.reviewedBy && (
+                      <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-4 mb-4">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            <UserIcon className="h-4 w-4 mr-2 text-gray-500 dark:text-gray-400 dark:text-gray-500" />
+                            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                             {submission.reviewedBy ? submission.reviewedBy : 'N/A'}
+                            </span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                              {new Date(submission.reviewedAt).toLocaleDateString()}
+                            </span>
+                            {getRatingStars(submission.rating)}
+                          </div>
+                        </div>
+                        {submission.feedback && (
+                          <div className="flex items-start space-x-2">
+                            <ChatBubbleLeftRightIcon className="h-4 w-4 text-gray-400 dark:text-gray-500 mt-0.5 flex-shrink-0" />
+                            <p className="text-sm text-gray-600 dark:text-gray-300">{submission.feedback}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex flex-col items-end space-y-2 ml-6">
+                    {/* <button
+                      onClick={() => handleViewSubmission(submission)}
+                      className="flex items-center text-primary-600 hover:text-primary-500 text-sm font-medium"
+                    >
+                      <EyeIcon className="h-4 w-4 mr-1" />
+                      View Details
+                    </button> */}
+                    
+                    {/* Show Edit button for PENDING or NEEDS_REVISION status */}
+                    {(submission.status === 'PENDING') && user.role === 'EMPLOYEE' &&
+                     editingSubmissionId !== submission.id && (
+                      <button
+                        onClick={() => handleEditSubmission(submission.id)}
+                        className="flex items-center text-blue-600 hover:text-blue-500 text-sm font-medium"
+                      >
+                        <PencilSquareIcon className="h-4 w-4 mr-1" />
+                        Edit Submission
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
 
             {pendingReviews.length === 0 && (
               <div className="text-center py-12">
-                <DocumentCheckIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No pending reviews</h3>
-                <p className="text-gray-600">
+                <DocumentCheckIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No pending reviews</h3>
+                <p className="text-gray-600 dark:text-gray-300">
                   All submissions have been reviewed
                 </p>
               </div>
@@ -663,9 +835,9 @@ const TaskSubmissions = () => {
         {/* Empty State */}
         {activeTab === 'my-submissions' && submissions.length === 0 && !loading && (
           <div className="text-center py-12">
-            <ArrowUpTrayIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No submissions yet</h3>
-            <p className="text-gray-600">
+            <ArrowUpTrayIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No submissions yet</h3>
+            <p className="text-gray-600 dark:text-gray-300">
               Complete and submit your tasks to see them here
             </p>
           </div>

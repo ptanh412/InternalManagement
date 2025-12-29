@@ -115,89 +115,89 @@ const AdminProjectDashboard = () => {
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-2xl font-bold text-gray-900">Project Management</h2>
-        <p className="text-gray-600 mt-1">
+        <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Project Management</h2>
+        <p className="text-gray-600 dark:text-gray-300 mt-1">
           Comprehensive project oversight and analytics
         </p>
       </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <BriefcaseIcon className="h-8 w-8 text-blue-600" />
             <div className="ml-4">
-              <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-              <p className="text-sm text-gray-500">Total Projects</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.total}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Total Projects</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <TrendingUpIcon className="h-8 w-8 text-green-600" />
             <div className="ml-4">
-              <p className="text-2xl font-bold text-gray-900">{stats.active}</p>
-              <p className="text-sm text-gray-500">Active Projects</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.active}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Active Projects</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <ChartBarIcon className="h-8 w-8 text-purple-600" />
             <div className="ml-4">
-              <p className="text-2xl font-bold text-gray-900">{stats.completed}</p>
-              <p className="text-sm text-gray-500">Completed</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.completed}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Completed</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <ClockIcon className="h-8 w-8 text-orange-600" />
             <div className="ml-4">
-              <p className="text-2xl font-bold text-gray-900">{stats.planning}</p>
-              <p className="text-sm text-gray-500">In Planning</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">{stats.planning}</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">In Planning</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* Projects Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">All Projects</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">All Projects</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Project
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Status
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Timeline
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Team Size
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Progress
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {projects.map((project) => (
-                <tr key={project.id} className="hover:bg-gray-50">
+                <tr key={project.id} className="hover:bg-gray-50 dark:bg-gray-900">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <BriefcaseIcon className="h-5 w-5 text-gray-400 mr-3" />
+                      <BriefcaseIcon className="h-5 w-5 text-gray-400 dark:text-gray-500 mr-3" />
                       <div>
-                        <div className="text-sm font-medium text-gray-900">
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {project.name}
                         </div>
                       </div>
@@ -208,21 +208,21 @@ const AdminProjectDashboard = () => {
                       {project.status.replace('_', ' ')}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                     <div className="flex items-center">
                       <CalendarIcon className="h-4 w-4 mr-1" />
                       {formatDate(project.startDate)} - {formatDate(project.endDate)}
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                     <div className="flex items-center">
                       <UserGroupIcon className="h-4 w-4 mr-1" />
                       {project.teamSize} members
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                     <div className="flex items-center">
-                      <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                      <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-2">
                         <div 
                           className="bg-blue-600 h-2 rounded-full" 
                           style={{ width: `${project.progress}%` }}

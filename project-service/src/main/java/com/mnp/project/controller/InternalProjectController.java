@@ -3,6 +3,8 @@ package com.mnp.project.controller;
 import com.mnp.project.dto.request.AddProjectMemberRequest;
 import com.mnp.project.dto.request.ApiResponse;
 import com.mnp.project.dto.request.UpdateProjectSkillsRequest;
+import com.mnp.project.dto.response.ProjectMemberResponse;
+import com.mnp.project.dto.response.ProjectResponse;
 import com.mnp.project.service.ProjectMemberService;
 import com.mnp.project.service.ProjectService;
 import lombok.AccessLevel;
@@ -10,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -21,6 +25,19 @@ public class InternalProjectController {
     ProjectService projectService;
     ProjectMemberService projectMemberService;
 
+    @GetMapping("/{id}")
+    public ApiResponse<ProjectResponse> getProjectById(@PathVariable String id) {
+        return ApiResponse.<ProjectResponse>builder()
+                .result(projectService.getProjectById(id))
+                .build();
+    }
+    @GetMapping("/member/{projectId}")
+    public ApiResponse<List<ProjectMemberResponse>> getProjectMembers(@PathVariable String projectId) {
+        log.info("Getting all members for project {}", projectId);
+        return ApiResponse.<List<ProjectMemberResponse>>builder()
+                .result(projectMemberService.getProjectMembers(projectId))
+                .build();
+    }
     /**
      * Internal endpoint for task-service to increment total tasks count
      * This endpoint doesn't require authentication for inter-service communication
@@ -50,5 +67,15 @@ public class InternalProjectController {
         return ApiResponse.<Void>builder()
                 .message("Member added to project successfully")
                 .build();
+    }
+
+    @GetMapping("/{projectId}/{teamLeadId}")
+    public ApiResponse<Boolean> teamLeadInProject(@PathVariable String projectId, @PathVariable String teamLeadId) {
+        try{
+            Boolean exists = projectService.teamLeadHasProjects(teamLeadId, projectId);
+            return ApiResponse.<Boolean>builder().result(exists).build();
+        }catch(Exception e){
+            return ApiResponse.<Boolean>builder().result(false).build();
+        }
     }
 }

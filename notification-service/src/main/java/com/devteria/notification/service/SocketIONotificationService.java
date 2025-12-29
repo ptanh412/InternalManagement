@@ -11,6 +11,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import java.time.LocalDateTime;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
@@ -132,7 +133,7 @@ public class SocketIONotificationService {
             notificationData.put("title", "Task Submitted");
             notificationData.put("message", String.format("The task: '%s' has been submitted", taskTitle));
 
-            sendNotificationToUser(assignedBy, notificationData);
+            sendNotificationToUser(employeeId, notificationData);
             persistNotification(employeeId, "TASK_SUBMISSION", notificationData);
             log.info("Task submission notification sent to employee: {}", assignedBy);
         }catch (Exception e){
@@ -386,6 +387,215 @@ public class SocketIONotificationService {
             log.info("Custom notification sent to user: {}", userId);
         } catch (Exception e) {
             log.error("Failed to send custom notification to user: {}", userId, e);
+        }
+    }
+
+    /**
+     * Send department post notification to multiple employees
+     */
+    public void sendDepartmentPostNotification(java.util.List<String> employeeIds, String postId, 
+                                              String departmentId, String departmentName,
+                                              String authorName, String postContent) {
+        try {
+            Map<String, Object> notificationData = new HashMap<>();
+            notificationData.put("type", "DEPARTMENT_POST");
+            notificationData.put("postId", postId);
+            notificationData.put("departmentId", departmentId);
+            notificationData.put("departmentName", departmentName);
+            notificationData.put("authorName", authorName);
+            notificationData.put("postContent", postContent);
+            notificationData.put("timestamp", LocalDateTime.now());
+            notificationData.put("title", "New Department Post");
+            notificationData.put("message", String.format("%s posted in %s", authorName, departmentName));
+            notificationData.put("actionUrl", "/posts/" + postId);
+            notificationData.put("priority", "LOW");
+
+            // Send to all employees in the list
+            for (String employeeId : employeeIds) {
+                sendNotificationToUser(employeeId, notificationData);
+                persistNotification(employeeId, "DEPARTMENT_POST", notificationData);
+            }
+
+            log.info("Department post notification sent to {} employees in department: {}", 
+                    employeeIds.size(), departmentName);
+        } catch (Exception e) {
+            log.error("Failed to send department post notification", e);
+        }
+    }
+
+    /**
+     * Send task extension request notification to team lead
+     */
+    public void sendTaskExtensionRequestNotification(String teamLeadId, String taskId, String taskTitle,
+                                                    String projectName, String requestedBy, 
+                                                    String requestedByName, Integer extensionHours,
+                                                    String newDueDate, String reason) {
+        try {
+            Map<String, Object> notificationData = new HashMap<>();
+            notificationData.put("type", "TASK_EXTENSION_REQUEST");
+            notificationData.put("taskId", taskId);
+            notificationData.put("taskTitle", taskTitle);
+            notificationData.put("projectName", projectName);
+            notificationData.put("requestedBy", requestedBy);
+            notificationData.put("requestedByName", requestedByName);
+            notificationData.put("extensionHours", extensionHours);
+            notificationData.put("newDueDate", newDueDate);
+            notificationData.put("reason", reason);
+            notificationData.put("timestamp", LocalDateTime.now());
+            notificationData.put("title", "Task Extension Request");
+            notificationData.put("message", String.format("%s requested %d hours extension for task '%s'", 
+                    requestedByName, extensionHours, taskTitle));
+            notificationData.put("actionUrl", "/tasks/" + taskId + "/extensions");
+            notificationData.put("priority", "HIGH");
+
+            // Send real-time notification
+            sendNotificationToUser(teamLeadId, notificationData);
+
+            // Persist notification
+            persistNotification(teamLeadId, "TASK_EXTENSION_REQUEST", notificationData);
+
+            log.info("Task extension request notification sent to team lead: {}", teamLeadId);
+        } catch (Exception e) {
+            log.error("Failed to send task extension request notification to team lead: {}", teamLeadId, e);
+        }
+    }
+
+    /**
+     * Send task extension review notification to employee
+     */
+    public void sendTaskExtensionReviewNotification(String employeeId, String taskId, String taskTitle,
+                                                   String projectName, String reviewedBy,
+                                                   String reviewedByName, String status,
+                                                   String reviewComments, String newDueDate) {
+        try {
+            Map<String, Object> notificationData = new HashMap<>();
+            notificationData.put("type", "TASK_EXTENSION_REVIEW");
+            notificationData.put("taskId", taskId);
+            notificationData.put("taskTitle", taskTitle);
+            notificationData.put("projectName", projectName);
+            notificationData.put("reviewedBy", reviewedBy);
+            notificationData.put("reviewedByName", reviewedByName);
+            notificationData.put("status", status);
+            notificationData.put("reviewComments", reviewComments);
+            notificationData.put("newDueDate", newDueDate);
+            notificationData.put("timestamp", LocalDateTime.now());
+            notificationData.put("title", "Extension Request " + status);
+            
+            String message = status.equals("APPROVED") 
+                    ? String.format("Your extension request for '%s' has been approved. New deadline: %s", 
+                            taskTitle, newDueDate)
+                    : String.format("Your extension request for '%s' has been rejected", taskTitle);
+            
+            notificationData.put("message", message);
+            notificationData.put("actionUrl", "/tasks/" + taskId);
+            notificationData.put("priority", "HIGH");
+
+            // Send real-time notification
+            sendNotificationToUser(employeeId, notificationData);
+
+            // Persist notification
+            persistNotification(employeeId, "TASK_EXTENSION_REVIEW", notificationData);
+
+            log.info("Task extension review notification sent to employee: {}", employeeId);
+        } catch (Exception e) {
+            log.error("Failed to send task extension review notification to employee: {}", employeeId, e);
+        }
+    }
+
+    /**
+     * Send deadline reminder notification
+     */
+    public void sendDeadlineReminderNotification(String employeeId, String taskId, String taskTitle,
+                                                String projectName, String dueDate, String reminderType) {
+        try {
+            Map<String, Object> notificationData = new HashMap<>();
+            notificationData.put("type", "DEADLINE_REMINDER");
+            notificationData.put("taskId", taskId);
+            notificationData.put("taskTitle", taskTitle);
+            notificationData.put("projectName", projectName);
+            notificationData.put("dueDate", dueDate);
+            notificationData.put("reminderType", reminderType);
+            notificationData.put("timestamp", LocalDateTime.now());
+            
+            String title, message, priority;
+            
+            switch (reminderType) {
+                case "3_DAYS":
+                    title = "Task Due Soon";
+                    message = String.format("Task '%s' in project '%s' is due in 3 days (%s)", 
+                            taskTitle, projectName, dueDate);
+                    priority = "MEDIUM";
+                    break;
+                case "1_DAY":
+                    title = "Task Due Tomorrow";
+                    message = String.format("⚠️ Task '%s' in project '%s' is due tomorrow (%s)", 
+                            taskTitle, projectName, dueDate);
+                    priority = "HIGH";
+                    break;
+                case "OVERDUE":
+                    title = "Task Overdue";
+                    message = String.format("🚨 Task '%s' in project '%s' is now overdue! Due date was: %s", 
+                            taskTitle, projectName, dueDate);
+                    priority = "URGENT";
+                    break;
+                default:
+                    title = "Task Deadline Reminder";
+                    message = String.format("Reminder: Task '%s' is due on %s", taskTitle, dueDate);
+                    priority = "MEDIUM";
+            }
+            
+            notificationData.put("title", title);
+            notificationData.put("message", message);
+            notificationData.put("actionUrl", "/tasks/" + taskId);
+            notificationData.put("priority", priority);
+
+            // Send real-time notification
+            sendNotificationToUser(employeeId, notificationData);
+
+            // Persist notification
+            persistNotification(employeeId, "DEADLINE_REMINDER", notificationData);
+
+            log.info("Deadline reminder ({}) sent to employee: {} for task: {}", reminderType, employeeId, taskTitle);
+        } catch (Exception e) {
+            log.error("Failed to send deadline reminder notification to employee: {}", employeeId, e);
+        }
+    }
+
+    /**
+     * Send project update notification to all project members
+     */
+    public void sendProjectUpdateNotification(List<String> memberIds, String projectId, String projectName,
+                                              String updatedBy, String updatedByName, String updateDetails) {
+        try {
+            Map<String, Object> notificationData = new HashMap<>();
+            notificationData.put("type", "PROJECT_UPDATE");
+            notificationData.put("projectId", projectId);
+            notificationData.put("projectName", projectName);
+            notificationData.put("updatedBy", updatedBy);
+            notificationData.put("updatedByName", updatedByName);
+            notificationData.put("updateDetails", updateDetails);
+            notificationData.put("timestamp", LocalDateTime.now());
+            notificationData.put("title", "Project Updated");
+            String formattedMessage = String.format("%s updated %s: '%s'",
+                    updatedByName, updateDetails, projectName);
+
+            notificationData.put("message", formattedMessage);
+            notificationData.put("actionUrl", "/projects/" + projectId);
+            notificationData.put("priority", "MEDIUM");
+
+            // Send real-time notification to all members
+            for (String memberId : memberIds) {
+                // Don't send notification to the person who made the update
+                if (!memberId.equals(updatedBy)) {
+                    sendNotificationToUser(memberId, notificationData);
+                    persistNotification(memberId, "PROJECT_UPDATE", notificationData);
+                }
+            }
+
+            log.info("Project update notification sent to {} members for project: {}", 
+                    memberIds.size() - 1, projectName);
+        } catch (Exception e) {
+            log.error("Failed to send project update notifications for project: {}", projectName, e);
         }
     }
 }

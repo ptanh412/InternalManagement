@@ -8,14 +8,14 @@ This script compares performance scores between:
 Run this to identify discrepancies that might cause incorrect recommendations.
 """
 
-import pandas as pd
-import yaml
 import logging
-import os
 from pathlib import Path
-from sqlalchemy import create_engine
+
 import mysql.connector
+import pandas as pd
 import structlog
+import yaml
+from sqlalchemy import create_engine
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

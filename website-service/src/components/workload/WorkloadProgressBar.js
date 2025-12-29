@@ -42,10 +42,10 @@ const WorkloadProgressBar = ({
     <div className={`${className}`}>
       {showLabels && (
         <div className="flex justify-between items-center mb-1">
-          <span className="text-xs font-medium text-gray-700">
+          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">
             Workload
           </span>
-          <span className="text-xs text-gray-600">
+          <span className="text-xs text-gray-600 dark:text-gray-300">
             {currentLoad}h / {capacity}h ({utilizationPercentage.toFixed(0)}%)
           </span>
         </div>

@@ -14,30 +14,31 @@ Features:
 - Error analysis
 """
 
+import matplotlib
 import numpy as np
 import pandas as pd
-import matplotlib
+
 matplotlib.use('Agg')  # Use non-interactive backend
-import matplotlib.pyplot as plt
-import seaborn as sns
-from sklearn.metrics import (
-    confusion_matrix,
-    classification_report,
-    roc_curve,
-    roc_auc_score,
-    precision_recall_curve,
-    average_precision_score,
-    accuracy_score,
-    precision_score,
-    recall_score,
-    f1_score
-)
-from sklearn.model_selection import learning_curve
+import json
 import os
 from datetime import datetime
-import json
+
 import joblib  # Added for loading trained models
+import matplotlib.pyplot as plt
+import seaborn as sns
 import structlog
+from sklearn.metrics import (
+    accuracy_score,
+    average_precision_score,
+    confusion_matrix,
+    f1_score,
+    precision_recall_curve,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+    roc_curve,
+)
+from sklearn.model_selection import learning_curve
 
 logger = structlog.get_logger(__name__)
 
@@ -704,7 +705,6 @@ class ModelEvaluator:
             title: Plot title
             save_path: Path to save the plot
         """
-        from sklearn.metrics import precision_recall_curve, roc_curve
 
         # Handle probability array shape
         if len(y_pred_proba.shape) > 1 and y_pred_proba.shape[1] == 2:
@@ -1088,8 +1088,8 @@ def evaluate_trained_models(models_dir: str = "models", use_real_data: bool = Tr
     Returns:
         Dictionary containing all evaluation metrics
     """
-    import sys
     import os
+    import sys
 
     # Add parent directory to path for imports
     current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -1138,10 +1138,13 @@ def evaluate_trained_models(models_dir: str = "models", use_real_data: bool = Tr
         if use_real_data:
             print("Collecting real test data from databases...")
             try:
-                from src.data.data_collector import MultiDatabaseDataCollector, SyntheticDataGenerator
+                from src.data.data_collector import (
+                    MultiDatabaseDataCollector,
+                    SyntheticDataGenerator,
+                )
 
                 collector = MultiDatabaseDataCollector()
-                connection_status = collector.test_connections()
+                collector.test_connections()
 
                 # Try to collect real data
                 training_data = collector.collect_comprehensive_training_data(months_back=3)

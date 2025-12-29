@@ -19,7 +19,6 @@ public interface MessageReactionRepository extends MongoRepository<MessageReacti
 
     void deleteByMessageIdAndUserIdAndIcon(String messageId, String userId, String icon);
 
-    long countByMessageIdAndIcon(String messageId, String icon);
 
     // New methods for enhanced reaction counting
     @Query("{ 'messageId': ?0, 'icon': ?1 }")
@@ -32,12 +31,4 @@ public interface MessageReactionRepository extends MongoRepository<MessageReacti
                 "{ $group: { '_id': null, 'totalCount': { $sum: '$count' } } }"
             })
     Optional<Integer> getTotalCountByMessageIdAndIcon(String messageId, String icon);
-
-    // Get all reactions with counts for a message
-    @Aggregation(
-            pipeline = {
-                "{ $match: { 'messageId': ?0 } }",
-                "{ $group: { '_id': '$icon', 'totalCount': { $sum: '$count' }, 'users': { $push: { 'userId': '$userId', 'count': '$count' } } } }"
-            })
-    List<Map<String, Object>> getReactionSummaryByMessageId(String messageId);
 }

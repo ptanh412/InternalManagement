@@ -23,5 +23,6 @@ public enum SkillType {
     BUILD_TOOL,
     MONITORING_TOOL,
     DATA_ENGINEERING,
-    UI_UX_DESIGN
+    UI_UX_DESIGN,
+    AI_ML
 }

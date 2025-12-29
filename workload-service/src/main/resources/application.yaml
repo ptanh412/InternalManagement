@@ -35,4 +35,8 @@ jwt:
 app:
   services:
     profile: http://localhost:8081/profile
-    identity: http://localhost:8080/identity
+    identity:
+      url: http://localhost:8080/identity
+    task:
+      url: http://localhost:8088/task
+    project: http://localhost:8090/project

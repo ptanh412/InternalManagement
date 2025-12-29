@@ -1,14 +1,14 @@
 package com.mnp.ai.client;
 
 import com.mnp.ai.configuration.FeignConfiguration;
-import com.mnp.ai.dto.MLPredictionRequest;
-import com.mnp.ai.dto.MLPredictionResponse;
-import com.mnp.ai.dto.TaskAssignmentRequest;
+import com.mnp.ai.dto.request.MLPredictionRequest;
+import com.mnp.ai.dto.response.MLPredictionResponse;
+import com.mnp.ai.dto.request.TaskAssignmentRequest;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import com.mnp.ai.dto.MLRecommendationResponse;
+import com.mnp.ai.dto.response.MLRecommendationResponse;
 
 /**
  * Feign client for calling ML Service for recommendation accuracy
@@ -16,7 +16,6 @@ import com.mnp.ai.dto.MLRecommendationResponse;
 @FeignClient(
         name = "ml-service",
         url = "${app.services.ml}",
-//        fallback = MLServiceFallback.class,
         configuration = FeignConfiguration.class)
 public interface MLServiceClient {
 

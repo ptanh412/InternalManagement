@@ -1,5 +1,6 @@
 package com.mnp.workload.service;
 
+import com.mnp.workload.client.ProjectServiceClient;
 import com.mnp.workload.dto.request.*;
 import com.mnp.workload.dto.response.*;
 import com.mnp.workload.dto.request.AddTaskToWorkloadRequest;
@@ -32,6 +33,7 @@ public class WorkloadService {
 
     UserWorkloadRepository userWorkloadRepository;
     UserCurrentTaskRepository userCurrentTaskRepository;
+    ProjectServiceClient projectServiceClient;
 
     // Get user's current workload & capacity
     public UserWorkloadResponse getUserWorkload(String userId) {
@@ -157,6 +159,75 @@ public class WorkloadService {
                 .build();
     }
 
+    // Get project workload overview
+    public TeamWorkloadResponse getProjectWorkload(String projectId) {
+        try {
+            // Fetch project members via FeignClient
+            List<String> projectUserIds = getProjectMemberUserIds(projectId);
+            
+            if (projectUserIds.isEmpty()) {
+                log.warn("No members found for project: {}", projectId);
+                return TeamWorkloadResponse.builder()
+                        .departmentId(projectId)
+                        .departmentName("Project " + projectId)
+                        .totalTeamMembers(0)
+                        .averageUtilization(0.0)
+                        .totalCapacityHours(0)
+                        .totalAllocatedHours(0)
+                        .teamMembers(new ArrayList<>())
+                        .build();
+            }
+            
+            List<UserWorkload> projectWorkloads = userWorkloadRepository.findByUserIds(projectUserIds);
+
+            List<TeamWorkloadResponse.UserWorkloadSummary> projectMembers = projectWorkloads.stream()
+                    .map(this::mapToUserWorkloadSummary)
+                    .collect(Collectors.toList());
+
+            double averageUtilization = projectMembers.stream()
+                    .mapToDouble(TeamWorkloadResponse.UserWorkloadSummary::getUtilizationPercentage)
+                    .average().orElse(0.0);
+
+            int totalCapacity = projectMembers.stream()
+                    .mapToInt(TeamWorkloadResponse.UserWorkloadSummary::getCapacityHours)
+                    .sum();
+
+            int totalAllocated = projectMembers.stream()
+                    .mapToInt(TeamWorkloadResponse.UserWorkloadSummary::getAllocatedHours)
+                    .sum();
+
+            return TeamWorkloadResponse.builder()
+                    .departmentId(projectId)
+                    .departmentName("Project " + projectId)
+                    .totalTeamMembers(projectMembers.size())
+                    .averageUtilization(averageUtilization)
+                    .totalCapacityHours(totalCapacity)
+                    .totalAllocatedHours(totalAllocated)
+                    .teamMembers(projectMembers)
+                    .build();
+        } catch (Exception e) {
+            log.error("Failed to get project workload for project: {}", projectId, e);
+            throw new RuntimeException("Failed to get project workload: " + e.getMessage());
+        }
+    }
+
+    private List<String> getProjectMemberUserIds(String projectId) {
+        try {
+            var response = projectServiceClient.getProjectMembers(projectId);
+            if (response != null && response.getResult() != null) {
+                return response.getResult().stream()
+                        .filter(ProjectMemberResponseDTO::isActive)
+                        .map(ProjectMemberResponseDTO::getUserId)
+                        .collect(Collectors.toList());
+            }
+            log.warn("Project members response was null or incomplete for project: {}", projectId);
+            return new ArrayList<>();
+        } catch (Exception e) {
+            log.error("Failed to fetch project members for project: {}", projectId, e);
+            return new ArrayList<>();
+        }
+    }
+
     // Get available users for assignment
     public AvailableUsersResponse getAvailableUsers() {
         List<UserWorkload> availableWorkloads = userWorkloadRepository.findAvailableUsers(20.0); // >20% availability
@@ -203,6 +274,11 @@ public class WorkloadService {
             throw new RuntimeException("Task already exists in workload");
         }
 
+        // ✅ Convert String to Enum
+        TaskStatus taskStatus = request.getStatus() != null
+                ? TaskStatus.valueOf(request.getStatus())
+                : TaskStatus.IN_PROGRESS;
+
         UserCurrentTask currentTask = UserCurrentTask.builder()
                 .userId(userId)
                 .taskId(request.getTaskId())
@@ -211,10 +287,11 @@ public class WorkloadService {
                 .remainingHours(request.getEstimatedHours())
                 .actualHoursSpent(0)
                 .priority(request.getPriority())
-                .status(TaskStatus.TODO)
+                .status(taskStatus)
                 .dueDate(request.getDueDate())
                 .taskTitle(request.getTaskTitle())
                 .assignedDate(LocalDateTime.now())
+                .startedAt(request.getStartedAt())
                 .build();
 
         UserCurrentTask savedTask = userCurrentTaskRepository.save(currentTask);

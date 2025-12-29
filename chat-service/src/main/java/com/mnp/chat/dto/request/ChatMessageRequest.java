@@ -11,8 +11,11 @@ import lombok.experimental.FieldDefaults;
 @NoArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ChatMessageRequest {
-    @NotBlank
+    // Either conversationId or recipientId must be provided
     String conversationId;
+    
+    // If recipientId is provided, conversation will be created if not exists
+    String recipientId;
 
     @NotBlank
     String message;

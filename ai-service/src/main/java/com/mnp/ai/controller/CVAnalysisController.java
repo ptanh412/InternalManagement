@@ -2,6 +2,7 @@ package com.mnp.ai.controller;
 
 import java.util.*;
 
+import com.mnp.ai.service.OllamaCVAnalysisService;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -28,10 +29,94 @@ public class CVAnalysisController {
     private final FileProcessingService fileProcessingService;
     private final GeminiCVAnalysisService geminiCVAnalysisService;
     private final CVAnalysisHistoryService historyService;
+    private  final OllamaCVAnalysisService ollamaCVAnalysisService;
 
     /**
      * Analyze CV file and extract comprehensive user profile information
      */
+    @PostMapping(value = "/analyze-ollama", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ApiResponse<CVAnalysisResult> analyzeCVFileOllama(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "extractSkills", defaultValue = "true") Boolean extractSkills,
+            @RequestParam(value = "estimatePerformance", defaultValue = "true") Boolean estimatePerformance,
+            @RequestParam(value = "parseExperience", defaultValue = "true") Boolean parseExperience,
+            @AuthenticationPrincipal Jwt jwt) {
+
+        long startTime = System.currentTimeMillis();
+
+        log.info("Starting CV analysis for file: {}", file.getOriginalFilename());
+
+        try {
+            // Validate file
+            if (file.isEmpty()) {
+                return ApiResponse.<CVAnalysisResult>builder()
+                        .code(4000)
+                        .message("Uploaded file is empty")
+                        .build();
+            }
+
+            // Validate file type
+            String fileName = file.getOriginalFilename();
+            if (!isValidCVFileType(fileName)) {
+                return ApiResponse.<CVAnalysisResult>builder()
+                        .code(4001)
+                        .message("Unsupported file type. Please upload PDF, DOC, DOCX, or TXT files.")
+                        .build();
+            }
+
+            // Extract text content from CV file
+            String cvContent = fileProcessingService.extractTextFromFile(file);
+
+            if (cvContent == null || cvContent.trim().isEmpty()) {
+                return ApiResponse.<CVAnalysisResult>builder()
+                        .code(4002)
+                        .message("Could not extract readable text from the CV file")
+                        .build();
+            }
+
+            // Analyze CV using Gemini AI
+            CVAnalysisResult analysisResult = ollamaCVAnalysisService.analyzeCV(cvContent, fileName);
+
+            // Calculate processing time
+            long processingTime = System.currentTimeMillis() - startTime;
+            analysisResult.setProcessingTime(processingTime);
+
+            String uploadedBy = jwt != null ? jwt.getSubject() : "SYSTEM";
+            // Lấy username từ JWT
+            CVAnalysisHistory savedHistory = historyService.saveAnalysisHistory(
+                    fileName, file.getSize(), file.getContentType(), analysisResult, uploadedBy);
+
+            analysisResult.setHistoryId(savedHistory.getId());
+
+            log.info(
+                    "CV analysis completed for {} in {}ms with confidence: {}",
+                    fileName,
+                    processingTime,
+                    analysisResult.getConfidence());
+
+            return ApiResponse.<CVAnalysisResult>builder()
+                    .code(1000)
+                    .message("CV analyzed successfully")
+                    .result(analysisResult)
+                    .build();
+
+        } catch (Exception e) {
+            log.error("Error analyzing CV file: {}", e.getMessage(), e);
+            // ✅ LƯU FAILED HISTORY
+            try {
+                String uploadedBy = jwt != null ? jwt.getSubject() : "SYSTEM";
+                historyService.saveFailedAnalysis(
+                        file.getOriginalFilename(), file.getSize(), file.getContentType(), e.getMessage(), uploadedBy);
+            } catch (Exception historyEx) {
+                log.error("Failed to save error history: {}", historyEx.getMessage());
+            }
+            return ApiResponse.<CVAnalysisResult>builder()
+                    .code(5000)
+                    .message("Internal error during CV analysis: " + e.getMessage())
+                    .build();
+        }
+    }
+
     @PostMapping(value = "/analyze", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<CVAnalysisResult> analyzeCVFile(
             @RequestParam("file") MultipartFile file,

@@ -13,7 +13,10 @@ import lombok.experimental.FieldDefaults;
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class SendEmailRequest {
-    Recipient to;
+    String to;
+    String toName;
     String subject;
     String content;
+    String contentType; // "text/html" or "text/plain"
+
 }

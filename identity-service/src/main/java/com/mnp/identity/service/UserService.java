@@ -1,7 +1,11 @@
 package com.mnp.identity.service;
 
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
+import com.mnp.identity.dto.request.*;
+import com.mnp.identity.dto.response.EmailResponse;
+import com.mnp.identity.repository.httpclient.NotificationClient;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -10,11 +14,6 @@ import org.springframework.stereotype.Service;
 
 import com.mnp.event.dto.NotificationEvent;
 import com.mnp.identity.dto.interservice.InterServiceProfileCreationRequest;
-import com.mnp.identity.dto.request.ApiResponse;
-import com.mnp.identity.dto.request.ChangePasswordRequest;
-import com.mnp.identity.dto.request.UserCreationRequest;
-import com.mnp.identity.dto.request.UserStatusUpdateRequest;
-import com.mnp.identity.dto.request.UserUpdateRequest;
 import com.mnp.identity.dto.response.UserProfileResponse;
 import com.mnp.identity.dto.response.UserResponse;
 import com.mnp.identity.entity.Department;
@@ -47,9 +46,10 @@ public class UserService {
     DepartmentRepository departmentRepository;
     PositionRepository positionRepository;
     UserMapper userMapper;
-    ProfileMapper profileMapper;
+//    ProfileMapper profileMapper;
     PasswordEncoder passwordEncoder;
     ProfileClient profileClient;
+    NotificationClient notificationClient;
     KafkaTemplate<String, Object> kafkaTemplate;
 
     /**
@@ -88,7 +88,7 @@ public class UserService {
 
     @PreAuthorize("hasRole('ADMIN')")
     public UserResponse createUser(UserCreationRequest request) {
-        log.info("Creating user with username: {}", request.getUsername());
+        log.info("Creating user with username: {}", request);
 
         // Check if user already exists
         if (userRepository.existsByUsername(request.getUsername())) {
@@ -97,6 +97,10 @@ public class UserService {
 
         if (userRepository.existsByEmail(request.getEmail())) {
             throw new AppException(ErrorCode.EMAIL_EXISTED);
+        }
+
+        if(departmentRepository.existsByName(request.getDepartmentId())){
+            throw new AppException(ErrorCode.DEPARTMENT_NOT_EXISTED);
         }
 
         // Auto-generate employee ID if not provided
@@ -117,12 +121,12 @@ public class UserService {
         user.setEmployeeId(employeeId); // Set the employee ID (auto-generated or provided)
 
         // Set department if provided
-        if (request.getDepartmentId() != null) {
-            Department department = departmentRepository
+        Department department = departmentRepository
                     .findById(request.getDepartmentId())
                     .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_EXISTED));
-            user.setDepartment(department);
-        }
+
+        user.setDepartment(department);
+
 
         // Set position if provided
         if (request.getPositionId() != null) {
@@ -132,7 +136,8 @@ public class UserService {
             user.setPosition(position);
         }
 
-        Role roleRequest = roleRepository.findById(request.getRoleId()).orElse(null);
+        Role roleRequest = roleRepository.findById(request.getRoleId())
+                .orElseThrow(() -> new AppException(ErrorCode.ROLE_NOT_EXISTED));
         user.setRole(roleRequest);
 
         // Save user
@@ -175,27 +180,43 @@ public class UserService {
             log.info("No profile data provided, skipping profile creation for user: {}", user.getId());
         }
 
-        // Send welcome email notification
-        try {
-            String departmentName =
-                    user.getDepartment() != null ? user.getDepartment().getName() : "N/A";
-
-            String emailContent = createWelcomeEmailHtml(
-                    user.getFirstName(), user.getUsername(), departmentName, user.getEmployeeId());
-
-            NotificationEvent notificationEvent = NotificationEvent.builder()
-                    .channel("EMAIL")
-                    .recipient(user.getEmail())
-                    .subject("Welcome to Project Management - Your account has been created, please login and change password")
-                    .body(emailContent)
-                    .build();
-
-            kafkaTemplate.send("notification-delivery", notificationEvent);
-        } catch (Exception e) {
-            log.error("Failed to send welcome email for user: {}", user.getUsername(), e);
-        }
+        // Send welcome email via Kafka (Async - Non-blocking)
+        User finalUser = user;
+        CompletableFuture.runAsync(() -> sendWelcomeEmailViaFeignClient(finalUser));
 
         return userMapper.toUserResponse(user);
+    }
+
+    @SuppressWarnings("unused")
+    private void sendWelcomeEmailViaFeignClient(User user) {
+        try {
+            String departmentName = user.getDepartment() != null
+                    ? user.getDepartment().getName()
+                    : "N/A";
+
+            String emailContent = createWelcomeEmailHtml(
+                    user.getFirstName(),
+                    user.getUsername(),
+                    departmentName,
+                    user.getEmployeeId());
+
+            SendEmailRequest emailRequest = SendEmailRequest.builder()
+                    .to(user.getEmail())
+                    .toName(user.getFirstName() + " " + user.getLastName())
+                    .subject("Welcome to Project Management - Account Created")
+                    .content(emailContent)
+                    .contentType("text/html")
+                    .build();
+
+            ApiResponse<EmailResponse> response = notificationClient.sendEmail(emailRequest);
+
+            if (response != null && response.getResult() != null) {
+                log.info("✅ Welcome email sent successfully to: {} with messageId: {}",
+                        user.getEmail(), response.getResult().getMessageId());
+            }
+        } catch (Exception e) {
+            log.error("❌ Failed to send welcome email for user: {}", user.getUsername(), e);
+        }
     }
 
     @PreAuthorize("hasRole('ADMIN')")
@@ -247,7 +268,7 @@ public class UserService {
         userRepository.deleteById(userId);
     }
 
-    @PreAuthorize("hasRole('ADMIN') or hasRole('PROJECT_MANAGER') or hasRole('TEAM_LEAD')")
+//    @PreAuthorize("hasRole('ADMIN') or hasRole('PROJECT_MANAGER') or hasRole('TEAM_LEAD')")
     public List<UserResponse> getUsers() {
         log.info("In method get Users");
         return userRepository.findAll().stream().map(userMapper::toUserResponse).toList();
@@ -272,10 +293,10 @@ public class UserService {
         return userMapper.toUserDetailedResponse(user);
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
-    public List<UserResponse> getUsersByDepartment(String departmentId) {
+//    @PreAuthorize("hasRole('ADMIN')")
+    public List<UserResponse> getUsersByDepartment(String departmentName) {
         Department department = departmentRepository
-                .findById(departmentId)
+                .findByName(departmentName)
                 .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_EXISTED));
 
         return userRepository.findByDepartment(department).stream()
@@ -324,34 +345,94 @@ public class UserService {
         return userMapper.toUserResponse(user);
     }
 
-    private String createWelcomeEmailHtml(String firstName, String username, String department, String employeeId) {
+    private String createWelcomeEmailHtml(String firstName, String username,
+                                          String department, String employeeId) {
         return String.format(
                 """
-			<!DOCTYPE html>
-			<html lang="en">
-			<head>
-				<meta charset="UTF-8">
-				<meta name="viewport" content="width=device-width, initial-scale=1.0">
-				<title>Welcome to Project Management</title>
-			</head>
-			<body>
-				<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-					<h1 style="color: #333;">Welcome to Project Management!</h1>
-					<p>Hello <strong>%s</strong>,</p>
-					<p>Your account has been successfully created with the following details:</p>
-					<ul>
-						<li><strong>Username:</strong> %s</li>
-						<li><strong>Department:</strong> %s</li>
-						<li><strong>Employee ID:</strong> %s</li>
-					</ul>
-					<p>You can now access the Internal Management System.</p>
-					<p>Best regards,<br>The Project Management Team</p>
-				</div>
-			</body>
-			</html>
-			""",
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Welcome to Project Management</title>
+                </head>
+                <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f4f4;">
+                    <table width="100%%" cellpadding="0" cellspacing="0" border="0">
+                        <tr>
+                            <td align="center" style="padding: 20px;">
+                                <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #ffffff; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                    <tr>
+                                        <td style="padding: 40px 30px;">
+                                            <h1 style="color: #2c3e50; margin: 0 0 20px 0; font-size: 28px; border-bottom: 3px solid #3498db; padding-bottom: 10px;">
+                                                🎉 Welcome to Project Management!
+                                            </h1>
+                                            <p style="font-size: 16px; color: #555; margin: 20px 0;">
+                                                Hello <strong style="color: #2c3e50;">%s</strong>,
+                                            </p>
+                                            <p style="font-size: 14px; color: #666; line-height: 1.6; margin: 15px 0;">
+                                                Your account has been successfully created. Here are your account details:
+                                            </p>
+                                            <table width="100%%" cellpadding="15" cellspacing="0" border="0" style="background-color: #ecf0f1; border-radius: 5px; margin: 20px 0;">
+                                                <tr>
+                                                    <td style="border-bottom: 1px solid #bdc3c7; padding: 12px 15px;">
+                                                        <strong style="color: #2c3e50;">Username:</strong>
+                                                        <span style="color: #3498db; margin-left: 10px;">%s</span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="border-bottom: 1px solid #bdc3c7; padding: 12px 15px;">
+                                                        <strong style="color: #2c3e50;">Department:</strong>
+                                                        <span style="color: #555; margin-left: 10px;">%s</span>
+                                                    </td>
+                                                </tr>
+                                                <tr>
+                                                    <td style="padding: 12px 15px;">
+                                                        <strong style="color: #2c3e50;">Employee ID:</strong>
+                                                        <span style="color: #555; margin-left: 10px;">%s</span>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                            <table width="100%%" cellpadding="15" cellspacing="0" border="0" style="background-color: #fff3cd; border-left: 4px solid #ffc107; border-radius: 5px; margin: 20px 0;">
+                                                <tr>
+                                                    <td>
+                                                        <p style="margin: 0; color: #856404; font-size: 14px;">
+                                                            ⚠️ <strong>Important Security Notice:</strong>
+                                                        </p>
+                                                        <p style="margin: 10px 0 0 0; color: #856404; font-size: 13px;">
+                                                            Please change your password immediately after your first login to ensure account security.
+                                                        </p>
+                                                    </td>
+                                                </tr>
+                                            </table>
+                                            <p style="font-size: 14px; color: #666; line-height: 1.6; margin: 20px 0;">
+                                                You can now access the Internal Management System and start collaborating with your team.
+                                            </p>
+                                            <p style="font-size: 14px; color: #666; margin: 30px 0 10px 0;">
+                                                Best regards,<br>
+                                                <strong style="color: #2c3e50;">The Project Management Team</strong>
+                                            </p>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="background-color: #f8f9fa; padding: 20px; text-align: center; border-bottom-left-radius: 10px; border-bottom-right-radius: 10px;">
+                                            <p style="margin: 0; color: #999; font-size: 12px;">
+                                                This is an automated message. Please do not reply to this email.
+                                            </p>
+                                            <p style="margin: 10px 0 0 0; color: #999; font-size: 12px;">
+                                                © 2024 Project Management System. All rights reserved.
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </body>
+                </html>
+                """,
                 firstName, username, department, employeeId);
     }
+
 
     /**
      * Change password for the current authenticated user

@@ -21,4 +21,10 @@ public class PerformanceUpdateRequest {
     Integer estimatedHours;
     Integer actualHours;
     String comments;
+
+    // NEW FIELDS for extension tracking
+     Integer originalEstimatedHours;  // Original estimate before any extensions
+     Integer extensionCount;           // Number of extensions
+     Integer totalExtensionHours;      // Total hours extended
+     Boolean hadExtension;
 }

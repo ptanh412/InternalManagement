@@ -13,6 +13,7 @@ import com.mnp.identity.entity.Role;
 public interface RoleRepository extends JpaRepository<Role, String> {
     Optional<Role> findByName(String name);
 
+    Optional<Role> findById(String id);
     boolean existsByName(String name);
 
     @Query("SELECT r.id FROM Role r WHERE r.name = :name")

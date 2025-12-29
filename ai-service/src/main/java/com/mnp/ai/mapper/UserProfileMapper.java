@@ -8,25 +8,17 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
-import com.mnp.ai.client.WorkloadServiceClient;
-import com.mnp.ai.dto.ApiResponse;
-import com.mnp.ai.dto.UserAvailabilityResponse;
-import com.mnp.ai.dto.UserProfileResponse;
-import com.mnp.ai.dto.UserSkillResponse;
-import com.mnp.ai.dto.UserWorkloadResponse;
+import com.mnp.ai.dto.response.UserProfileResponse;
+import com.mnp.ai.dto.response.UserSkillResponse;
 import com.mnp.ai.model.UserProfile;
 import com.mnp.ai.service.SkillNormalizer;
 
 @Component
 public class UserProfileMapper {
 
-    private final WorkloadServiceClient workloadServiceClient;
     private final SkillNormalizer skillNormalizer;
 
-    public UserProfileMapper(
-            WorkloadServiceClient workloadServiceClient,
-            SkillNormalizer skillNormalizer) {
-        this.workloadServiceClient = workloadServiceClient;
+    public UserProfileMapper(SkillNormalizer skillNormalizer) {
         this.skillNormalizer = skillNormalizer;
     }
 
@@ -247,30 +239,12 @@ public class UserProfileMapper {
     }
 
     /**
-     * Calculate workload capacity using real workload data from workload-service
+     * Calculate workload capacity using fallback data only
+     * Real workload data will be fetched in batch later via BatchDataFetchService
+     * This avoids N+1 query problem during initial candidate fetching
      */
     private Double calculateWorkloadCapacity(UserProfileResponse response) {
-        try {
-            // Try to get real-time workload data
-            ApiResponse<UserWorkloadResponse> workloadResponse =
-                    workloadServiceClient.getUserWorkload(response.getUserId());
-
-            if (workloadResponse != null && workloadResponse.getResult() != null) {
-                UserWorkloadResponse workload = workloadResponse.getResult();
-
-                // Calculate capacity based on utilization percentage
-                Double utilizationPercentage = workload.getUtilizationPercentage();
-                if (utilizationPercentage != null) {
-                    // Convert utilization to capacity (0-1 scale)
-                    return Math.max(0.0, Math.min(1.0, utilizationPercentage / 100.0));
-                }
-            }
-        } catch (Exception e) {
-            // Fallback if workload service is unavailable
-            System.err.println("Failed to get workload data for user " + response.getUserId() + ": " + e.getMessage());
-        }
-
-        // Fallback calculation using profile data
+        // Use fallback calculation only - real data fetched in batch later
         Integer currentHours = response.getCurrentWorkLoadHours();
         if (currentHours == null) return 0.5;
 
@@ -279,36 +253,12 @@ public class UserProfileMapper {
     }
 
     /**
-     * Calculate availability score using real workload data from workload-service
+     * Calculate availability score using fallback data only
+     * Real availability data will be fetched in batch later via BatchDataFetchService
+     * This avoids N+1 query problem during initial candidate fetching
      */
     private Double calculateAvailabilityScore(UserProfileResponse response) {
-        try {
-            // Try to get real-time availability data
-            ApiResponse<UserAvailabilityResponse> availabilityResponse =
-                    workloadServiceClient.getUserAvailability(response.getUserId());
-
-            if (availabilityResponse != null && availabilityResponse.getResult() != null) {
-                UserAvailabilityResponse availability = availabilityResponse.getResult();
-
-                // Use availability percentage from workload service
-                Double availabilityPercentage = availability.getAvailabilityPercentage();
-                if (availabilityPercentage != null) {
-                    return Math.max(0.0, Math.min(1.0, availabilityPercentage / 100.0));
-                }
-
-                // Fallback to boolean availability
-                Boolean isAvailable = availability.getIsAvailable();
-                if (isAvailable != null) {
-                    return isAvailable ? 0.8 : 0.2;
-                }
-            }
-        } catch (Exception e) {
-            // Fallback if workload service is unavailable
-            System.err.println(
-                    "Failed to get availability data for user " + response.getUserId() + ": " + e.getMessage());
-        }
-
-        // Fallback calculation using profile availability status
+        // Use fallback calculation only - real data fetched in batch later
         String status = response.getAvailabilityStatus();
         if (status != null) {
             return switch (status.toUpperCase()) {

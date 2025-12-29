@@ -245,12 +245,12 @@ const PerformanceAnalytics = () => {
   const { overview, workTimeStats, projectParticipation, trends } = performanceData;
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Header */}
       <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Performance Analytics</h1>
-          <p className="text-gray-600">Track your performance metrics and productivity insights</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Performance Analytics</h1>
+          <p className="text-gray-600 dark:text-gray-300">Track your performance metrics and productivity insights</p>
         </div>
         <button
           onClick={refreshData}
@@ -264,48 +264,48 @@ const PerformanceAnalytics = () => {
 
       {/* Performance Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <TrophyIcon className="h-8 w-8 text-yellow-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Overall Score</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Overall Score</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {overview?.overallScore || 0}/100
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <ChartBarIcon className="h-8 w-8 text-green-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Tasks Completed</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Tasks Completed</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {overview?.tasksCompleted || 0}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <ClockIcon className="h-8 w-8 text-blue-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Hours This Month</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Hours This Month</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {workTimeStats?.monthlyHours || 0}h
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <TicketIcon className="h-8 w-8 text-purple-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Efficiency Rate</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Efficiency Rate</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {overview?.efficiencyRate || 0}%
               </p>
             </div>
@@ -317,9 +317,9 @@ const PerformanceAnalytics = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         
         {/* Performance Trends */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Performance Trends</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Performance Trends</h3>
             <button
               onClick={() => exportChart(chartRefs.performance, 'performance-trends')}
               className="text-blue-600 hover:text-blue-800"
@@ -339,9 +339,9 @@ const PerformanceAnalytics = () => {
         </div>
 
         {/* Work Time Distribution */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Time Distribution</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Time Distribution</h3>
             <button
               onClick={() => exportChart(chartRefs.workTime, 'work-time-distribution')}
               className="text-blue-600 hover:text-blue-800"
@@ -361,9 +361,9 @@ const PerformanceAnalytics = () => {
         </div>
 
         {/* Daily Hours */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Daily Work Hours</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Daily Work Hours</h3>
             <button
               onClick={() => exportChart(chartRefs.projects, 'daily-hours')}
               className="text-blue-600 hover:text-blue-800"
@@ -383,9 +383,9 @@ const PerformanceAnalytics = () => {
         </div>
 
         {/* Skills Radar */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Skills Assessment</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Skills Assessment</h3>
             <button
               onClick={() => exportChart(chartRefs.radar, 'skills-radar')}
               className="text-blue-600 hover:text-blue-800"
@@ -406,41 +406,41 @@ const PerformanceAnalytics = () => {
       </div>
 
       {/* Project Participation Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Project Participation History</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Project Participation History</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Project</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Duration</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tasks Completed</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Performance</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase">Project</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase">Duration</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase">Tasks Completed</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase">Performance</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase">Status</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {projectParticipation?.projects?.map((project, index) => (
-                <tr key={project.id || index} className="hover:bg-gray-50">
+                <tr key={project.id || index} className="hover:bg-gray-50 dark:bg-gray-900">
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{project.name}</div>
-                    <div className="text-sm text-gray-500">{project.description}</div>
+                    <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{project.name}</div>
+                    <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{project.description}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     {project.role}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     {project.duration}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     {project.tasksCompleted}/{project.totalTasks}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="flex-1 bg-gray-200 rounded-full h-2 mr-2">
+                      <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-2">
                         <div 
                           className={`h-2 rounded-full ${
                             project.performanceScore >= 90 ? 'bg-green-500' :
@@ -450,7 +450,7 @@ const PerformanceAnalytics = () => {
                           style={{ width: `${project.performanceScore}%` }}
                         ></div>
                       </div>
-                      <span className="text-sm text-gray-700">{project.performanceScore}%</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{project.performanceScore}%</span>
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -468,7 +468,7 @@ const PerformanceAnalytics = () => {
             </tbody>
           </table>
           {(!projectParticipation?.projects || projectParticipation.projects.length === 0) && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400 dark:text-gray-500">
               No project participation data available
             </div>
           )}

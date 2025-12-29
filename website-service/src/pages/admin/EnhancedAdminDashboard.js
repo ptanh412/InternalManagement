@@ -152,15 +152,15 @@ const EnhancedAdminDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Header */}
-      <div className="bg-white shadow">
+      <div className="bg-white dark:bg-gray-800 shadow">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="py-6">
             <div className="flex items-center justify-between">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-                <p className="text-gray-600 mt-1">
+                <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Admin Dashboard</h1>
+                <p className="text-gray-600 dark:text-gray-300 mt-1">
                   Comprehensive system management and analytics
                 </p>
               </div>
@@ -179,7 +179,7 @@ const EnhancedAdminDashboard = () => {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="bg-white border-b border-gray-200">
+      <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-8">
             {tabs.map((tab) => {
@@ -210,20 +210,20 @@ const EnhancedAdminDashboard = () => {
           <div className="space-y-8">
             {/* Stats Overview */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
                     <UsersIcon className="h-8 w-8 text-blue-600" />
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
+                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 truncate">
                         Total Users
                       </dt>
-                      <dd className="text-lg font-medium text-gray-900">
+                      <dd className="text-lg font-medium text-gray-900 dark:text-gray-100">
                         {stats.users.total}
                       </dd>
-                      <dd className="text-sm text-gray-600">
+                      <dd className="text-sm text-gray-600 dark:text-gray-300">
                         {stats.users.active} active, {stats.users.inactive} inactive
                       </dd>
                     </dl>
@@ -231,20 +231,20 @@ const EnhancedAdminDashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
                     <BriefcaseIcon className="h-8 w-8 text-green-600" />
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
+                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 truncate">
                         Projects
                       </dt>
-                      <dd className="text-lg font-medium text-gray-900">
+                      <dd className="text-lg font-medium text-gray-900 dark:text-gray-100">
                         {stats.projects.total}
                       </dd>
-                      <dd className="text-sm text-gray-600">
+                      <dd className="text-sm text-gray-600 dark:text-gray-300">
                         {stats.projects.active} active, {stats.projects.completed} completed
                       </dd>
                     </dl>
@@ -252,20 +252,20 @@ const EnhancedAdminDashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
                     <FolderIcon className="h-8 w-8 text-purple-600" />
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
+                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 truncate">
                         Departments
                       </dt>
-                      <dd className="text-lg font-medium text-gray-900">
+                      <dd className="text-lg font-medium text-gray-900 dark:text-gray-100">
                         {stats.departments.total}
                       </dd>
-                      <dd className="text-sm text-gray-600">
+                      <dd className="text-sm text-gray-600 dark:text-gray-300">
                         Active departments
                       </dd>
                     </dl>
@@ -273,20 +273,20 @@ const EnhancedAdminDashboard = () => {
                 </div>
               </div>
 
-              <div className="bg-white rounded-lg shadow p-6">
+              <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                 <div className="flex items-center">
                   <div className="flex-shrink-0">
                     <SparklesIcon className="h-8 w-8 text-orange-600" />
                   </div>
                   <div className="ml-5 w-0 flex-1">
                     <dl>
-                      <dt className="text-sm font-medium text-gray-500 truncate">
+                      <dt className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 truncate">
                         CV Analyses
                       </dt>
-                      <dd className="text-lg font-medium text-gray-900">
+                      <dd className="text-lg font-medium text-gray-900 dark:text-gray-100">
                         {stats.cvAnalysis.total}
                       </dd>
-                      <dd className="text-sm text-gray-600">
+                      <dd className="text-sm text-gray-600 dark:text-gray-300">
                         {stats.cvAnalysis.thisMonth} this month
                       </dd>
                     </dl>
@@ -296,9 +296,9 @@ const EnhancedAdminDashboard = () => {
             </div>
 
             {/* Recent Activities */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">Recent Activities</h3>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+              <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Recent Activities</h3>
               </div>
               <div className="p-6">
                 <div className="flow-root">
@@ -308,22 +308,22 @@ const EnhancedAdminDashboard = () => {
                         <div className="relative pb-8">
                           {index !== recentActivities.length - 1 && (
                             <span
-                              className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200"
+                              className="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200 dark:bg-gray-700"
                               aria-hidden="true"
                             />
                           )}
                           <div className="relative flex space-x-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 ring-8 ring-white">
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 dark:bg-gray-800 ring-8 ring-white">
                               {getActivityIcon(activity.type)}
                             </div>
                             <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
                               <div>
-                                <p className="text-sm text-gray-500">
-                                  <span className="font-medium text-gray-900">{activity.user}</span>{' '}
+                                <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
+                                  <span className="font-medium text-gray-900 dark:text-gray-100">{activity.user}</span>{' '}
                                   {activity.description}
                                 </p>
                               </div>
-                              <div className="whitespace-nowrap text-right text-sm text-gray-500">
+                              <div className="whitespace-nowrap text-right text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                                 {formatTimeAgo(activity.timestamp)}
                               </div>
                             </div>

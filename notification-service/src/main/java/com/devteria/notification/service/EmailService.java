@@ -1,8 +1,12 @@
 package com.devteria.notification.service;
 
-import java.util.List;
+import java.util.UUID;
 
+import jakarta.mail.MessagingException;
+import jakarta.mail.internet.MimeMessage;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import com.mnp.event.dto.NotificationEvent;
@@ -10,9 +14,7 @@ import com.devteria.notification.dto.request.*;
 import com.devteria.notification.dto.response.EmailResponse;
 import com.devteria.notification.exception.AppException;
 import com.devteria.notification.exception.ErrorCode;
-import com.devteria.notification.repository.httpclient.EmailClient;
 
-import feign.FeignException;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -24,82 +26,124 @@ import lombok.extern.slf4j.Slf4j;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 @Slf4j
 public class EmailService {
-    EmailClient emailClient;
+    JavaMailSender mailSender;
 
-    @Value("${notification.email.sendgrid-apikey}")
+    @Value("${notification.email.from-email}")
     @NonFinal
-    String apiKey;
+    String fromEmail;
 
+    @Value("${notification.email.from-name}")
+    @NonFinal
+    String fromName;
+
+    @Value("${notification.email.enabled:true}")
+    @NonFinal
+    boolean emailEnabled;
+
+    /**
+     * Send email - Public API endpoint
+     */
     public EmailResponse sendEmail(SendEmailRequest request) {
-        EmailRequest emailRequest = EmailRequest.builder()
-                .from(From.builder()
-                        .name("Pham Anh")
-                        .email("pham041203theanh@gmail.com")
-                        .build())
-                .personalizations(List.of(Personalization.builder()
-                        .to(List.of(request.getTo()))
-                        .subject(request.getSubject())
-                        .build()))
-                .content(List.of(Content.builder()
-                        .type("text/html")
-                        .value(request.getContent())
-                        .build()))
-                .build();
+        log.info("📧 Sending email to: {}", request.getTo());
+
+        if (!emailEnabled) {
+            log.warn("⚠️ Email sending is disabled in configuration");
+            return EmailResponse.builder()
+                    .messageId("disabled-" + UUID.randomUUID())
+                    .status("DISABLED")
+                    .recipient(request.getTo())
+                    .build();
+        }
+
         try {
-            String bearerToken = "Bearer " + apiKey;
-            return emailClient.sendEmail(bearerToken, emailRequest);
-        } catch (FeignException e) {
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+
+            // Set sender
+            helper.setFrom(fromEmail, fromName);
+
+            // Set recipient
+            helper.setTo(request.getTo());
+
+            // Set subject
+            helper.setSubject(request.getSubject());
+
+            // Set content
+            String contentType = request.getContentType() != null ? request.getContentType() : "text/html";
+            boolean isHtml = "text/html".equalsIgnoreCase(contentType);
+            helper.setText(request.getContent(), isHtml);
+
+            // Send email
+            mailSender.send(message);
+
+            String messageId = UUID.randomUUID().toString();
+            log.info("✅ Email sent successfully to: {} with messageId: {}", request.getTo(), messageId);
+
+            return EmailResponse.builder()
+                    .messageId(messageId)
+                    .status("SENT")
+                    .recipient(request.getTo())
+                    .build();
+
+        } catch (MessagingException e) {
+            log.error("❌ Failed to send email to: {}", request.getTo(), e);
+            throw new AppException(ErrorCode.CANNOT_SEND_EMAIL);
+        } catch (Exception e) {
+            log.error("❌ Unexpected error while sending email to: {}", request.getTo(), e);
             throw new AppException(ErrorCode.CANNOT_SEND_EMAIL);
         }
     }
 
-    public void sendEmail(NotificationEvent event) {
+    /**
+     * Send email from Kafka event - Internal use
+     */
+    public void sendEmailFromEvent(NotificationEvent event) {
         try {
-            log.info("Sending email notification to: {}", event.getRecipient());
+            log.info("📧 Processing email notification event for: {}", event.getRecipient());
 
-            Recipient recipient = Recipient.builder()
-                    .email(event.getRecipient())
-                    .name(event.getRecipientName() != null ? event.getRecipientName() : event.getRecipient())
-                    .build();
+            if (!emailEnabled) {
+                log.warn("⚠️ Email sending is disabled, skipping event");
+                return;
+            }
 
-            // Get email content - prefer direct body field, fallback to param map
             String emailBody = getEmailBody(event);
             String emailSubject = getEmailSubject(event);
+            String contentType = getContentType(event);
 
-            EmailRequest emailRequest = EmailRequest.builder()
-                    .from(From.builder()
-                            .name("Pham Anh")
-                            .email("pham041203theanh@gmail.com")
-                            .build())
-                    .personalizations(List.of(Personalization.builder()
-                            .to(List.of(recipient))
-                            .subject(emailSubject)
-                            .build()))
-                    .content(List.of(Content.builder()
-                            .type(getContentType(event))
-                            .value(formatEmailContent(emailBody))
-                            .build()))
-                    .build();
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
 
-            String bearerToken = "Bearer " + apiKey;
-            emailClient.sendEmail(bearerToken, emailRequest);
-            log.info("Email notification sent successfully to: {}", event.getRecipient());
+            // Set sender
+            helper.setFrom(fromEmail, fromName);
 
-        } catch (FeignException e) {
-            log.error("Failed to send email notification to: {}", event.getRecipient(), e);
+            // Set recipient
+            helper.setTo(event.getRecipient());
+
+            // Set subject
+            helper.setSubject(emailSubject);
+
+            // Set content
+            boolean isHtml = "text/html".equalsIgnoreCase(contentType);
+            helper.setText(emailBody, isHtml);
+
+            // Send email
+            mailSender.send(message);
+
+            log.info("✅ Email notification sent successfully to: {}", event.getRecipient());
+
+        } catch (MessagingException e) {
+            log.error("❌ Failed to send email notification to: {}", event.getRecipient(), e);
             throw new AppException(ErrorCode.CANNOT_SEND_EMAIL);
         } catch (Exception e) {
-            log.error("Unexpected error while sending email notification", e);
+            log.error("❌ Unexpected error while sending email notification to: {}", event.getRecipient(), e);
         }
     }
 
     private String getEmailBody(NotificationEvent event) {
-        // First try to get body from direct field
         if (event.getBody() != null && !event.getBody().trim().isEmpty()) {
             return event.getBody();
         }
 
-        // Fallback to param map if available
         if (event.getParam() != null) {
             Object bodyParam = event.getParam().get("body");
             if (bodyParam != null) {
@@ -107,17 +151,14 @@ public class EmailService {
             }
         }
 
-        // Default fallback
-        return "Notification from Management System";
+        return "<p>Notification from Management System</p>";
     }
 
     private String getEmailSubject(NotificationEvent event) {
-        // First try to get subject from direct field
         if (event.getSubject() != null && !event.getSubject().trim().isEmpty()) {
             return event.getSubject();
         }
 
-        // Fallback to param map if available
         if (event.getParam() != null) {
             Object subjectParam = event.getParam().get("subject");
             if (subjectParam != null) {
@@ -125,7 +166,6 @@ public class EmailService {
             }
         }
 
-        // Default fallback
         return "Notification from Management System";
     }
 
@@ -136,14 +176,4 @@ public class EmailService {
         return "text/html";
     }
 
-    private String formatEmailContent(String body) {
-        if (body == null || body.trim().isEmpty()) {
-            return "Notification from Management System";
-        }
-
-        // Convert plain text to HTML with proper formatting
-        return body.replace("\n", "<br>")
-                .replace("Dear Team Member,", "<h3>Dear Team Member,</h3>")
-                .replace("Best regards,", "<br><br><strong>Best regards,</strong><br>");
-    }
 }

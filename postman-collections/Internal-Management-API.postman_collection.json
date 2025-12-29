@@ -1,0 +1,1250 @@
+{
+	"info": {
+		"_postman_id": "internal-mgmt-api-2025",
+		"name": "Internal Management API - Complete Collection",
+		"description": "Complete API collection for Internal Management System including Task Extensions, Workload, Chat, Post, File, and AI Services",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "internal-management"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{access_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8888/api/v1",
+			"type": "string"
+		},
+		{
+			"key": "access_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "task_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "extension_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "project_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "🔐 Authentication",
+			"item": [
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"access_token\", jsonData.result.token);",
+									"    console.log(\"✅ Access token saved:\", jsonData.result.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/identity/auth/token",
+							"host": ["{{base_url}}"],
+							"path": ["identity", "auth", "token"]
+						},
+						"description": "Login to get access token"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/identity/users/my-info",
+							"host": ["{{base_url}}"],
+							"path": ["identity", "users", "my-info"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📋 Task Extensions",
+			"item": [
+				{
+					"name": "Request Task Extension",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    if (jsonData.result && jsonData.result.id) {",
+									"        pm.collectionVariables.set(\"extension_id\", jsonData.result.id);",
+									"        console.log(\"✅ Extension ID saved:\", jsonData.result.id);",
+									"    }",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"requestedHours\": 8,\n  \"reason\": \"Need more time to complete comprehensive testing and bug fixes\",\n  \"requestedNewDeadline\": \"2025-12-30T23:59:59\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/task/extensions/{{task_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["task", "extensions", "{{task_id}}"]
+						},
+						"description": "Employee requests task deadline extension"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Extension Requests",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/task/extensions/my-requests",
+							"host": ["{{base_url}}"],
+							"path": ["task", "extensions", "my-requests"]
+						},
+						"description": "Get all extension requests created by current user"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Task Extension History",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/task/extensions/{{task_id}}/history",
+							"host": ["{{base_url}}"],
+							"path": ["task", "extensions", "{{task_id}}", "history"]
+						},
+						"description": "Get all extension requests for a specific task"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Task Extension Summary",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/task/extensions/{{task_id}}/summary",
+							"host": ["{{base_url}}"],
+							"path": ["task", "extensions", "{{task_id}}", "summary"]
+						},
+						"description": "Get summary of all extensions for a task"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Pending Extensions (Team Lead)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/task/extensions/pending",
+							"host": ["{{base_url}}"],
+							"path": ["task", "extensions", "pending"]
+						},
+						"description": "Team Lead gets all pending extension requests"
+					},
+					"response": []
+				},
+				{
+					"name": "Get All Status Extensions (Team Lead)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/task/extensions/all",
+							"host": ["{{base_url}}"],
+							"path": ["task", "extensions", "all"]
+						},
+						"description": "Team Lead gets all extension requests (all statuses)"
+					},
+					"response": []
+				},
+				{
+					"name": "Approve Extension Request",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"APPROVED\",\n  \"reviewComments\": \"Approved. The reason is valid and timeline is reasonable.\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/task/extensions/{{extension_id}}/review",
+							"host": ["{{base_url}}"],
+							"path": ["task", "extensions", "{{extension_id}}", "review"]
+						},
+						"description": "Team Lead approves extension request"
+					},
+					"response": []
+				},
+				{
+					"name": "Reject Extension Request",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"status\": \"REJECTED\",\n  \"reviewComments\": \"Please try to complete within original deadline. The scope is manageable.\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/task/extensions/{{extension_id}}/review",
+							"host": ["{{base_url}}"],
+							"path": ["task", "extensions", "{{extension_id}}", "review"]
+						},
+						"description": "Team Lead rejects extension request"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "⚖️ Workload Service",
+			"item": [
+				{
+					"name": "Get User Workload",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/workload/workloads/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["workload", "workloads", "{{user_id}}"]
+						},
+						"description": "Get user's current workload and capacity"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Availability",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/workload/workloads/{{user_id}}/availability",
+							"host": ["{{base_url}}"],
+							"path": ["workload", "workloads", "{{user_id}}", "availability"]
+						},
+						"description": "Check if user is available for new tasks"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Team Workload",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/workload/workloads/team/ENGINEERING",
+							"host": ["{{base_url}}"],
+							"path": ["workload", "workloads", "team", "ENGINEERING"]
+						},
+						"description": "Get workload overview for entire team/department"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Project Workload",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/workload/workloads/project/{{project_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["workload", "workloads", "project", "{{project_id}}"]
+						},
+						"description": "Get workload for all members in a project"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Available Users",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/workload/workloads/available",
+							"host": ["{{base_url}}"],
+							"path": ["workload", "workloads", "available"]
+						},
+						"description": "Get list of users available for task assignment"
+					},
+					"response": []
+				},
+				{
+					"name": "Update User Capacity",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"capacityHoursPerWeek\": 40\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/workload/workloads/{{user_id}}/capacity",
+							"host": ["{{base_url}}"],
+							"path": ["workload", "workloads", "{{user_id}}", "capacity"]
+						},
+						"description": "Update user's weekly capacity hours"
+					},
+					"response": []
+				},
+				{
+					"name": "Get My Work Time Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/workload/work-time/statistics/my-time?period=MONTHLY",
+							"host": ["{{base_url}}"],
+							"path": ["workload", "work-time", "statistics", "my-time"],
+							"query": [
+								{
+									"key": "period",
+									"value": "MONTHLY",
+									"description": "WEEKLY, MONTHLY, QUARTERLY"
+								}
+							]
+						},
+						"description": "Get current user's work time statistics"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Project Work Time Statistics",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/workload/work-time/statistics/project/{{project_id}}?period=WEEKLY",
+							"host": ["{{base_url}}"],
+							"path": ["workload", "work-time", "statistics", "project", "{{project_id}}"],
+							"query": [
+								{
+									"key": "period",
+									"value": "WEEKLY"
+								}
+							]
+						},
+						"description": "Get work time statistics for all project members"
+					},
+					"response": []
+				},
+				{
+					"name": "Optimize Workload for Project",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/workload/workloads/optimize/{{project_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["workload", "workloads", "optimize", "{{project_id}}"]
+						},
+						"description": "Get workload rebalancing suggestions for project"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "💬 Chat Service",
+			"item": [
+				{
+					"name": "Get My Conversations",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/chat/conversations/my-conversations",
+							"host": ["{{base_url}}"],
+							"path": ["chat", "conversations", "my-conversations"]
+						},
+						"description": "Get all conversations for current user"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Direct Conversation",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"participantIds\": [\"user-id-1\", \"user-id-2\"],\n  \"conversationType\": \"DIRECT\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/conversations/create",
+							"host": ["{{base_url}}"],
+							"path": ["chat", "conversations", "create"]
+						},
+						"description": "Create 1-on-1 direct conversation"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Group Chat",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"groupName\": \"Project Team Discussion\",\n  \"participantIds\": [\"user-id-1\", \"user-id-2\", \"user-id-3\"],\n  \"conversationType\": \"GROUP\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/conversations/create",
+							"host": ["{{base_url}}"],
+							"path": ["chat", "conversations", "create"]
+						},
+						"description": "Create group conversation"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Project Group",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"projectId\": \"{{project_id}}\",\n  \"groupName\": \"Project Alpha Team\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/conversations/project-group",
+							"host": ["{{base_url}}"],
+							"path": ["chat", "conversations", "project-group"]
+						},
+						"description": "Create project-based group chat with all members"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Conversation Messages",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/chat/messages?conversationId=conv-id-123",
+							"host": ["{{base_url}}"],
+							"path": ["chat", "messages"],
+							"query": [
+								{
+									"key": "conversationId",
+									"value": "conv-id-123"
+								}
+							]
+						},
+						"description": "Get all messages in a conversation"
+					},
+					"response": []
+				},
+				{
+					"name": "Send Text Message",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"conversationId\": \"conv-id-123\",\n  \"content\": \"Hello team! Let's discuss the new feature.\",\n  \"messageType\": \"TEXT\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/messages/create",
+							"host": ["{{base_url}}"],
+							"path": ["chat", "messages", "create"]
+						},
+						"description": "Send text message to conversation"
+					},
+					"response": []
+				},
+				{
+					"name": "Send File Message",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"conversationId\": \"conv-id-123\",\n  \"content\": \"Check out this document\",\n  \"messageType\": \"FILE\",\n  \"fileUrl\": \"https://example.com/file.pdf\",\n  \"fileName\": \"requirements.pdf\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/messages/create",
+							"host": ["{{base_url}}"],
+							"path": ["chat", "messages", "create"]
+						},
+						"description": "Send file message with attachment"
+					},
+					"response": []
+				},
+				{
+					"name": "Mark Messages as Read",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/chat/messages/mark-as-read?conversationId=conv-id-123",
+							"host": ["{{base_url}}"],
+							"path": ["chat", "messages", "mark-as-read"],
+							"query": [
+								{
+									"key": "conversationId",
+									"value": "conv-id-123"
+								}
+							]
+						},
+						"description": "Mark all messages in conversation as read"
+					},
+					"response": []
+				},
+				{
+					"name": "Add Members to Group",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"userIds\": [\"user-id-4\", \"user-id-5\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/chat/conversations/conv-id-123/add-members",
+							"host": ["{{base_url}}"],
+							"path": ["chat", "conversations", "conv-id-123", "add-members"]
+						},
+						"description": "Add new members to group conversation"
+					},
+					"response": []
+				},
+				{
+					"name": "Leave Group",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/chat/conversations/conv-id-123/leave",
+							"host": ["{{base_url}}"],
+							"path": ["chat", "conversations", "conv-id-123", "leave"]
+						},
+						"description": "Leave a group conversation"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📰 Post Service",
+			"item": [
+				{
+					"name": "Get All Posts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/post/posts?page=0&size=20",
+							"host": ["{{base_url}}"],
+							"path": ["post", "posts"],
+							"query": [
+								{
+									"key": "page",
+									"value": "0"
+								},
+								{
+									"key": "size",
+									"value": "20"
+								}
+							]
+						},
+						"description": "Get all posts with pagination"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Post by ID",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/post/posts/post-id-123",
+							"host": ["{{base_url}}"],
+							"path": ["post", "posts", "post-id-123"]
+						},
+						"description": "Get specific post details"
+					},
+					"response": []
+				},
+				{
+					"name": "Create Post",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"New Feature Release Announcement\",\n  \"content\": \"We're excited to announce the release of our new task extension feature!\",\n  \"category\": \"ANNOUNCEMENT\",\n  \"tags\": [\"feature\", \"release\", \"tasks\"]\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/post/posts",
+							"host": ["{{base_url}}"],
+							"path": ["post", "posts"]
+						},
+						"description": "Create new post"
+					},
+					"response": []
+				},
+				{
+					"name": "Update Post",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Feature Release Announcement\",\n  \"content\": \"Updated content with more details...\",\n  \"category\": \"ANNOUNCEMENT\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/post/posts/post-id-123",
+							"host": ["{{base_url}}"],
+							"path": ["post", "posts", "post-id-123"]
+						},
+						"description": "Update existing post"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Post",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/post/posts/post-id-123",
+							"host": ["{{base_url}}"],
+							"path": ["post", "posts", "post-id-123"]
+						},
+						"description": "Delete post"
+					},
+					"response": []
+				},
+				{
+					"name": "Like Post",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/post/posts/post-id-123/like",
+							"host": ["{{base_url}}"],
+							"path": ["post", "posts", "post-id-123", "like"]
+						},
+						"description": "Like a post"
+					},
+					"response": []
+				},
+				{
+					"name": "Unlike Post",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/post/posts/post-id-123/like",
+							"host": ["{{base_url}}"],
+							"path": ["post", "posts", "post-id-123", "like"]
+						},
+						"description": "Remove like from post"
+					},
+					"response": []
+				},
+				{
+					"name": "Add Comment",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"Great news! Looking forward to using this feature.\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{base_url}}/post/posts/post-id-123/comments",
+							"host": ["{{base_url}}"],
+							"path": ["post", "posts", "post-id-123", "comments"]
+						},
+						"description": "Add comment to post"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Post Comments",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/post/posts/post-id-123/comments",
+							"host": ["{{base_url}}"],
+							"path": ["post", "posts", "post-id-123", "comments"]
+						},
+						"description": "Get all comments for a post"
+					},
+					"response": []
+				},
+				{
+					"name": "Get Posts by Category",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/post/posts/category/ANNOUNCEMENT",
+							"host": ["{{base_url}}"],
+							"path": ["post", "posts", "category", "ANNOUNCEMENT"]
+						},
+						"description": "Get posts by category"
+					},
+					"response": []
+				},
+				{
+					"name": "Search Posts",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/post/posts/search?keyword=feature",
+							"host": ["{{base_url}}"],
+							"path": ["post", "posts", "search"],
+							"query": [
+								{
+									"key": "keyword",
+									"value": "feature"
+								}
+							]
+						},
+						"description": "Search posts by keyword"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "📁 File Service",
+			"item": [
+				{
+					"name": "Upload File",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "formdata",
+							"formdata": [
+								{
+									"key": "file",
+									"type": "file",
+									"src": []
+								},
+								{
+									"key": "description",
+									"value": "Project requirements document",
+									"type": "text"
+								}
+							]
+						},
+						"url": {
+							"raw": "{{base_url}}/file/media/upload",
+							"host": ["{{base_url}}"],
+							"path": ["file", "media", "upload"]
+						},
+						"description": "Upload file to server"
+					},
+					"response": []
+				},
+				{
+					"name": "Download File",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/file/media/download/file-id-123",
+							"host": ["{{base_url}}"],
+							"path": ["file", "media", "download", "file-id-123"]
+						},
+						"description": "Download file by ID"
+					},
+					"response": []
+				},
+				{
+					"name": "Get File Info",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/file/media/info/file-id-123",
+							"host": ["{{base_url}}"],
+							"path": ["file", "media", "info", "file-id-123"]
+						},
+						"description": "Get file metadata"
+					},
+					"response": []
+				},
+				{
+					"name": "Delete File",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/file/media/file-id-123",
+							"host": ["{{base_url}}"],
+							"path": ["file", "media", "file-id-123"]
+						},
+						"description": "Delete file from server"
+					},
+					"response": []
+				},
+				{
+					"name": "Get User Files",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/file/media/user/{{user_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["file", "media", "user", "{{user_id}}"]
+						},
+						"description": "Get all files uploaded by user"
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "🤖 AI Service",
+			"item": [
+				{
+					"name": "Task Recommendations",
+					"item": [
+						{
+							"name": "Get Task Recommendations",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json();",
+											"    console.log(\"✅ Recommendations:\", JSON.stringify(jsonData.result, null, 2));",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/recommendations/task/{{task_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "recommendations", "task", "{{task_id}}"]
+								},
+								"description": "Get AI-powered candidate recommendations for task assignment"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Emergency Recommendations",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/recommendations/task/{{task_id}}/emergency",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "recommendations", "task", "{{task_id}}", "emergency"]
+								},
+								"description": "Get emergency recommendations for critical tasks"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Team-Specific Recommendations",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/recommendations/task/{{task_id}}/team/team-id-123",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "recommendations", "task", "{{task_id}}", "team", "team-id-123"]
+								},
+								"description": "Get recommendations filtered by specific team"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "CV Analysis",
+					"item": [
+						{
+							"name": "Analyze CV (Gemini AI)",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    var jsonData = pm.response.json();",
+											"    console.log(\"✅ CV Analysis Result:\");",
+											"    console.log(\"Name:\", jsonData.result.candidateName);",
+											"    console.log(\"Email:\", jsonData.result.email);",
+											"    console.log(\"Phone:\", jsonData.result.phoneNumber);",
+											"    console.log(\"Match Score:\", jsonData.result.matchScore);",
+											"    console.log(\"Skills Found:\", jsonData.result.skills.length);",
+											"    console.log(\"\\nFull Response:\", JSON.stringify(jsonData.result, null, 2));",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "file",
+											"type": "file",
+											"src": [],
+											"description": "PDF/DOCX CV file"
+										},
+										{
+											"key": "targetPosition",
+											"value": "Senior Backend Developer",
+											"type": "text",
+											"description": "Optional: Target position"
+										},
+										{
+											"key": "requiredSkills",
+											"value": "Java,Spring Boot,Microservices,Docker",
+											"type": "text",
+											"description": "Optional: Comma-separated skills"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/ai/cv/analyze",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "cv", "analyze"]
+								},
+								"description": "Analyze CV using Gemini AI - extracts skills, experience, education, and provides match score"
+							},
+							"response": []
+						},
+						{
+							"name": "Analyze CV (Ollama Local)",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "file",
+											"type": "file",
+											"src": []
+										},
+										{
+											"key": "targetPosition",
+											"value": "Full Stack Developer",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/ai/cv/analyze-ollama",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "cv", "analyze-ollama"]
+								},
+								"description": "Analyze CV using local Ollama model (offline capability)"
+							},
+							"response": []
+						},
+						{
+							"name": "Batch Analyze CVs",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "files",
+											"type": "file",
+											"src": []
+										},
+										{
+											"key": "files",
+											"type": "file",
+											"src": []
+										},
+										{
+											"key": "targetPosition",
+											"value": "Software Engineer",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/ai/cv/batch",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "cv", "batch"]
+								},
+								"description": "Analyze multiple CVs at once"
+							},
+							"response": []
+						},
+						{
+							"name": "Get CV Analysis History",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/cv/history?page=0&size=20",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "cv", "history"],
+									"query": [
+										{
+											"key": "page",
+											"value": "0"
+										},
+										{
+											"key": "size",
+											"value": "20"
+										}
+									]
+								},
+								"description": "Get history of all CV analysis performed"
+							},
+							"response": []
+						},
+						{
+							"name": "Get CV Analysis Statistics",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/cv/history/stats",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "cv", "history", "stats"]
+								},
+								"description": "Get statistics of CV analysis (total analyzed, average score, etc.)"
+							},
+							"response": []
+						},
+						{
+							"name": "Create Profile from CV Analysis",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"analysisId\": \"analysis-id-123\",\n  \"createUser\": true,\n  \"sendInvitation\": false\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/ai/cv/create-profile",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "cv", "create-profile"]
+								},
+								"description": "Create user profile directly from CV analysis result"
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Task Requirements Import",
+					"item": [
+						{
+							"name": "Analyze Text for Tasks",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"text\": \"We need to implement user authentication with JWT tokens, create REST APIs for user management, and set up a PostgreSQL database. The frontend should be built with React and integrate with the backend APIs.\",\n  \"projectContext\": \"New SaaS Platform Development\"\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{base_url}}/ai/requirements/import/text",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "requirements", "import", "text"]
+								},
+								"description": "Parse text requirements and generate task recommendations"
+							},
+							"response": []
+						},
+						{
+							"name": "Analyze File for Tasks",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "formdata",
+									"formdata": [
+										{
+											"key": "file",
+											"type": "file",
+											"src": [],
+											"description": "Requirements document (PDF, DOCX, TXT)"
+										},
+										{
+											"key": "projectContext",
+											"value": "E-commerce Platform",
+											"type": "text"
+										}
+									]
+								},
+								"url": {
+									"raw": "{{base_url}}/ai/requirements/import",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "requirements", "import"]
+								},
+								"description": "Upload requirements document and get AI-generated task breakdown"
+							},
+							"response": []
+						},
+						{
+							"name": "Get Supported File Formats",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/ai/tasks/supported-formats",
+									"host": ["{{base_url}}"],
+									"path": ["ai", "tasks", "supported-formats"]
+								},
+								"description": "Get list of supported file formats for requirements import"
+							},
+							"response": []
+						}
+					]
+				}
+			]
+		}
+	]
+}

@@ -117,17 +117,17 @@ const Contact = () => {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-16">
           {/* Contact Form */}
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">
               Send Us a Message
             </h2>
-            <p className="text-gray-600 mb-8">
+            <p className="text-gray-600 dark:text-gray-300 mb-8">
               Fill out the form below and our team will get back to you within 24 hours.
             </p>
 
             <form onSubmit={handleSubmit} className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Full Name *
                   </label>
                   <input
@@ -142,7 +142,7 @@ const Contact = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Email Address *
                   </label>
                   <input
@@ -160,7 +160,7 @@ const Contact = () => {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="company" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Company
                   </label>
                   <input
@@ -174,7 +174,7 @@ const Contact = () => {
                   />
                 </div>
                 <div>
-                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
+                  <label htmlFor="subject" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     Subject *
                   </label>
                   <select
@@ -196,7 +196,7 @@ const Contact = () => {
               </div>
 
               <div>
-                <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="message" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Message *
                 </label>
                 <textarea
@@ -249,10 +249,10 @@ const Contact = () => {
 
           {/* Contact Information */}
           <div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-6">
+            <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">
               Contact Information
             </h2>
-            <p className="text-gray-600 mb-8">
+            <p className="text-gray-600 dark:text-gray-300 mb-8">
               Reach out to us through any of these channels. Our team is here to help.
             </p>
 
@@ -267,7 +267,7 @@ const Contact = () => {
                       </div>
                     </div>
                     <div className="ml-4">
-                      <h3 className="text-lg font-medium text-gray-900">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                         {info.name}
                       </h3>
                       {info.href ? (
@@ -280,7 +280,7 @@ const Contact = () => {
                           {info.value}
                         </a>
                       ) : (
-                        <p className="text-gray-600 whitespace-pre-line">
+                        <p className="text-gray-600 dark:text-gray-300 whitespace-pre-line">
                           {info.value}
                         </p>
                       )}
@@ -292,25 +292,25 @@ const Contact = () => {
 
             {/* FAQ Section */}
             <div className="mt-12">
-              <h3 className="text-xl font-bold text-gray-900 mb-6">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6">
                 Frequently Asked Questions
               </h3>
               <div className="space-y-4">
                 {faqs.map((faq, index) => (
                   <details key={index} className="group">
                     <summary className="cursor-pointer list-none">
-                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                        <h4 className="font-medium text-gray-900">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-900 rounded-lg hover:bg-gray-100 dark:bg-gray-800 transition-colors">
+                        <h4 className="font-medium text-gray-900 dark:text-gray-100">
                           {faq.question}
                         </h4>
-                        <span className="ml-4 flex-shrink-0 text-gray-400 group-open:rotate-180 transition-transform">
+                        <span className="ml-4 flex-shrink-0 text-gray-400 dark:text-gray-500 group-open:rotate-180 transition-transform">
                           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                           </svg>
                         </span>
                       </div>
                     </summary>
-                    <div className="px-4 pb-4 text-gray-600">
+                    <div className="px-4 pb-4 text-gray-600 dark:text-gray-300">
                       {faq.answer}
                     </div>
                   </details>

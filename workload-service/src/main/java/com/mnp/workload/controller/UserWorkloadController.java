@@ -83,6 +83,13 @@ public class UserWorkloadController {
         return ResponseEntity.ok(response);
     }
 
+    // GET /api/workloads/project/{projectId} - Project workload overview
+    @GetMapping("/project/{projectId}")
+    public ResponseEntity<TeamWorkloadResponse> getProjectWorkload(@PathVariable String projectId) {
+        TeamWorkloadResponse response = workloadService.getProjectWorkload(projectId);
+        return ResponseEntity.ok(response);
+    }
+
     // GET /api/workloads/available - Get available users for assignment
     @GetMapping("/available")
     public ResponseEntity<AvailableUsersResponse> getAvailableUsers() {

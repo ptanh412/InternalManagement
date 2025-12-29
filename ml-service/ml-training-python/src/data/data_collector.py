@@ -8,19 +8,20 @@ This module collects training data from multiple databases:
 - MySQL: Task, project, identity, workload data (identity-service, task-service, project-service, workload-service)
 """
 
-import pandas as pd
-import numpy as np
-import yaml
 import logging
 import os
-from pathlib import Path
 from datetime import datetime, timedelta
-from sqlalchemy import create_engine, text
-from neo4j import GraphDatabase
-import pymongo
+from pathlib import Path
+from typing import Dict
+
 import mysql.connector
-from typing import Dict, List, Optional, Tuple
+import numpy as np
+import pandas as pd
+import pymongo
 import structlog
+import yaml
+from neo4j import GraphDatabase
+from sqlalchemy import create_engine, text
 
 logger = structlog.get_logger(__name__)
 
@@ -80,9 +81,15 @@ class MultiDatabaseDataCollector:
             mysql_config = self.db_config['mysql']
             self.mysql_connections = {}
             
+            logger.info("=" * 80)
+            logger.info("ESTABLISHING MYSQL DATABASE CONNECTIONS")
+            logger.info("=" * 80)
+            logger.info(f"MySQL config databases: {list(mysql_config.get('databases', {}).keys())}")
+
             # Create a connection for each MySQL database
             for db_name, db_info in mysql_config.get('databases', {}).items():
                 try:
+                    logger.info(f"Attempting to connect to '{db_name}' database ({db_info['database']})...")
                     connection = mysql.connector.connect(
                         host=str(mysql_config['host']),
                         port=int(mysql_config['port']),
@@ -91,10 +98,14 @@ class MultiDatabaseDataCollector:
                         password=str(mysql_config['password'])
                     )
                     self.mysql_connections[db_name] = connection
-                    logger.info(f"Connected to MySQL database: {db_name} ({db_info['database']})")
+                    logger.info(f"  ✓ Connected to MySQL database: {db_name} ({db_info['database']})")
                 except Exception as e:
-                    logger.error(f"Failed to connect to MySQL database {db_name}: {e}")
-            
+                    logger.error(f"  ✗ Failed to connect to MySQL database {db_name}: {e}")
+
+            logger.info(f"Total MySQL connections established: {len(self.mysql_connections)}")
+            logger.info(f"Connected databases: {list(self.mysql_connections.keys())}")
+            logger.info("=" * 80)
+
             # Keep backward compatibility - use first database as default connection
             if self.mysql_connections:
                 self.mysql_connection = list(self.mysql_connections.values())[0]
@@ -223,6 +234,79 @@ class MultiDatabaseDataCollector:
             neo4j_data, mongodb_data, mysql_data, postgres_data
         )
         
+        # Add derived performance metrics from existing columns
+        if not comprehensive_data.empty:
+            comprehensive_data = self._add_derived_performance_metrics(comprehensive_data)
+        
+        # ===== ABSOLUTE FINAL SAFETY: ENSURE WORKLOAD COLUMNS =====
+        logger.info("=" * 100)
+        logger.info("ABSOLUTE FINAL WORKLOAD CHECK BEFORE STORING/RETURNING")
+        logger.info("=" * 100)
+
+        if not comprehensive_data.empty:
+            # Check what columns exist
+            has_util = 'utilization' in comprehensive_data.columns
+            has_workload = 'workload_score' in comprehensive_data.columns
+            has_avail = 'availability_score' in comprehensive_data.columns
+            has_cap = 'capacity' in comprehensive_data.columns
+
+            logger.info(f"Workload columns status:")
+            logger.info(f"  - utilization: {'✓ EXISTS' if has_util else '✗ MISSING'}")
+            logger.info(f"  - workload_score: {'✓ EXISTS' if has_workload else '✗ MISSING'}")
+            logger.info(f"  - availability_score: {'✓ EXISTS' if has_avail else '✗ MISSING'}")
+            logger.info(f"  - capacity: {'✓ EXISTS' if has_cap else '✗ MISSING'}")
+
+            if not all([has_util, has_workload, has_avail, has_cap]):
+                logger.error("❌ WORKLOAD COLUMNS STILL MISSING! Forcing calculation NOW...")
+
+                # Check for raw data
+                has_total = 'total_estimate_hours' in comprehensive_data.columns
+                has_weekly = 'weekly_capacity_hours' in comprehensive_data.columns
+
+                logger.info(f"Raw data availability:")
+                logger.info(f"  - total_estimate_hours: {'✓' if has_total else '✗'}")
+                logger.info(f"  - weekly_capacity_hours: {'✓' if has_weekly else '✗'}")
+
+                if has_total and has_weekly:
+                    logger.info("Calculating from raw data...")
+
+                    # Force calculation
+                    comprehensive_data['utilization_percentage'] = (
+                        comprehensive_data['total_estimate_hours'] /
+                        comprehensive_data['weekly_capacity_hours'].replace(0, 1) * 100.0
+                    ).fillna(50.0)
+
+                    comprehensive_data['workload_score'] = (
+                        (100.0 - comprehensive_data['utilization_percentage']) / 100.0
+                    ).clip(0.0, 1.0)
+
+                    comprehensive_data['utilization'] = comprehensive_data['utilization_percentage'] / 100.0
+                    comprehensive_data['capacity'] = comprehensive_data['weekly_capacity_hours'].fillna(40.0)
+
+                    if 'availability_percentage' in comprehensive_data.columns:
+                        comprehensive_data['availability_score'] = (
+                            comprehensive_data['availability_percentage'] / 100.0
+                        ).clip(0.0, 1.0)
+                        comprehensive_data['availability'] = comprehensive_data['availability_score']
+                    else:
+                        comprehensive_data['availability_score'] = 0.5
+                        comprehensive_data['availability'] = 0.5
+
+                    logger.info("✅ FORCED CALCULATION COMPLETE:")
+                    logger.info(f"  - utilization: mean={comprehensive_data['utilization'].mean():.3f}")
+                    logger.info(f"  - workload_score: mean={comprehensive_data['workload_score'].mean():.3f}")
+                    logger.info(f"  - availability_score: mean={comprehensive_data['availability_score'].mean():.3f}")
+                else:
+                    logger.error("❌ NO RAW DATA - Cannot calculate! Using defaults...")
+                    comprehensive_data['utilization'] = 0.5
+                    comprehensive_data['workload_score'] = 0.5
+                    comprehensive_data['availability_score'] = 0.5
+                    comprehensive_data['capacity'] = 40.0
+            else:
+                logger.info("✅ All workload columns present!")
+
+        logger.info("=" * 100)
+
         # Store aggregated data in PostgreSQL for ML training
         self._store_comprehensive_data(comprehensive_data)
         
@@ -306,7 +390,7 @@ class MultiDatabaseDataCollector:
         # Convert to DataFrame
         ai_recs_df = pd.DataFrame(ai_recommendations) if ai_recommendations else pd.DataFrame()
         ai_preds_df = pd.DataFrame(ai_predictions) if ai_predictions else pd.DataFrame()
-        chat_df = pd.DataFrame(chat_data) if chat_data else pd.DataFrame()
+        pd.DataFrame(chat_data) if chat_data else pd.DataFrame()
         
         # Merge AI service data
         mongodb_df = pd.DataFrame()
@@ -345,22 +429,43 @@ class MultiDatabaseDataCollector:
             if self._check_table_exists(connection, 'tasks'):
                 task_cursor = connection.cursor(dictionary=True)
 
-                # Check if difficulty column exists
-                has_difficulty = False
+                # Check if completed_at column exists
                 has_completed_at = False
                 try:
                     check_cursor = connection.cursor()
                     check_cursor.execute("DESCRIBE tasks")
                     columns = [col[0] for col in check_cursor.fetchall()]
-                    has_difficulty = 'difficulty' in columns
                     has_completed_at = 'completed_at' in columns
                     check_cursor.close()
                 except Exception:
                     pass
 
-                # Build task query with required_skills and actual_hours from time logs
-                difficulty_col = "t.difficulty," if has_difficulty else "'MEDIUM' as difficulty,"
+                # Build task query with required_skills and new extension tracking fields
+                # Note: difficulty column removed as it doesn't exist in Task entity
                 completed_at_col = "t.completed_at," if has_completed_at else "NULL as completed_at,"
+
+                # Check for new extension tracking columns
+                check_cursor = connection.cursor()
+                check_cursor.execute("DESCRIBE tasks")
+                all_columns = [col[0] for col in check_cursor.fetchall()]
+                check_cursor.close()
+
+                has_assigned_at = 'assigned_at' in all_columns
+                has_original_estimated = 'original_estimated_hours' in all_columns
+                has_original_due_date = 'original_due_date' in all_columns
+                has_extension_count = 'extension_count' in all_columns
+                has_total_extension_hours = 'total_extension_hours' in all_columns
+                has_had_extension = 'had_extension' in all_columns
+                has_last_extension_date = 'last_extension_date' in all_columns
+
+                # Build column selections with fallbacks for backward compatibility
+                assigned_at_col = "t.assigned_at," if has_assigned_at else "NULL as assigned_at,"
+                original_est_col = "t.original_estimated_hours," if has_original_estimated else "t.estimated_hours as original_estimated_hours,"
+                original_due_col = "t.original_due_date," if has_original_due_date else "t.due_date as original_due_date,"
+                ext_count_col = "t.extension_count," if has_extension_count else "0 as extension_count,"
+                total_ext_hrs_col = "t.total_extension_hours," if has_total_extension_hours else "0 as total_extension_hours,"
+                had_ext_col = "t.had_extension," if has_had_extension else "FALSE as had_extension,"
+                last_ext_date_col = "t.last_extension_date," if has_last_extension_date else "NULL as last_extension_date,"
 
                 task_query = f"""
                 SELECT 
@@ -368,20 +473,38 @@ class MultiDatabaseDataCollector:
                     t.title as task_title,
                     t.description as task_description,
                     t.priority,
-                    {difficulty_col}
+                    t.type as task_type,
+                    
+                    -- Original values (for comparison with extensions)
+                    {original_est_col}
+                    {original_due_col}
+                    
+                    -- Current values (may include extensions)
                     t.estimated_hours,
                     t.actual_hours,
-                    t.status as task_status,
-                    t.created_at as task_created_date,
-                    {completed_at_col}
                     t.due_date,
+                    
+                    -- Extension tracking (NEW)
+                    {ext_count_col}
+                    {total_ext_hrs_col}
+                    {had_ext_col}
+                    {last_ext_date_col}
+                    
+                    -- Timing fields
+                    {assigned_at_col}
+                    {completed_at_col}
+                    t.started_at,
+                    t.created_at as task_created_date,
+                    t.updated_at,
+                    
+                    -- Other fields
+                    t.status as task_status,
                     t.assigned_to,
                     t.progress_percentage,
-                    t.type as task_type,
                     t.project_id,
                     t.reporter_id,
-                    t.started_at,
-                    t.updated_at,
+                    
+                    -- Skills
                     COALESCE(
                         (SELECT GROUP_CONCAT(trs.skill_name SEPARATOR ',')
                          FROM task_required_skills trs
@@ -393,6 +516,19 @@ class MultiDatabaseDataCollector:
                 LIMIT 1000
                 """
 
+                logger.info("=" * 80)
+                logger.info("TASK QUERY COLUMN AVAILABILITY")
+                logger.info("=" * 80)
+                logger.info(f"  assigned_at: {'✓' if has_assigned_at else '✗ (using NULL)'}")
+                logger.info(f"  original_estimated_hours: {'✓' if has_original_estimated else '✗ (using estimated_hours)'}")
+                logger.info(f"  original_due_date: {'✓' if has_original_due_date else '✗ (using due_date)'}")
+                logger.info(f"  extension_count: {'✓' if has_extension_count else '✗ (using 0)'}")
+                logger.info(f"  total_extension_hours: {'✓' if has_total_extension_hours else '✗ (using 0)'}")
+                logger.info(f"  had_extension: {'✓' if has_had_extension else '✗ (using FALSE)'}")
+                logger.info(f"  last_extension_date: {'✓' if has_last_extension_date else '✗ (using NULL)'}")
+                logger.info(f"  completed_at: {'✓' if has_completed_at else '✗ (using NULL)'}")
+                logger.info("=" * 80)
+
                 try:
                     task_cursor.execute(task_query, (cutoff_date,))
                     task_records = task_cursor.fetchall()
@@ -400,9 +536,33 @@ class MultiDatabaseDataCollector:
 
                     # Process required_skills from comma-separated string to list
                     if not task_df.empty and 'required_skills' in task_df.columns:
+                        logger.info("=" * 80)
+                        logger.info("PROCESSING REQUIRED_SKILLS FROM TASK DATA")
+                        logger.info("=" * 80)
+
+                        # Log sample before processing
+                        sample_before = task_df['required_skills'].iloc[0] if len(task_df) > 0 else None
+                        logger.info(f"Sample required_skills BEFORE processing: {sample_before}")
+                        logger.info(f"Type: {type(sample_before)}")
+
                         task_df['required_skills'] = task_df['required_skills'].apply(
                             lambda x: x.split(',') if x and x.strip() else []
                         )
+
+                        # Log sample after processing
+                        sample_after = task_df['required_skills'].iloc[0] if len(task_df) > 0 else None
+                        logger.info(f"Sample required_skills AFTER processing: {sample_after}")
+                        logger.info(f"Type: {type(sample_after)}")
+
+                        # Count non-empty skill lists
+                        non_empty = task_df['required_skills'].apply(lambda x: len(x) > 0).sum()
+                        logger.info(f"Tasks with required_skills: {non_empty}/{len(task_df)}")
+
+                        if non_empty == 0:
+                            logger.warning("⚠️  ALL tasks have EMPTY required_skills!")
+                            logger.warning("   This will cause skill_match_score = 0 for everyone")
+
+                        logger.info("=" * 80)
 
                     # Keep completed_at as is - no renaming needed for consistency with source database
 
@@ -413,6 +573,14 @@ class MultiDatabaseDataCollector:
                             completed_mask = task_df['task_status'] == 'COMPLETED'
                             task_df.loc[completed_mask & task_df['actual_hours'].isna(), 'actual_hours'] = \
                                 task_df.loc[completed_mask & task_df['actual_hours'].isna(), 'estimated_hours']
+
+                    # Calculate performance metrics from new fields
+                    if not task_df.empty:
+                        task_df = self._calculate_task_performance_metrics(task_df)
+                    
+                    # Derive difficulty from priority and estimated_hours since it doesn't exist in Task entity
+                    if not task_df.empty:
+                        task_df = self._derive_task_difficulty(task_df)
 
                     logger.info(f"Collected {len(task_df)} records from task database")
                 except Exception as e:
@@ -623,16 +791,50 @@ class MultiDatabaseDataCollector:
             else:
                 logger.warning("No users table found in identity database")
 
-        # Note: workload data might be in task or project database
-        # Check if workload table exists in any of the connected databases
+        # Note: user_workloads table is in workload database
+        # Check workload database first, then fall back to other databases
+        logger.info("=" * 80)
+        logger.info("SEARCHING FOR user_workloads TABLE")
+        logger.info("=" * 80)
+
         workload_table_found = False
+        
+        # Priority order: workload > task > project > identity
+        priority_dbs = ['workload', 'task', 'project', 'identity']
+        databases_to_check = []
+        
+        # Log available MySQL connections
+        logger.info(f"Available MySQL connections: {list(self.mysql_connections.keys())}")
+
+        # Add databases in priority order if they exist
+        for db_name in priority_dbs:
+            if db_name in self.mysql_connections:
+                databases_to_check.append((db_name, self.mysql_connections[db_name]))
+                logger.info(f"  ✓ Will check '{db_name}' database")
+            else:
+                logger.warning(f"  ✗ '{db_name}' database connection not available")
+
+        # Add any remaining databases not in priority list
         for db_name, connection in self.mysql_connections.items():
+            if db_name not in priority_dbs:
+                databases_to_check.append((db_name, connection))
+                logger.info(f"  ✓ Will check '{db_name}' database (non-priority)")
+
+        logger.info(f"Checking {len(databases_to_check)} databases in order: {[db[0] for db in databases_to_check]}")
+        logger.info("=" * 80)
+
+        for db_name, connection in databases_to_check:
             try:
+                logger.info(f"Checking for user_workloads table in '{db_name}' database...")
+
                 # First check if table exists
-                if not self._check_table_exists(connection, 'user_workloads'):
+                table_exists = self._check_table_exists(connection, 'user_workloads')
+
+                if not table_exists:
+                    logger.info(f"  ✗ Table user_workloads NOT FOUND in '{db_name}' database")
                     continue
 
-                logger.info(f"Found user_workloads table in {db_name} database")
+                logger.info(f"  ✓ Found user_workloads table in '{db_name}' database!")
                 workload_table_found = True
 
                 workload_cursor = connection.cursor(dictionary=True)
@@ -652,50 +854,147 @@ class MultiDatabaseDataCollector:
                 FROM user_workloads w
                 WHERE w.last_updated >= %s
                 """
-                
+
                 workload_cursor.execute(workload_query, (cutoff_date,))
                 workload_records = workload_cursor.fetchall()
                 if workload_records:
                     workload_df = pd.DataFrame(workload_records)
 
-                    # Calculate utilization and capacity metrics for ML model
+                    logger.info(f"Raw workload_df has {len(workload_df)} records")
+                    logger.info(f"Columns from database: {workload_df.columns.tolist()}")
+
+                    # =====================================================
+                    # STEP 1: CALCULATE WORKLOAD METRICS (DO THIS FIRST!)
+                    # =====================================================
                     if not workload_df.empty:
-                        # Calculate utilization (total hours / weekly capacity)
-                        workload_df['utilization'] = (
-                            workload_df['total_estimate_hours'] /
-                            workload_df['weekly_capacity_hours']
+                        logger.info("=" * 80)
+                        logger.info("CALCULATING WORKLOAD METRICS FROM DATABASE COLUMNS")
+                        logger.info("=" * 80)
+
+                        # 1.1: Calculate utilization_percentage
+                        workload_df['utilization_percentage'] = (
+                                workload_df['total_estimate_hours'] /
+                                workload_df['weekly_capacity_hours'].replace(0, 1) * 100.0
                         ).fillna(0)
 
-                        # Capacity is the weekly capacity hours
+                        logger.info(f"✓ Calculated utilization_percentage")
+                        logger.info(f"  - total_estimate_hours: mean={workload_df['total_estimate_hours'].mean():.1f}h")
+                        logger.info(f"  - weekly_capacity_hours: mean={workload_df['weekly_capacity_hours'].mean():.1f}h")
+                        logger.info(f"  - utilization_percentage: mean={workload_df['utilization_percentage'].mean():.1f}%")
+
+                        # 1.2: Calculate workload_score (inverse of utilization)
+                        workload_df['workload_score'] = (
+                                (100.0 - workload_df['utilization_percentage']) / 100.0
+                        ).clip(lower=0.0, upper=1.0)
+
+                        logger.info(f"✓ Calculated workload_score (inverse of utilization)")
+                        logger.info(f"  - workload_score: mean={workload_df['workload_score'].mean():.3f}")
+
+                        # 1.3: Calculate utilization ratio
+                        workload_df['utilization'] = workload_df['utilization_percentage'] / 100.0
+                        logger.info(f"✓ Calculated utilization ratio: mean={workload_df['utilization'].mean():.3f}")
+
+                        # 1.4: Set capacity
                         workload_df['capacity'] = workload_df['weekly_capacity_hours']
 
-                        # Normalize availability percentage to 0-1 scale if needed
+                        # 1.5: Calculate availability_score
                         if 'availability_percentage' in workload_df.columns:
-                            workload_df['availability'] = workload_df['availability_percentage'] / 100.0
+                            workload_df['availability_score'] = (
+                                    workload_df['availability_percentage'] / 100.0
+                            ).clip(0.0, 1.0)
+                            workload_df['availability'] = workload_df['availability_score']
 
-                    logger.info(f"Collected {len(workload_df)} workload records from {db_name} database")
+                            logger.info(f"✓ Calculated availability_score from availability_percentage")
+                            logger.info(f"  - availability_percentage: mean={workload_df['availability_percentage'].mean():.1f}%")
+                            logger.info(f"  - availability_score: mean={workload_df['availability_score'].mean():.3f}")
+                        else:
+                            logger.warning("⚠️  availability_percentage column not found")
+                            workload_df['availability_score'] = 0.5
+                            workload_df['availability'] = 0.5
+
+                        # 1.6: Warn about overloaded users
+                        overloaded_users = workload_df[workload_df['utilization_percentage'] > 100]
+                        if len(overloaded_users) > 0:
+                            logger.warning("")
+                            logger.warning(f"⚠️  FOUND {len(overloaded_users)} OVERLOADED USERS:")
+                            for idx, row in overloaded_users.head(10).iterrows():
+                                user_id = row.get('user_id', 'Unknown')[:8]
+                                util_pct = row.get('utilization_percentage', 0)
+                                logger.warning(f"  - User {user_id}... : {util_pct:.1f}% utilization")
+
+                        logger.info("=" * 80)
+
+                        # =====================================================
+                        # STEP 2: VERIFY COLUMNS EXIST (DO THIS AFTER CALCULATION!)
+                        # =====================================================
+                        logger.info("=" * 80)
+                        logger.info("VERIFYING CALCULATED COLUMNS (AFTER CALCULATION)")
+                        logger.info("=" * 80)
+
+                        required_cols = ['utilization', 'workload_score', 'availability_score', 'capacity', 'availability']
+                        all_present = True
+
+                        for col in required_cols:
+                            if col in workload_df.columns:
+                                mean_val = workload_df[col].mean()
+                                logger.info(f"  ✓ {col}: EXISTS - mean={mean_val:.3f}")
+                            else:
+                                logger.error(f"  ✗ {col}: MISSING after calculation!")
+                                all_present = False
+
+                        if all_present:
+                            logger.info("✅ All required workload columns successfully calculated!")
+                        else:
+                            logger.error("❌ Some columns are still missing - check calculation logic!")
+
+                        logger.info(f"Final columns: {workload_df.columns.tolist()}")
+                        logger.info("=" * 80)
+
+                        logger.info("=" * 80)
+                        logger.info("WORKLOAD_DF COLUMNS AFTER CALCULATION")
+                        logger.info("=" * 80)
+                        logger.info(f"Columns: {workload_df.columns.tolist()}")
+                        logger.info(f"Sample row:")
+                        for col in ['weekly_capacity_hours', 'workload_score', 'utilization']:
+                            if col in workload_df.columns:
+                                logger.info(f"  {col}: {workload_df[col].iloc[0] if len(workload_df) > 0 else 'N/A'}")
+                            else:
+                                logger.error(f"  {col}: MISSING!")
+                        logger.info("=" * 80)
+
+                    else:
+                        logger.warning("workload_df is empty, skipping calculations")
+                        # Add empty columns
+                        for col in ['utilization', 'workload_score', 'availability_score', 'capacity', 'availability']:
+                            workload_df[col] = []
+
+                    logger.info(f"Collected {len(workload_df)} workload records from {db_name}")
                     workload_cursor.close()
-                    break  # Found workload data, no need to check other databases
+                    break  # Found workload data, exit loop
                 else:
-                    logger.info(f"No workload records found in {db_name} database (table exists but empty)")
-                workload_cursor.close()
+                    logger.info(f"No workload records found in {db_name} database")
+                    workload_cursor.close()
             except Exception as e:
                 # Table might not exist in this database, continue to next
                 logger.debug(f"Could not query user_workloads in {db_name}: {e}")
                 continue
         
         if not workload_table_found:
-            logger.warning("user_workloads table not found in any MySQL database (task, identity, project)")
+            logger.warning("user_workloads table not found in any MySQL database")
+            logger.warning("Will add default workload columns later when merging")
         elif workload_df.empty:
             logger.warning("user_workloads table exists but contains no data")
+            logger.warning("Will add default workload columns later when merging")
 
         # ========== Collect user_current_tasks for assigned_date ==========
         user_tasks_df = pd.DataFrame()
         user_tasks_found = False
 
-        for db_name, connection in self.mysql_connections.items():
+        # Priority order: workload > task > project > identity
+        for db_name, connection in databases_to_check:
             try:
                 if not self._check_table_exists(connection, 'user_current_tasks'):
+                    logger.debug(f"Table user_current_tasks not found in {db_name} database")
                     continue
 
                 logger.info(f"Found user_current_tasks table in {db_name} database")
@@ -739,12 +1038,24 @@ class MultiDatabaseDataCollector:
         mysql_df = pd.DataFrame()
         if not task_df.empty:
             mysql_df = task_df
-            
+
             # Add identity data to get user_skills, department_name, seniority_level, years_experience
             if not identity_df.empty:
                 # Debug log to check columns before merge
+                logger.info("=" * 80)
+                logger.info("MERGING IDENTITY DATA")
+                logger.info("=" * 80)
                 logger.info(f"Identity columns: {identity_df.columns.tolist()}")
+                logger.info(f"Identity rows: {len(identity_df)}")
                 logger.info(f"Task columns before merge: {mysql_df.columns.tolist()}")
+                logger.info(f"Task rows: {len(mysql_df)}")
+
+                # Check if user_skills column exists in identity_df
+                if 'user_skills' in identity_df.columns:
+                    non_empty_skills = identity_df['user_skills'].apply(lambda x: bool(x) if isinstance(x, list) else False).sum()
+                    logger.info(f"Identity has user_skills: {non_empty_skills}/{len(identity_df)} users have skills")
+                else:
+                    logger.warning("⚠️  user_skills column NOT in identity_df!")
 
                 mysql_df = mysql_df.merge(
                     identity_df,
@@ -755,16 +1066,180 @@ class MultiDatabaseDataCollector:
                 )
 
                 logger.info(f"Columns after identity merge: {mysql_df.columns.tolist()}")
+                logger.info(f"Rows after merge: {len(mysql_df)}")
+
+                # Verify critical columns made it through
+                critical_identity_cols = ['user_skills', 'user_skill_levels', 'department_name', 'seniority_level', 'years_experience', 'performance_score']
+                logger.info("\nCritical identity columns after merge:")
+                for col in critical_identity_cols:
+                    if col in mysql_df.columns:
+                        if col in ['user_skills', 'user_skill_levels']:
+                            non_empty = mysql_df[col].apply(lambda x: bool(x) if isinstance(x, list) else False).sum()
+                            logger.info(f"  ✓ {col}: {non_empty}/{len(mysql_df)} non-empty")
+                        else:
+                            non_null = mysql_df[col].notna().sum()
+                            logger.info(f"  ✓ {col}: {non_null}/{len(mysql_df)} non-null")
+                    else:
+                        logger.warning(f"  ✗ {col}: MISSING!")
+                logger.info("=" * 80)
 
             # Add workload data
             if not workload_df.empty:
+                logger.info("=" * 80)
+                logger.info("MERGING WORKLOAD DATA INTO MYSQL DATASET")
+                logger.info("=" * 80)
+                logger.info(f"Workload columns to merge: {workload_df.columns.tolist()}")
+                logger.info(f"Workload rows: {len(workload_df)}")
+
+                # CRITICAL: Log workload columns BEFORE merge to confirm they exist
+                workload_critical_cols = ['utilization', 'workload_score', 'availability_score', 'capacity']
+                logger.info("Workload columns in workload_df BEFORE merge:")
+                for col in workload_critical_cols:
+                    if col in workload_df.columns:
+                        logger.info(f"  ✓ {col}: EXISTS - mean={workload_df[col].mean():.3f}")
+                    else:
+                        logger.warning(f"  ✗ {col}: MISSING from workload_df!")
+
+                # Determine which column to use for merge
+                # After identity merge, we should have 'user_id' column
+                merge_column = 'user_id' if 'user_id' in mysql_df.columns else 'assigned_to'
+                logger.info(f"Using '{merge_column}' column for workload merge")
+
+                # Log sample values to verify they'll match
+                if len(mysql_df) > 0 and merge_column in mysql_df.columns:
+                    sample_task_user = mysql_df[merge_column].iloc[0]
+                    logger.info(f"Sample task {merge_column}: {sample_task_user}")
+                if len(workload_df) > 0:
+                    sample_workload_user = workload_df['user_id'].iloc[0]
+                    logger.info(f"Sample workload user_id: {sample_workload_user}")
+
+                before_merge_cols = set(mysql_df.columns)
+                logger.info(f"mysql_df columns BEFORE merge ({len(before_merge_cols)}): {sorted(list(before_merge_cols))[:20]}...")
+                
+                # Check for potential column conflicts
+                workload_cols_to_merge = workload_df.columns.tolist()
+                conflicting_cols = [col for col in workload_cols_to_merge if col in before_merge_cols and col != 'user_id']
+                if conflicting_cols:
+                    logger.warning(f"⚠️  Columns exist in both dataframes (will get _workload suffix): {conflicting_cols}")
+                
                 mysql_df = mysql_df.merge(
                     workload_df,
-                    left_on='assigned_to',  # Use correct column name
+                    left_on=merge_column,  # Use user_id if available, otherwise assigned_to
                     right_on='user_id',
                     how='left',
                     suffixes=('', '_workload')
                 )
+                
+                after_merge_cols = set(mysql_df.columns)
+                new_cols = after_merge_cols - before_merge_cols
+                logger.info(f"New columns added by workload merge ({len(new_cols)}): {sorted(list(new_cols))}")
+                
+                # Check if critical columns got renamed with _workload suffix
+                for critical_col in ['utilization', 'workload_score', 'availability_score', 'capacity']:
+                    renamed_col = f"{critical_col}_workload"
+                    if renamed_col in mysql_df.columns and critical_col not in mysql_df.columns:
+                        logger.warning(f"⚠️  Column '{critical_col}' was renamed to '{renamed_col}' - renaming back!")
+                        mysql_df[critical_col] = mysql_df[renamed_col]
+                        mysql_df.drop(columns=[renamed_col], inplace=True)
+
+                logger.info(f"Columns after workload merge: {mysql_df.columns.tolist()}")
+
+                # Verify workload columns are present and ADD MISSING ONES
+                workload_check_cols = ['utilization', 'workload_score', 'availability_score', 'capacity']
+                logger.info("\nWorkload columns verification:")
+
+                missing_cols = []
+                for col in workload_check_cols:
+                    if col in mysql_df.columns:
+                        non_null = mysql_df[col].notna().sum()
+                        logger.info(f"  ✓ {col}: {non_null}/{len(mysql_df)} non-null values - Mean: {mysql_df[col].mean():.3f}")
+                    else:
+                        missing_cols.append(col)
+                        logger.warning(f"  ✗ {col}: MISSING after merge!")
+
+                # If columns are missing, calculate/add them
+                if missing_cols:
+                    logger.warning(f"\n⚠️  Missing workload columns after merge: {missing_cols}")
+                    logger.info("Attempting to calculate missing columns from available data...")
+
+                    # Check if we have the raw columns to calculate
+                    if 'total_estimate_hours' in mysql_df.columns and 'weekly_capacity_hours' in mysql_df.columns:
+                        logger.info("✓ Found total_estimate_hours and weekly_capacity_hours, calculating workload metrics...")
+
+                        # Calculate utilization_percentage
+                        mysql_df['utilization_percentage'] = (
+                            mysql_df['total_estimate_hours'] /
+                            mysql_df['weekly_capacity_hours'].replace(0, 1) * 100.0
+                        ).fillna(50.0)
+
+                        # Calculate workload_score (inverse)
+                        mysql_df['workload_score'] = (
+                            (100.0 - mysql_df['utilization_percentage']) / 100.0
+                        ).clip(0.0, 1.0)
+
+                        # Calculate utilization ratio
+                        mysql_df['utilization'] = mysql_df['utilization_percentage'] / 100.0
+
+                        # Add capacity
+                        mysql_df['capacity'] = mysql_df['weekly_capacity_hours']
+
+                        logger.info("✓ Calculated workload metrics from raw columns")
+                        logger.info(f"  - utilization: mean={mysql_df['utilization'].mean():.3f}")
+                        logger.info(f"  - workload_score: mean={mysql_df['workload_score'].mean():.3f}")
+                    else:
+                        logger.warning("✗ Cannot calculate - missing total_estimate_hours or weekly_capacity_hours")
+                        logger.info("Adding default values instead...")
+                        if 'utilization' not in mysql_df.columns:
+                            mysql_df['utilization'] = 0.5
+                        if 'workload_score' not in mysql_df.columns:
+                            mysql_df['workload_score'] = 0.5
+                        if 'capacity' not in mysql_df.columns:
+                            mysql_df['capacity'] = 40.0
+
+                    # Handle availability columns
+                    if 'availability_score' not in mysql_df.columns:
+                        if 'availability_percentage' in mysql_df.columns:
+                            mysql_df['availability_score'] = (mysql_df['availability_percentage'] / 100.0).clip(0.0, 1.0)
+                            mysql_df['availability'] = mysql_df['availability_score']
+                            logger.info("✓ Calculated availability_score from availability_percentage")
+                        else:
+                            mysql_df['availability_score'] = 0.5
+                            mysql_df['availability'] = 0.5
+                            logger.info("✓ Added default availability_score: 0.5")
+
+                logger.info("=" * 80)
+            else:
+                logger.warning("=" * 80)
+                logger.warning("⚠️  NO WORKLOAD DATA TO MERGE!")
+                logger.warning("   workload_df is empty - will add default workload columns")
+                logger.warning("=" * 80)
+
+                # Add workload columns with default values so downstream code doesn't break
+                logger.info("Adding default workload columns to mysql_df...")
+                mysql_df['utilization'] = 0.5  # Default 50% utilization
+                mysql_df['utilization_percentage'] = 50.0  # Default 50%
+                mysql_df['workload_score'] = 0.5  # Default neutral score
+                mysql_df['availability_score'] = 0.5  # Default neutral score
+                mysql_df['availability'] = 0.5  # Default
+                mysql_df['capacity'] = 40.0  # Default 40 hours/week
+                mysql_df['weekly_capacity_hours'] = 40
+                mysql_df['total_estimate_hours'] = 20
+
+                logger.info("✓ Added default workload columns:")
+                logger.info("  - utilization: 0.5 (50%)")
+                logger.info("  - workload_score: 0.5 (neutral)")
+                logger.info("  - availability_score: 0.5 (neutral)")
+                logger.info("  - capacity: 40.0 hours/week")
+                
+                # Verify they were actually added
+                logger.info("\nVerifying default columns were added:")
+                for col in ['utilization', 'workload_score', 'availability_score', 'capacity', 'availability']:
+                    if col in mysql_df.columns:
+                        logger.info(f"  ✓ {col}: EXISTS in mysql_df")
+                    else:
+                        logger.error(f"  ✗ {col}: STILL MISSING! This is a bug!")
+                
+                logger.info("=" * 80)
 
             # Add user_current_tasks data for assignment_date
             if not user_tasks_df.empty:
@@ -803,20 +1278,194 @@ class MultiDatabaseDataCollector:
 
         logger.info(f"Collected {len(mysql_df)} records from MySQL")
 
-        # Log final columns to verify we have all required fields
+        # ========== ENSURE WORKLOAD COLUMNS ALWAYS EXIST ==========
         if not mysql_df.empty:
-            logger.info(f"Final MySQL columns: {mysql_df.columns.tolist()}")
+            logger.info("=" * 100)
+            logger.info("ENSURING WORKLOAD COLUMNS EXIST")
+            logger.info("=" * 100)
 
-            # Check for critical ML columns (optional columns excluded)
-            # Note: actual_hours, completed_at, assigned_date are OPTIONAL
-            # They only exist for completed/in-progress tasks, not for new predictions
-            critical_cols = ['required_skills', 'user_skills', 'department_name',
-                           'seniority_level', 'years_experience', 'difficulty']
-            missing_cols = [col for col in critical_cols if col not in mysql_df.columns]
-            if missing_cols:
-                logger.warning(f"Missing critical ML columns: {missing_cols}")
+            # Check which workload columns are missing
+            required_workload_cols = ['utilization', 'workload_score', 'availability_score', 'capacity']
+            missing = [col for col in required_workload_cols if col not in mysql_df.columns]
+
+            if missing:
+                logger.warning(f"Missing workload columns: {missing}")
+                logger.info("Attempting to calculate/add them...")
+
+                # Try to calculate from raw data if available
+                if 'total_estimate_hours' in mysql_df.columns and 'weekly_capacity_hours' in mysql_df.columns:
+                    logger.info("✓ Found raw workload data, calculating metrics...")
+
+                    # Calculate utilization_percentage
+                    if 'utilization_percentage' not in mysql_df.columns:
+                        mysql_df['utilization_percentage'] = (
+                            mysql_df['total_estimate_hours'] /
+                            mysql_df['weekly_capacity_hours'].replace(0, 1) * 100.0
+                        ).fillna(50.0)
+
+                    # Calculate workload_score (inverse of utilization)
+                    if 'workload_score' not in mysql_df.columns:
+                        mysql_df['workload_score'] = (
+                            (100.0 - mysql_df['utilization_percentage']) / 100.0
+                        ).clip(0.0, 1.0)
+
+                    # Calculate utilization ratio
+                    if 'utilization' not in mysql_df.columns:
+                        mysql_df['utilization'] = mysql_df['utilization_percentage'] / 100.0
+
+                    # Add capacity
+                    if 'capacity' not in mysql_df.columns:
+                        mysql_df['capacity'] = mysql_df['weekly_capacity_hours'].fillna(40.0)
+
+                    logger.info("✓ Calculated workload metrics:")
+                    logger.info(f"  - utilization: mean={mysql_df['utilization'].mean():.3f}")
+                    logger.info(f"  - workload_score: mean={mysql_df['workload_score'].mean():.3f}")
+
+                else:
+                    logger.warning("✗ Cannot calculate - missing raw columns")
+                    logger.info("Adding default values...")
+
+                    if 'utilization' not in mysql_df.columns:
+                        mysql_df['utilization'] = 0.5
+                    if 'workload_score' not in mysql_df.columns:
+                        mysql_df['workload_score'] = 0.5
+                    if 'capacity' not in mysql_df.columns:
+                        mysql_df['capacity'] = 40.0
+
+                # Handle availability
+                if 'availability_score' not in mysql_df.columns:
+                    if 'availability_percentage' in mysql_df.columns:
+                        mysql_df['availability_score'] = (
+                            mysql_df['availability_percentage'] / 100.0
+                        ).clip(0.0, 1.0)
+                        mysql_df['availability'] = mysql_df['availability_score']
+                        logger.info("✓ Calculated availability_score from availability_percentage")
+                    else:
+                        mysql_df['availability_score'] = 0.5
+                        mysql_df['availability'] = 0.5
+                        logger.info("Added default availability_score: 0.5")
             else:
-                logger.info("✓ All critical ML columns present")
+                logger.info("✓ All required workload columns already exist")
+
+            logger.info("=" * 100)
+
+        # ========== CRITICAL: ABSOLUTE FINAL WORKLOAD COLUMN CHECK ==========
+        # This MUST happen before returning mysql_df to ensure columns exist
+        if not mysql_df.empty:
+            logger.info("=" * 100)
+            logger.info("🔥 CRITICAL FINAL CHECK: ENSURING WORKLOAD COLUMNS EXIST BEFORE RETURN 🔥")
+            logger.info("=" * 100)
+            
+            required_workload_cols = {
+                'utilization': 0.5,
+                'workload_score': 0.5,
+                'availability_score': 0.5,
+                'availability': 0.5,
+                'capacity': 40.0,
+                'utilization_percentage': 50.0
+            }
+            
+            missing_cols = []
+            for col, default_val in required_workload_cols.items():
+                if col not in mysql_df.columns:
+                    missing_cols.append(col)
+                    logger.warning(f"  ✗ {col}: MISSING - Adding default value {default_val}")
+                    mysql_df[col] = default_val
+                else:
+                    non_null = mysql_df[col].notna().sum()
+                    mean_val = mysql_df[col].mean() if non_null > 0 else 0
+                    logger.info(f"  ✓ {col}: EXISTS - {non_null}/{len(mysql_df)} non-null, mean={mean_val:.3f}")
+            
+            if missing_cols:
+                logger.warning(f"⚠️  Added {len(missing_cols)} missing workload columns with defaults: {missing_cols}")
+            else:
+                logger.info("✅ All required workload columns present!")
+            
+            logger.info("=" * 100)
+
+        # ========== COMPREHENSIVE FINAL DATA VERIFICATION ==========
+        if not mysql_df.empty:
+            logger.info("=" * 100)
+            logger.info("FINAL MYSQL DATA VERIFICATION")
+            logger.info("=" * 100)
+            logger.info(f"Total rows collected: {len(mysql_df)}")
+            logger.info(f"Total columns: {len(mysql_df.columns)}")
+            logger.info("")
+
+            # Group columns by category
+            workload_cols = [c for c in mysql_df.columns if any(x in c.lower() for x in ['utilization', 'workload', 'capacity', 'availability'])]
+            skill_cols = [c for c in mysql_df.columns if 'skill' in c.lower()]
+            user_cols = [c for c in mysql_df.columns if any(x in c.lower() for x in ['department', 'seniority', 'experience', 'performance'])]
+            task_cols = [c for c in mysql_df.columns if any(x in c.lower() for x in ['task', 'priority', 'difficulty', 'estimated'])]
+
+            logger.info(f"Column Categories:")
+            logger.info(f"  - Workload columns ({len(workload_cols)}): {workload_cols}")
+            logger.info(f"  - Skill columns ({len(skill_cols)}): {skill_cols}")
+            logger.info(f"  - User columns ({len(user_cols)}): {user_cols}")
+            logger.info(f"  - Task columns ({len(task_cols)}): {task_cols}")
+            logger.info("")
+
+            # Verify critical columns have DATA (not just exist)
+            logger.info("Critical Columns Data Verification:")
+
+            # 1. Workload data
+            if 'utilization' in mysql_df.columns:
+                non_zero = (mysql_df['utilization'] != 0).sum()
+                logger.info(f"  ✓ utilization: {non_zero}/{len(mysql_df)} non-zero - Mean: {mysql_df['utilization'].mean():.3f}")
+            else:
+                logger.error(f"  ✗ utilization: STILL MISSING AFTER FIXES! This is a BUG!")
+
+            if 'workload_score' in mysql_df.columns:
+                non_default = (mysql_df['workload_score'] != 0.5).sum()
+                logger.info(f"  ✓ workload_score: {non_default}/{len(mysql_df)} non-default - Mean: {mysql_df['workload_score'].mean():.3f}")
+            else:
+                logger.warning(f"  ✗ workload_score: MISSING (will use defaults)")
+
+            # 2. Skills data
+            if 'required_skills' in mysql_df.columns:
+                non_empty = mysql_df['required_skills'].apply(lambda x: bool(x) if isinstance(x, list) else (bool(x) if isinstance(x, str) and x.strip() else False)).sum()
+                logger.info(f"  ✓ required_skills: {non_empty}/{len(mysql_df)} have skills")
+                if non_empty == 0:
+                    logger.warning(f"    ⚠️  ALL tasks have EMPTY required_skills - skill matching will be 0!")
+            else:
+                logger.warning(f"  ✗ required_skills: MISSING")
+
+            if 'user_skills' in mysql_df.columns:
+                non_empty = mysql_df['user_skills'].apply(lambda x: bool(x) if isinstance(x, list) else (bool(x) if isinstance(x, str) and x.strip() else False)).sum()
+                logger.info(f"  ✓ user_skills: {non_empty}/{len(mysql_df)} have skills")
+                if non_empty == 0:
+                    logger.warning(f"    ⚠️  ALL users have EMPTY user_skills - skill matching will be 0!")
+            else:
+                logger.warning(f"  ✗ user_skills: MISSING")
+
+            # 3. User profile data
+            if 'department_name' in mysql_df.columns:
+                non_null = mysql_df['department_name'].notna().sum()
+                logger.info(f"  ✓ department_name: {non_null}/{len(mysql_df)} non-null")
+            else:
+                logger.warning(f"  ✗ department_name: MISSING")
+
+            if 'seniority_level' in mysql_df.columns:
+                non_null = mysql_df['seniority_level'].notna().sum()
+                logger.info(f"  ✓ seniority_level: {non_null}/{len(mysql_df)} non-null")
+            else:
+                logger.warning(f"  ✗ seniority_level: MISSING")
+
+            if 'performance_score' in mysql_df.columns:
+                non_null = mysql_df['performance_score'].notna().sum()
+                logger.info(f"  ✓ performance_score: {non_null}/{len(mysql_df)} non-null - Mean: {mysql_df['performance_score'].mean():.3f}")
+            else:
+                logger.warning(f"  ✗ performance_score: MISSING")
+
+            logger.info("")
+            logger.info("Summary:")
+            all_critical_present = all(col in mysql_df.columns for col in ['required_skills', 'user_skills', 'department_name', 'seniority_level'])
+            if all_critical_present:
+                logger.info("  ✅ All critical columns are present")
+            else:
+                logger.warning("  ⚠️  Some critical columns are missing - check logs above")
+
+            logger.info("=" * 100)
 
             # Log seniority_level details
             if 'seniority_level' in mysql_df.columns:
@@ -877,20 +1526,353 @@ class MultiDatabaseDataCollector:
             logger.info(f"No existing ML training data found in PostgreSQL: {e}")
             return pd.DataFrame()
 
-    def _merge_multi_db_data(self, neo4j_df: pd.DataFrame, mongodb_df: pd.DataFrame, 
+    def _calculate_task_performance_metrics(self, task_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Calculate performance metrics based on new task extension and timing fields
+
+        This calculates:
+        1. Actual duration from assignment to completion
+        2. Lateness (comparing completion time vs due date)
+        3. Estimation accuracy (comparing actual vs original estimate)
+        4. Extension impact metrics
+        """
+        if task_df.empty:
+            return task_df
+
+        logger.info("=" * 80)
+        logger.info("CALCULATING TASK PERFORMANCE METRICS")
+        logger.info("=" * 80)
+
+        # 1. Calculate actual duration from assignment to completion
+        if 'assigned_at' in task_df.columns and 'completed_at' in task_df.columns:
+            logger.info("Calculating actual_duration_hours from assigned_at to completed_at...")
+
+            # Convert to datetime
+            assigned = pd.to_datetime(task_df['assigned_at'], errors='coerce')
+            completed = pd.to_datetime(task_df['completed_at'], errors='coerce')
+
+            # Calculate duration in hours
+            task_df['actual_duration_hours'] = (
+                (completed - assigned).dt.total_seconds() / 3600
+            ).fillna(0)
+
+            # Count how many tasks have valid duration
+            valid_duration = (task_df['actual_duration_hours'] > 0).sum()
+            logger.info(f"  ✓ Calculated actual_duration_hours for {valid_duration}/{len(task_df)} tasks")
+
+            if valid_duration > 0:
+                logger.info(f"    Mean duration: {task_df[task_df['actual_duration_hours'] > 0]['actual_duration_hours'].mean():.2f} hours")
+        else:
+            logger.warning("  ✗ Cannot calculate actual_duration_hours - missing assigned_at or completed_at")
+            task_df['actual_duration_hours'] = 0
+
+        # 2. Calculate lateness (on-time vs late)
+        if 'completed_at' in task_df.columns and 'due_date' in task_df.columns:
+            logger.info("Calculating lateness metrics...")
+
+            completed = pd.to_datetime(task_df['completed_at'], errors='coerce')
+            due = pd.to_datetime(task_df['due_date'], errors='coerce')
+
+            # Hours late (positive = late, negative = early)
+            task_df['lateness_hours'] = (
+                (completed - due).dt.total_seconds() / 3600
+            ).fillna(0)
+
+            # Binary late flag
+            task_df['is_late'] = (task_df['lateness_hours'] > 0).astype(int)
+
+            # Count late tasks
+            late_tasks = task_df['is_late'].sum()
+            completed_tasks = task_df['completed_at'].notna().sum()
+            logger.info(f"  ✓ Late tasks: {late_tasks}/{completed_tasks} ({late_tasks/max(completed_tasks, 1)*100:.1f}%)")
+
+            # Lateness penalty (for performance scoring)
+            # Max 50% penalty for severely late tasks
+            task_df['lateness_penalty'] = task_df['lateness_hours'].apply(
+                lambda x: min(abs(x) * 0.01, 0.5) if x > 0 else 0
+            )
+
+            if late_tasks > 0:
+                avg_lateness = task_df[task_df['is_late'] == 1]['lateness_hours'].mean()
+                logger.info(f"    Average lateness: {avg_lateness:.2f} hours")
+                logger.info(f"    Average penalty: {task_df[task_df['is_late'] == 1]['lateness_penalty'].mean():.3f}")
+        else:
+            logger.warning("  ✗ Cannot calculate lateness - missing completed_at or due_date")
+            task_df['lateness_hours'] = 0
+            task_df['is_late'] = 0
+            task_df['lateness_penalty'] = 0.0
+
+        # 3. Calculate estimation accuracy
+        if 'original_estimated_hours' in task_df.columns and 'actual_hours' in task_df.columns:
+            logger.info("Calculating estimation accuracy...")
+
+            # Accuracy ratio (1.0 = perfect, <1 = overestimate, >1 = underestimate)
+            task_df['estimation_accuracy'] = (
+                task_df['original_estimated_hours'] /
+                task_df['actual_hours'].replace(0, np.nan)
+            ).clip(0, 2).fillna(1.0)  # Cap at 200%
+
+            # Error in hours (negative = overestimate, positive = underestimate)
+            task_df['estimation_error_hours'] = (
+                task_df['actual_hours'] - task_df['original_estimated_hours']
+            ).fillna(0)
+
+            # Calculate stats for completed tasks
+            completed_mask = task_df['actual_hours'] > 0
+            if completed_mask.sum() > 0:
+                avg_accuracy = task_df[completed_mask]['estimation_accuracy'].mean()
+                avg_error = task_df[completed_mask]['estimation_error_hours'].mean()
+                logger.info(f"  ✓ Average estimation accuracy: {avg_accuracy:.2f}")
+                logger.info(f"    Average error: {avg_error:+.2f} hours")
+        else:
+            logger.warning("  ✗ Cannot calculate estimation accuracy - missing original_estimated_hours or actual_hours")
+            task_df['estimation_accuracy'] = 1.0
+            task_df['estimation_error_hours'] = 0
+
+        # 4. Calculate extension impact
+        if 'total_extension_hours' in task_df.columns and 'original_estimated_hours' in task_df.columns:
+            logger.info("Calculating extension impact...")
+
+            task_df['extension_percentage'] = (
+                task_df['total_extension_hours'] /
+                task_df['original_estimated_hours'].replace(0, np.nan) * 100
+            ).fillna(0)
+
+            tasks_with_extensions = (task_df['total_extension_hours'] > 0).sum()
+            if tasks_with_extensions > 0:
+                avg_extension = task_df[task_df['total_extension_hours'] > 0]['extension_percentage'].mean()
+                logger.info(f"  ✓ Tasks with extensions: {tasks_with_extensions}/{len(task_df)}")
+                logger.info(f"    Average extension: {avg_extension:.1f}% of original estimate")
+        else:
+            logger.warning("  ✗ Cannot calculate extension impact - missing extension fields")
+            task_df['extension_percentage'] = 0
+
+        # 5. Check if estimate changed significantly due to extensions
+        if 'original_estimated_hours' in task_df.columns and 'estimated_hours' in task_df.columns:
+            task_df['estimate_increased'] = (
+                task_df['estimated_hours'] > task_df['original_estimated_hours']
+            ).astype(int)
+
+            increased_count = task_df['estimate_increased'].sum()
+            if increased_count > 0:
+                logger.info(f"  ✓ Tasks with increased estimates: {increased_count}/{len(task_df)}")
+        else:
+            task_df['estimate_increased'] = 0
+
+        # 6. Calculate time efficiency and variance (time-based features)
+        if 'actual_hours' in task_df.columns and 'estimated_hours' in task_df.columns:
+            logger.info("Calculating time efficiency and variance...")
+            
+            # Time efficiency (1.0 = on time, <1 = faster than estimate, >1 = slower)
+            task_df['time_efficiency'] = np.where(
+                task_df['actual_hours'] > 0,
+                task_df['estimated_hours'] / task_df['actual_hours'],
+                1.0
+            ).clip(0.5, 2.0)  # Clip to reasonable range [0.5, 2.0]
+            
+            # Time variance (absolute difference between actual and estimated)
+            task_df['time_variance'] = np.abs(
+                task_df['actual_hours'] - task_df['estimated_hours']
+            ).fillna(0)
+            
+            # Log statistics
+            valid_mask = task_df['actual_hours'] > 0
+            if valid_mask.sum() > 0:
+                avg_efficiency = task_df[valid_mask]['time_efficiency'].mean()
+                avg_variance = task_df[valid_mask]['time_variance'].mean()
+                logger.info(f"  ✓ Average time efficiency: {avg_efficiency:.2f}")
+                logger.info(f"    Average time variance: {avg_variance:.2f} hours")
+        else:
+            logger.warning("  ✗ Cannot calculate time efficiency - missing actual_hours or estimated_hours")
+            task_df['time_efficiency'] = 1.0
+            task_df['time_variance'] = 0.0
+
+        logger.info("=" * 80)
+        logger.info("✅ Performance metrics calculation complete")
+        logger.info("=" * 80)
+
+        return task_df
+
+    def _derive_task_difficulty(self, task_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Derive task difficulty from priority and estimated_hours since difficulty 
+        column doesn't exist in Task entity.
+        
+        Difficulty mapping:
+        - LOW: Low priority OR short tasks (<5 hours)
+        - MEDIUM: Medium priority AND moderate duration (5-20 hours)
+        - HIGH: High/Critical priority OR long tasks (>20 hours)
+        """
+        if task_df.empty:
+            return task_df
+        
+        logger.info("=" * 80)
+        logger.info("DERIVING TASK DIFFICULTY FROM PRIORITY + ESTIMATED_HOURS")
+        logger.info("=" * 80)
+        
+        def calculate_difficulty(row):
+            priority = row.get('priority', 'MEDIUM')
+            estimated_hours = row.get('estimated_hours', 10)
+            
+            # Handle None/NaN values
+            if pd.isna(estimated_hours):
+                estimated_hours = 10
+            if pd.isna(priority):
+                priority = 'MEDIUM'
+            
+            # Difficulty logic
+            if priority in ['CRITICAL', 'HIGH'] or estimated_hours > 20:
+                return 'HIGH'
+            elif priority == 'LOW' or estimated_hours < 5:
+                return 'LOW'
+            else:
+                return 'MEDIUM'
+        
+        task_df['difficulty'] = task_df.apply(calculate_difficulty, axis=1)
+        
+        # Log distribution
+        difficulty_counts = task_df['difficulty'].value_counts()
+        logger.info("Difficulty distribution:")
+        for diff, count in difficulty_counts.items():
+            logger.info(f"  {diff}: {count} ({count/len(task_df)*100:.1f}%)")
+        
+        logger.info("=" * 80)
+        
+        return task_df
+
+    def _add_derived_performance_metrics(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Calculate derived performance metrics from existing columns.
+        
+        This adds metrics that don't exist directly in the database but can be 
+        calculated from available data:
+        - task_success_rate: From Neo4j's averageTaskCompletionRate
+        - average_task_time: From user's task history
+        """
+        if df.empty:
+            return df
+        
+        logger.info("=" * 80)
+        logger.info("ADDING DERIVED PERFORMANCE METRICS")
+        logger.info("=" * 80)
+        
+        # 1. Task success rate from Neo4j averageTaskCompletionRate
+        if 'averageTaskCompletionRate' in df.columns:
+            df['task_success_rate'] = df['averageTaskCompletionRate']
+            avg_rate = df['task_success_rate'].mean()
+            logger.info(f"  ✓ task_success_rate from averageTaskCompletionRate: {avg_rate:.3f}")
+        elif 'avg_completion_rate' in df.columns:
+            # Fallback to avg_completion_rate alias
+            df['task_success_rate'] = df['avg_completion_rate']
+            avg_rate = df['task_success_rate'].mean()
+            logger.info(f"  ✓ task_success_rate from avg_completion_rate: {avg_rate:.3f}")
+        else:
+            df['task_success_rate'] = 0.8  # Default
+            logger.warning("  ⚠ task_success_rate: Using default 0.8 (averageTaskCompletionRate not found)")
+        
+        # 2. Average task time from user history
+        if 'totalTasksCompleted' in df.columns and 'total_actual_hours' in df.columns:
+            df['average_task_time'] = np.where(
+                df['totalTasksCompleted'] > 0,
+                df['total_actual_hours'] / df['totalTasksCompleted'],
+                25.0  # Default average
+            )
+            avg_time = df[df['totalTasksCompleted'] > 0]['average_task_time'].mean()
+            logger.info(f"  ✓ average_task_time calculated from history: {avg_time:.2f} hours")
+        else:
+            df['average_task_time'] = 25.0  # Default
+            logger.warning("  ⚠ average_task_time: Using default 25.0 hours")
+        
+        logger.info("=" * 80)
+        
+        return df
+
+    def _merge_multi_db_data(self, neo4j_df: pd.DataFrame, mongodb_df: pd.DataFrame,
                            mysql_df: pd.DataFrame, postgres_df: pd.DataFrame) -> pd.DataFrame:
         """
         Merge data from all databases into comprehensive training dataset
         """
         logger.info("Merging multi-database data...")
-        
+
         # Debug data sizes
         logger.info(f"Data sizes before merging - MySQL: {len(mysql_df)}, Neo4j: {len(neo4j_df)}, MongoDB: {len(mongodb_df)}, PostgreSQL: {len(postgres_df)}")
 
         # Use any available data as base, prioritizing MySQL over Neo4j since MySQL has actual data
         if not mysql_df.empty:
+            logger.info("=" * 100)
+            logger.info("USING MYSQL DATA AS BASE - VERIFYING WORKLOAD COLUMNS")
+            logger.info("=" * 100)
+            
+            # CRITICAL: Log what's in mysql_df BEFORE copy
+            logger.info(f"MySQL columns BEFORE copy ({len(mysql_df.columns)} total):")
+            workload_check_before = ['utilization', 'workload_score', 'availability_score', 'capacity', 'availability']
+            for col in workload_check_before:
+                if col in mysql_df.columns:
+                    logger.info(f"  ✓ {col}: EXISTS in mysql_df - mean={mysql_df[col].mean():.3f}")
+                else:
+                    logger.error(f"  ✗ {col}: MISSING from mysql_df (should have been added earlier!)")
+            
             comprehensive_df = mysql_df.copy()
             logger.info(f"Using MySQL data as base for merging - {len(comprehensive_df)} records")
+
+            # ===== CRITICAL: Ensure workload columns are preserved =====
+            logger.info("\nChecking if workload columns were preserved AFTER copy...")
+            workload_check = ['utilization', 'workload_score', 'availability_score', 'capacity']
+            preserved = [col for col in workload_check if col in comprehensive_df.columns]
+            missing = [col for col in workload_check if col not in comprehensive_df.columns]
+
+            if preserved:
+                logger.info(f"✓ Preserved workload columns: {preserved}")
+                for col in preserved:
+                    logger.info(f"   - {col}: mean={comprehensive_df[col].mean():.3f}")
+            if missing:
+                logger.error(f"✗ Missing workload columns after copy: {missing}")
+                logger.error("This should NEVER happen if mysql_df was properly prepared!")
+                logger.info("Attempting to add them now...")
+
+                # Try to calculate from raw columns
+                if 'total_estimate_hours' in comprehensive_df.columns and 'weekly_capacity_hours' in comprehensive_df.columns:
+                    logger.info("Found raw data, calculating workload metrics...")
+
+                    if 'utilization_percentage' not in comprehensive_df.columns:
+                        comprehensive_df['utilization_percentage'] = (
+                            comprehensive_df['total_estimate_hours'] /
+                            comprehensive_df['weekly_capacity_hours'].replace(0, 1) * 100.0
+                        ).fillna(50.0)
+
+                    if 'workload_score' not in comprehensive_df.columns:
+                        comprehensive_df['workload_score'] = (
+                            (100.0 - comprehensive_df['utilization_percentage']) / 100.0
+                        ).clip(0.0, 1.0)
+
+                    if 'utilization' not in comprehensive_df.columns:
+                        comprehensive_df['utilization'] = comprehensive_df['utilization_percentage'] / 100.0
+
+                    if 'capacity' not in comprehensive_df.columns:
+                        comprehensive_df['capacity'] = comprehensive_df['weekly_capacity_hours'].fillna(40.0)
+
+                    if 'availability_score' not in comprehensive_df.columns:
+                        if 'availability_percentage' in comprehensive_df.columns:
+                            comprehensive_df['availability_score'] = (comprehensive_df['availability_percentage'] / 100.0).clip(0.0, 1.0)
+                            comprehensive_df['availability'] = comprehensive_df['availability_score']
+                        else:
+                            comprehensive_df['availability_score'] = 0.5
+                            comprehensive_df['availability'] = 0.5
+
+                    logger.info("✓ Calculated missing workload columns")
+                    logger.info(f"  - utilization: mean={comprehensive_df['utilization'].mean():.3f}")
+                    logger.info(f"  - workload_score: mean={comprehensive_df['workload_score'].mean():.3f}")
+                else:
+                    logger.error("✗ Cannot calculate - missing total_estimate_hours or weekly_capacity_hours")
+                    logger.error("Adding defaults to prevent training crash...")
+                    if 'utilization' not in comprehensive_df.columns:
+                        comprehensive_df['utilization'] = 0.5
+                    if 'workload_score' not in comprehensive_df.columns:
+                        comprehensive_df['workload_score'] = 0.5
+                    if 'availability_score' not in comprehensive_df.columns:
+                        comprehensive_df['availability_score'] = 0.5
+                    if 'capacity' not in comprehensive_df.columns:
+                        comprehensive_df['capacity'] = 40.0
         elif not neo4j_df.empty:
             comprehensive_df = neo4j_df.copy()
             logger.info(f"Using Neo4j data as base for merging - {len(comprehensive_df)} records")
@@ -923,25 +1905,30 @@ class MultiDatabaseDataCollector:
         # This was causing the data explosion from 120 -> 6750 records
         logger.info("Skipping MySQL self-merge to prevent data duplication")
 
-        # Remove duplicates if merging with existing PostgreSQL data
-        if not postgres_df.empty:
-            # Keep only new records not in PostgreSQL
-            existing_task_users = set(zip(postgres_df['task_id'], postgres_df['user_id']))
-            new_mask = ~comprehensive_df[['task_id', 'user_id']].apply(
-                lambda x: (x['task_id'], x['user_id']) in existing_task_users, axis=1
-            )
-            comprehensive_df = comprehensive_df[new_mask]
-        
-        # Prevent excessive data size from merge operations
-        if len(comprehensive_df) > 1000:
-            logger.warning(f"Comprehensive data size is very large ({len(comprehensive_df)} records). Limiting to 1000 records.")
+        # ===== FIXED: Don't filter out "duplicate" records from PostgreSQL =====
+        # The old logic was filtering out 3,487 → 78 records because it considered
+        # existing PostgreSQL data as duplicates. We want to use ALL MySQL data for training!
+        #
+        # OLD CODE (REMOVED):
+        # if not postgres_df.empty:
+        #     existing_task_users = set(zip(postgres_df['task_id'], postgres_df['user_id']))
+        #     new_mask = ~comprehensive_df[['task_id', 'user_id']].apply(...)
+        #     comprehensive_df = comprehensive_df[new_mask]  # This filtered 3,487 → 78!
+
+        logger.info(f"✓ Using all {len(comprehensive_df)} MySQL records for training (no PostgreSQL filtering)")
+
+        # Prevent excessive data size from merge operations (increased limit)
+        if len(comprehensive_df) > 5000:
+            logger.warning(f"Comprehensive data size is very large ({len(comprehensive_df)} records). Limiting to 5000 records.")
             # Take a random sample to avoid bias
-            comprehensive_df = comprehensive_df.sample(n=1000, random_state=42)
+            comprehensive_df = comprehensive_df.sample(n=5000, random_state=42)
+        else:
+            logger.info(f"Data size ({len(comprehensive_df)} records) is reasonable, using all data")
 
         # Add metadata columns
         comprehensive_df['created_at'] = datetime.now()
         comprehensive_df['data_source'] = 'multi_db_collection'
-        
+
         # ========== PERFORMANCE SCORE HANDLING ==========
         # Performance score comes from MySQL identity database only
         # If not available, use default value
@@ -957,7 +1944,40 @@ class MultiDatabaseDataCollector:
             logger.info(f"Using MySQL performance_score ({comprehensive_df['performance_score'].notna().sum()} records)")
 
         logger.info(f"Merged data resulting in {len(comprehensive_df)} comprehensive records")
-        
+
+        # ===== FINAL MANDATORY CHECK: Ensure workload columns MUST exist =====
+        logger.info("=" * 100)
+        logger.info("FINAL WORKLOAD COLUMN CHECK BEFORE RETURNING")
+        logger.info("=" * 100)
+
+        required_cols = ['utilization', 'workload_score', 'availability_score', 'capacity']
+        missing_final = [col for col in required_cols if col not in comprehensive_df.columns]
+
+        if missing_final:
+            logger.error(f"⚠️  CRITICAL: Still missing workload columns: {missing_final}")
+            logger.error("This should NEVER happen! Adding emergency defaults...")
+
+            # Emergency defaults to prevent crash
+            for col in missing_final:
+                if col == 'utilization':
+                    comprehensive_df['utilization'] = 0.5
+                elif col == 'workload_score':
+                    comprehensive_df['workload_score'] = 0.5
+                elif col == 'availability_score':
+                    comprehensive_df['availability_score'] = 0.5
+                elif col == 'capacity':
+                    comprehensive_df['capacity'] = 40.0
+
+            logger.error("✓ Added emergency defaults - but you should investigate why columns are missing!")
+        else:
+            logger.info("✅ All required workload columns present")
+            logger.info(f"  - utilization: mean={comprehensive_df['utilization'].mean():.3f}")
+            logger.info(f"  - workload_score: mean={comprehensive_df['workload_score'].mean():.3f}")
+            logger.info(f"  - availability_score: mean={comprehensive_df['availability_score'].mean():.3f}")
+            logger.info(f"  - capacity: mean={comprehensive_df['capacity'].mean():.1f}")
+
+        logger.info("=" * 100)
+
         return comprehensive_df
     
     def _calculate_performance_score(self, df: pd.DataFrame) -> pd.Series:
@@ -990,7 +2010,7 @@ class MultiDatabaseDataCollector:
                     score -= 0.1
             
             # Completion-based performance
-            if row.get('task_status') == 'COMPLETED':
+            if row.get('task_status') == 'DONE':
                 score += 0.3
             elif row.get('task_status') == 'IN_PROGRESS':
                 score += 0.1
@@ -1002,7 +2022,7 @@ class MultiDatabaseDataCollector:
             # ✅ Use URGENT instead of CRITICAL to match actual system
             if priority == 'HIGH' or priority == 'URGENT':
                 # Bonus for completing high priority tasks
-                if row.get('task_status') == 'COMPLETED':
+                if row.get('task_status') == 'DONE':
                     score += 0.2
             
             # Ensure score is between 0 and 1
@@ -1450,7 +2470,7 @@ class SyntheticDataGenerator:
                  'kubernetes', 'aws', 'azure', 'machine learning', 'data science']
         priorities = ['LOW', 'MEDIUM', 'HIGH', 'URGENT']
         difficulties = ['EASY', 'MEDIUM', 'HARD']
-        statuses = ['TODO', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
+        statuses = ['TODO', 'IN_PROGRESS', 'DONE', 'CANCELLED']
         task_types = ['Feature Development', 'Bug Fix', 'Code Review', 'Testing', 'Deployment']
 
         for i in range(num_records):
@@ -1471,15 +2491,38 @@ class SyntheticDataGenerator:
 
             # Time estimates
             estimated_hours = np.random.uniform(1, 40)
-            actual_hours = estimated_hours * np.random.uniform(0.8, 1.5) if status == 'COMPLETED' else None
+            actual_hours = estimated_hours * np.random.uniform(0.8, 1.5) if status == 'DONE' else None
 
             # Dates
             created_date = datetime.now() - timedelta(days=np.random.randint(1, 365))
             assignment_date = created_date + timedelta(hours=np.random.randint(1, 48))
-            completed_at = assignment_date + timedelta(hours=actual_hours) if status == 'COMPLETED' and actual_hours else None
+            completed_at = assignment_date + timedelta(hours=actual_hours) if status == 'DONE' and actual_hours else None
 
             # Performance score (0-1 scale)
             performance_score = np.random.uniform(0.4, 1.0)
+
+            # ===== CRITICAL: Calculate workload and availability metrics =====
+            # Simulate realistic workload distribution
+            weekly_capacity_hours = np.random.uniform(30, 45)  # 30-45 hours/week capacity
+            total_estimate_hours = np.random.uniform(5, 50)   # 5-50 hours of assigned work
+            
+            # Calculate utilization percentage: (total_estimate_hours / weekly_capacity_hours) * 100
+            utilization_percentage = (total_estimate_hours / weekly_capacity_hours) * 100.0
+            
+            # Calculate workload_score: inverse of utilization (0% util = 1.0 score, 100% util = 0.0 score)
+            workload_score = ((100.0 - utilization_percentage) / 100.0)
+            workload_score = max(0.0, min(1.0, workload_score))  # Clip to 0-1 range
+            
+            # Calculate utilization ratio (for ML features)
+            utilization = utilization_percentage / 100.0
+            
+            # Calculate availability percentage (independent factor: sick leave, PTO, meetings, etc.)
+            availability_percentage = np.random.uniform(70, 100)  # 70-100% available
+            availability_score = availability_percentage / 100.0
+            availability = availability_score
+            
+            # Capacity is the weekly capacity hours
+            capacity = weekly_capacity_hours
 
             interaction_data = {
                 'task_id': task_id,
@@ -1508,7 +2551,17 @@ class SyntheticDataGenerator:
                 'assignment_date': assignment_date,
                 'completed_at': completed_at,
                 'created_at': datetime.now(),
-                'data_source': 'synthetic'
+                'data_source': 'synthetic',
+                # ===== WORKLOAD & AVAILABILITY COLUMNS =====
+                'weekly_capacity_hours': weekly_capacity_hours,
+                'total_estimate_hours': total_estimate_hours,
+                'utilization_percentage': utilization_percentage,
+                'utilization': utilization,
+                'workload_score': workload_score,
+                'availability_percentage': availability_percentage,
+                'availability_score': availability_score,
+                'availability': availability,
+                'capacity': capacity
             }
 
             interactions_data.append(interaction_data)

@@ -48,6 +48,12 @@ public class DepartmentService {
                 .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_EXISTED)));
     }
 
+    public DepartmentResponse getDepartmentByName(String name){
+        return departmentMapper.toDepartmentResponse(departmentRepository
+                .findByName(name)
+                .orElseThrow(() -> new AppException(ErrorCode.DEPARTMENT_NOT_EXISTED)));
+    }
+
     public DepartmentResponse updateDepartment(String departmentId, DepartmentUpdateRequest request) {
         Department department = departmentRepository
                 .findById(departmentId)

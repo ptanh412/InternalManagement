@@ -205,14 +205,14 @@ const TimeTracking = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Time Tracking</h1>
-              <p className="text-gray-600 mt-2">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Time Tracking</h1>
+              <p className="text-gray-600 dark:text-gray-300 mt-2">
                 Track your work hours and manage time entries
               </p>
             </div>
@@ -228,51 +228,51 @@ const TimeTracking = () => {
 
         {/* Week Statistics */}
         {weekStats && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Weekly Overview</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Weekly Overview</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="text-center">
                 <div className="text-3xl font-bold text-primary-600">{weekStats.totalHours}h</div>
-                <div className="text-sm text-gray-600">Total This Week</div>
-                <div className="text-xs text-gray-500">Target: {weekStats.targetHours}h</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">Total This Week</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">Target: {weekStats.targetHours}h</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-green-600">{weekStats.todayHours}h</div>
-                <div className="text-sm text-gray-600">Today</div>
-                <div className="text-xs text-gray-500">Avg: {weekStats.averageDaily}h</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">Today</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">Avg: {weekStats.averageDaily}h</div>
               </div>
               <div className="text-center">
                 <div className="text-3xl font-bold text-blue-600">{weekStats.tasksWorkedOn}</div>
-                <div className="text-sm text-gray-600">Tasks</div>
-                <div className="text-xs text-gray-500">{weekStats.projectsInvolved} projects</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">Tasks</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">{weekStats.projectsInvolved} projects</div>
               </div>
               <div className="text-center">
                 <div className="text-2xl font-bold text-purple-600">{weekStats.mostProductiveDay}</div>
-                <div className="text-sm text-gray-600">Most Productive</div>
-                <div className="text-xs text-gray-500">This Week</div>
+                <div className="text-sm text-gray-600 dark:text-gray-300">Most Productive</div>
+                <div className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">This Week</div>
               </div>
             </div>
           </div>
         )}
 
         {/* Date Selection */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <CalendarDaysIcon className="h-5 w-5 text-gray-400" />
-              <label className="text-sm font-medium text-gray-700">Select Date:</label>
+              <CalendarDaysIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Select Date:</label>
               <input
                 type="date"
                 value={selectedDate}
                 onChange={(e) => setSelectedDate(e.target.value)}
-                className="border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
             </div>
             <div className="text-right">
-              <div className="text-2xl font-bold text-gray-900">
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {formatDuration(getTotalHoursForDay())}
               </div>
-              <div className="text-sm text-gray-600">Total for {selectedDate}</div>
+              <div className="text-sm text-gray-600 dark:text-gray-300">Total for {selectedDate}</div>
             </div>
           </div>
         </div>
@@ -293,7 +293,7 @@ const TimeTracking = () => {
                 </div>
                 <button
                   onClick={() => handleStopTimer(activeTimer)}
-                  className="flex items-center bg-white text-green-600 px-4 py-2 rounded-lg font-medium hover:bg-green-50"
+                  className="flex items-center bg-white dark:bg-gray-800 text-green-600 px-4 py-2 rounded-lg font-medium hover:bg-green-50"
                 >
                   <StopIcon className="h-4 w-4 mr-2" />
                   Stop Timer
@@ -306,11 +306,11 @@ const TimeTracking = () => {
         {/* Time Entries */}
         <div className="space-y-4">
           {timeEntries.map((entry) => (
-            <div key={entry.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
+            <div key={entry.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
-                    <h3 className="text-lg font-semibold text-gray-900">{entry.taskTitle}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{entry.taskTitle}</h3>
                     {entry.isRunning && (
                       <span className="px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800 flex items-center">
                         <div className="w-2 h-2 bg-green-500 rounded-full mr-1 animate-pulse"></div>
@@ -319,13 +319,13 @@ const TimeTracking = () => {
                     )}
                   </div>
 
-                  <p className="text-sm text-gray-600 mb-3">{entry.projectName}</p>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">{entry.projectName}</p>
 
                   {entry.description && (
-                    <p className="text-sm text-gray-600 mb-3">{entry.description}</p>
+                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">{entry.description}</p>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600">
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-600 dark:text-gray-300">
                     <div className="flex items-center">
                       <PlayIcon className="h-4 w-4 mr-2" />
                       <span>Start: {formatTime(entry.startTime)}</span>
@@ -389,9 +389,9 @@ const TimeTracking = () => {
         {/* Empty State */}
         {timeEntries.length === 0 && (
           <div className="text-center py-12">
-            <ClockIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No time entries for this date</h3>
-            <p className="text-gray-600 mb-6">
+            <ClockIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No time entries for this date</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Start tracking your work time by adding a new entry or starting a timer
             </p>
             <button
@@ -405,8 +405,8 @@ const TimeTracking = () => {
 
         {/* Quick Timer Start */}
         {timeEntries.length > 0 && !activeTimer && (
-          <div className="mt-8 bg-white rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Start Timer</h3>
+          <div className="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">Quick Start Timer</h3>
             <div className="flex flex-wrap gap-2">
               {/* Recent tasks from entries */}
               {Array.from(new Set(timeEntries.map(e => e.taskId))).slice(0, 3).map((taskId) => {

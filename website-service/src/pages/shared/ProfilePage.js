@@ -334,10 +334,10 @@ const ProfilePage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-800">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading profile...</p>
+          <p className="text-gray-600 dark:text-gray-300">Loading profile...</p>
         </div>
       </div>
     );
@@ -345,20 +345,20 @@ const ProfilePage = () => {
 
   console.log("Profile data:" , profileData);
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 py-8 px-4 sm:px-6 lg:px-8 dark:from-gray-900 dark:via-gray-800 dark:to-gray-800">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-8 animate-fadeIn">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
             My Profile
           </h1>
-          <p className="text-gray-600 mt-2">Manage your personal information and preferences</p>
+          <p className="text-gray-600 dark:text-gray-300 mt-2">Manage your personal information and preferences</p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left Column - Profile Card */}
           <div className="lg:col-span-1">
-            <div className="bg-white rounded-2xl shadow-xl overflow-hidden border border-white/20 backdrop-blur-sm animate-slideInFromLeft lg:sticky lg:top-8">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden border border-white/20 backdrop-blur-sm animate-slideInFromLeft lg:sticky lg:top-8">
               {/* Cover Image */}
               <div className="h-32 bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 relative">
                 <div className="absolute inset-0 bg-black/10"></div>
@@ -393,10 +393,10 @@ const ProfilePage = () => {
 
               {/* Profile Info */}
               <div className="pt-20 pb-6 px-6 text-center">
-                <h2 className="text-2xl font-bold text-gray-900 mb-1">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-1">
                   {profileData.firstName} {profileData.lastName}
                 </h2>
-                <p className="text-sm text-gray-600 mb-3">
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-3">
                   {userData.employeeId && `Employee ID: ${userData.employeeId}`}
                 </p>
                 <div className={`inline-flex items-center px-4 py-2 rounded-full text-sm font-medium bg-gradient-to-r ${getRoleBadgeColor(userRole)} text-white shadow-lg mb-2`}>
@@ -450,25 +450,25 @@ const ProfilePage = () => {
               </div>
 
               {/* Stats */}
-              <div className="border-t border-gray-200 bg-gray-50 px-6 py-4">
+              <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 px-6 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
                     <div className="flex items-center justify-center mb-1">
                       <ClockIcon className="w-5 h-5 text-blue-600 mr-1" />
                     </div>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                       {calculateDaysWorking(userData.createdAt)}
                     </p>
-                    <p className="text-xs text-gray-600">Days Working</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-300">Days Working</p>
                   </div>
                   <div className="text-center">
                     <div className="flex items-center justify-center mb-1">
                       <ChartBarIcon className="w-5 h-5 text-purple-600 mr-1" />
                     </div>
-                    <p className="text-2xl font-bold text-gray-900">
+                    <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                       {userData.performanceScore?.toFixed(0) || 0}%
                     </p>
-                    <p className="text-xs text-gray-600">Performance</p>
+                    <p className="text-xs text-gray-600 dark:text-gray-300">Performance</p>
                   </div>
                 </div>
               </div>
@@ -478,8 +478,8 @@ const ProfilePage = () => {
           {/* Right Column - Details */}
           <div className="lg:col-span-2 space-y-6">
             {/* Personal Information */}
-            <div className="bg-white rounded-2xl shadow-xl p-6 border border-white/20 backdrop-blur-sm animate-slideInFromRight">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-white/20 backdrop-blur-sm animate-slideInFromRight">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
                 <UserCircleIcon className="w-6 h-6 mr-2 text-blue-600" />
                 Personal Information
               </h3>
@@ -487,13 +487,13 @@ const ProfilePage = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* First Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     First Name
                   </label>
                   {!isEditing ? (
-                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 rounded-xl">
-                      <UserCircleIcon className="w-5 h-5 text-gray-400" />
-                      <span className="text-gray-900">{profileData.firstName}</span>
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                      <UserCircleIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                      <span className="text-gray-900 dark:text-gray-100">{profileData.firstName}</span>
                     </div>
                   ) : (
                     <input
@@ -501,20 +501,20 @@ const ProfilePage = () => {
                       name="firstName"
                       value={profileData.firstName}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
                     />
                   )}
                 </div>
 
                 {/* Last Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Last Name
                   </label>
                   {!isEditing ? (
-                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 rounded-xl">
-                      <UserCircleIcon className="w-5 h-5 text-gray-400" />
-                      <span className="text-gray-900">{profileData.lastName}</span>
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                      <UserCircleIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                      <span className="text-gray-900 dark:text-gray-100">{profileData.lastName}</span>
                     </div>
                   ) : (
                     <input
@@ -522,32 +522,32 @@ const ProfilePage = () => {
                       name="lastName"
                       value={profileData.lastName}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
                     />
                   )}
                 </div>
 
                 {/* Email */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Email Address
                   </label>
-                  <div className="flex items-center space-x-3 px-4 py-3 bg-gray-100 rounded-xl cursor-not-allowed">
-                    <EnvelopeIcon className="w-5 h-5 text-gray-400" />
-                    <span className="text-gray-500">{profileData.email}</span>
+                  <div className="flex items-center space-x-3 px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl cursor-not-allowed">
+                    <EnvelopeIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                    <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500">{profileData.email}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">Email cannot be changed</p>
                 </div>
 
                 {/* Phone */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Phone Number
                   </label>
                   {!isEditing ? (
-                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 rounded-xl">
-                      <PhoneIcon className="w-5 h-5 text-gray-400" />
-                      <span className="text-gray-900">{profileData.phoneNumber || 'Not set'}</span>
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                      <PhoneIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                      <span className="text-gray-900 dark:text-gray-100">{profileData.phoneNumber || 'Not set'}</span>
                     </div>
                   ) : (
                     <input
@@ -555,7 +555,7 @@ const ProfilePage = () => {
                       name="phoneNumber"
                       value={profileData.phoneNumber}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
                       placeholder="+84 123 456 789"
                     />
                   )}
@@ -563,13 +563,13 @@ const ProfilePage = () => {
 
                 {/* City */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     City
                   </label>
                   {!isEditing ? (
-                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 rounded-xl">
-                      <MapPinIcon className="w-5 h-5 text-gray-400" />
-                      <span className="text-gray-900">{profileData.city || 'Not set'}</span>
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                      <MapPinIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                      <span className="text-gray-900 dark:text-gray-100">{profileData.city || 'Not set'}</span>
                     </div>
                   ) : (
                     <input
@@ -577,7 +577,7 @@ const ProfilePage = () => {
                       name="city"
                       value={profileData.city}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
                       placeholder="Ho Chi Minh City"
                     />
                   )}
@@ -585,13 +585,13 @@ const ProfilePage = () => {
 
                 {/* Date of Birth */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Date of Birth
                   </label>
                   {!isEditing ? (
-                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 rounded-xl">
-                      <CalendarIcon className="w-5 h-5 text-gray-400" />
-                      <span className="text-gray-900">{profileData.dob ? formatDate(profileData.dob) : 'Not set'}</span>
+                    <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                      <CalendarIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                      <span className="text-gray-900 dark:text-gray-100">{profileData.dob ? formatDate(profileData.dob) : 'Not set'}</span>
                     </div>
                   ) : (
                     <input
@@ -599,50 +599,50 @@ const ProfilePage = () => {
                       name="dob"
                       value={profileData.dob}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                      className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
                     />
                   )}
                 </div>
 
                 {/* Department - Read Only */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Department
                   </label>
-                  <div className="flex items-center space-x-3 px-4 py-3 bg-gray-100 rounded-xl cursor-not-allowed">
-                    <BriefcaseIcon className="w-5 h-5 text-gray-400" />
-                    <span className="text-gray-500">{userData.departmentName || 'Not assigned'}</span>
+                  <div className="flex items-center space-x-3 px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl cursor-not-allowed">
+                    <BriefcaseIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                    <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500">{userData.departmentName || 'Not assigned'}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Managed by admin</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">Managed by admin</p>
                 </div>
 
                 {/* Position - Read Only */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Position
                   </label>
-                  <div className="flex items-center space-x-3 px-4 py-3 bg-gray-100 rounded-xl cursor-not-allowed">
-                    <BriefcaseIcon className="w-5 h-5 text-gray-400" />
-                    <span className="text-gray-500">{userData.positionTitle || 'Not assigned'}</span>
+                  <div className="flex items-center space-x-3 px-4 py-3 bg-gray-100 dark:bg-gray-800 rounded-xl cursor-not-allowed">
+                    <BriefcaseIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                    <span className="text-gray-500 dark:text-gray-400 dark:text-gray-500">{userData.positionTitle || 'Not assigned'}</span>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1">Managed by admin</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">Managed by admin</p>
                 </div>
               </div>
             </div>
 
             {/* Skills Section */}
             {profileData.skills && profileData.skills.length > 0 && (
-              <div className="bg-white rounded-2xl shadow-xl p-6 border border-white/20 backdrop-blur-sm animate-slideInFromRight animation-delay-100">
-                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+              <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-white/20 backdrop-blur-sm animate-slideInFromRight animation-delay-100">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
                   <AcademicCapIcon className="w-6 h-6 mr-2 text-purple-600" />
                   Skills & Expertise
                 </h3>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {profileData.skills.map((skill, index) => (
-                    <div key={index} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
+                    <div key={index} className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100 dark:from-gray-900 dark:to-gray-800 dark:border-gray-700">
                       <div className="flex items-start justify-between mb-2">
-                        <h4 className="font-semibold text-gray-900">{skill.skillName}</h4>
+                        <h4 className="font-semibold text-gray-900 dark:text-gray-100">{skill.skillName}</h4>
                         <span className={`text-xs px-2 py-1 rounded-full ${getSkillTypeColor(skill.skillType)}`}>
                           {skill.skillType?.replace('_', ' ')}
                         </span>
@@ -652,7 +652,7 @@ const ProfilePage = () => {
                           {skill.proficiencyLevel}
                         </span>
                         {skill.yearsOfExperience && (
-                          <span className="text-gray-600">
+                          <span className="text-gray-600 dark:text-gray-300">
                             {skill.yearsOfExperience} {skill.yearsOfExperience === 1 ? 'year' : 'years'}
                           </span>
                         )}
@@ -664,38 +664,38 @@ const ProfilePage = () => {
             )}
 
             {/* Activity Overview */}
-            <div className="bg-white rounded-2xl shadow-xl p-6 border border-white/20 backdrop-blur-sm animate-slideInFromRight animation-delay-200">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-white/20 backdrop-blur-sm animate-slideInFromRight animation-delay-200">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
                 <ChartBarIcon className="w-6 h-6 mr-2 text-purple-600" />
                 Activity Overview
               </h3>
               
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100">
-                  <p className="text-sm font-medium text-gray-600 mb-1">Tasks Completed</p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 dark:divide-gray-700">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-100 dark:from-gray-900 dark:to-gray-800 dark:border-gray-700">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Tasks Completed</p>
                   <p className="text-3xl font-bold text-blue-600">{profileData.totalTasksCompleted || 0}</p>
-                  <p className="text-xs text-gray-500 mt-1">Total tasks</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">Total tasks</p>
                 </div>
                 
-                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100">
-                  <p className="text-sm font-medium text-gray-600 mb-1">Completion Rate</p>
+                <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 border border-purple-100 dark:from-gray-900 dark:to-gray-800 dark:border-gray-700">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Completion Rate</p>
                   <p className="text-3xl font-bold text-purple-600">
                     {profileData.averageTaskCompletionRate?.toFixed(0) || 0}%
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">Average rate</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">Average rate</p>
                 </div>
                 
-                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100">
-                  <p className="text-sm font-medium text-gray-600 mb-1">Current Workload</p>
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl p-4 border border-green-100 dark:from-gray-900 dark:to-gray-800 dark:border-gray-700">
+                  <p className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-1">Current Workload</p>
                   <p className="text-3xl font-bold text-green-600">{profileData.currentWorkLoadHours || 0}h</p>
-                  <p className="text-xs text-gray-500 mt-1">This week</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">This week</p>
                 </div>
               </div>
             </div>
 
             {/* Change Password Section */}
-            <div className="bg-white rounded-2xl shadow-xl p-6 border border-white/20 backdrop-blur-sm animate-slideInFromRight animation-delay-300">
-              <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-6 border border-white/20 backdrop-blur-sm animate-slideInFromRight animation-delay-300">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 flex items-center">
                 <KeyIcon className="w-6 h-6 mr-2 text-green-600" />
                 Change Password
               </h3>
@@ -703,22 +703,22 @@ const ProfilePage = () => {
               <div className="space-y-4">
                 {/* Current Password */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Current Password
                   </label>
-                  <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 rounded-xl">
-                    <LockClosedIcon className="w-5 h-5 text-gray-400" />
+                  <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                    <LockClosedIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       name="currentPassword"
                       value={passwordData.currentPassword}
                       onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 dark:bg-gray-900 dark:text-gray-100"
                       placeholder="Enter current password"
                     />
                     <button
                       onClick={() => setShowPassword(!showPassword)}
-                      className="text-gray-500 hover:text-gray-700 transition-all duration-300"
+                      className="text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:text-gray-300 transition-all duration-300"
                     >
                       {showPassword ? (
                         <EyeSlashIcon className="w-5 h-5" />
@@ -731,22 +731,22 @@ const ProfilePage = () => {
 
                 {/* New Password */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     New Password
                   </label>
-                  <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 rounded-xl">
-                    <LockOpenIcon className="w-5 h-5 text-gray-400" />
+                  <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                    <LockOpenIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       name="newPassword"
                       value={passwordData.newPassword}
                       onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 dark:bg-gray-900"
                       placeholder="Enter new password"
                     />
                     <button
                       onClick={() => setShowPassword(!showPassword)}
-                      className="text-gray-500 hover:text-gray-700 transition-all duration-300"
+                      className="text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:text-gray-300 transition-all duration-300"
                     >
                       {showPassword ? (
                         <EyeSlashIcon className="w-5 h-5" />
@@ -759,22 +759,22 @@ const ProfilePage = () => {
 
                 {/* Confirm Password */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Confirm Password
                   </label>
-                  <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 rounded-xl">
-                    <LockOpenIcon className="w-5 h-5 text-gray-400" />
+                  <div className="flex items-center space-x-3 px-4 py-3 bg-gray-50 dark:bg-gray-900 rounded-xl">
+                    <LockOpenIcon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                     <input
                       type={showPassword ? 'text' : 'password'}
                       name="confirmPassword"
                       value={passwordData.confirmPassword}
                       onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300"
+                      className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 dark:bg-gray-900"
                       placeholder="Confirm new password"
                     />
                     <button
                       onClick={() => setShowPassword(!showPassword)}
-                      className="text-gray-500 hover:text-gray-700 transition-all duration-300"
+                      className="text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:text-gray-300 transition-all duration-300"
                     >
                       {showPassword ? (
                         <EyeSlashIcon className="w-5 h-5" />

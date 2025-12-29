@@ -43,6 +43,14 @@ public class UserProfileController {
                 .build();
     }
 
+    @GetMapping("/users/employees")
+    ApiResponse<List<UserProfileResponse>> getEmployeesOnly(
+            @RequestParam(required = false) String department) {
+        return ApiResponse.<List<UserProfileResponse>>builder()
+                .result(userProfileService.getEmployeesOnly(department))
+                .build();
+    }
+
     @GetMapping("/users/my-profile")
     ApiResponse<UserProfileResponse> getMyProfile() {
         return ApiResponse.<UserProfileResponse>builder()

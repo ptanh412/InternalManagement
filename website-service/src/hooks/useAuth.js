@@ -18,7 +18,10 @@ export const AuthProvider = ({ children }) => {
       const token = localStorage.getItem('token');
       const refreshToken = localStorage.getItem('refreshToken');
       
-      console.log('CheckAuth: Starting authentication check', { hasToken: !!token, hasRefreshToken: !!refreshToken });
+      console.log('CheckAuth: Starting authentication check', { 
+        hasToken: !!token, 
+        hasRefreshToken: !!refreshToken 
+      });
       
       if (token) {
         try {
@@ -31,16 +34,32 @@ export const AuthProvider = ({ children }) => {
             console.log('CheckAuth: Token valid, fetching user profile');
             // Get user profile
             const userProfile = await apiService.getProfile();
+
+            console.log('CheckAuth: Fetched user profile', userProfile);
+            
+            // ✅ FIX: Include userId in userData
             const userData = {
               id: userProfile.result.id,
+              userId: userProfile.result.id, // ✅ Add userId field
               name: `${userProfile.result.firstName} ${userProfile.result.lastName}`,
               email: userProfile.result.email,
               role: userProfile.result.roleName,
               isAdmin: userProfile.result.roleName === 'ADMIN',
               username: userProfile.result.username,
+              departmentId: userProfile.result.departmentName, // ✅ Add departmentId
               departmentName: userProfile.result.departmentName,
-              positionTitle: userProfile.result.positionTitle
+              positionTitle: userProfile.result.positionTitle,
+              avatar: userProfile.result.avatar || null // ✅ Add avatar
             };
+            
+            // ✅ Store essential info in localStorage for PostsPage
+            localStorage.setItem('userId', userData.userId);
+            localStorage.setItem('username', userData.username);
+            localStorage.setItem('departmentId', userData.departmentName || '');
+            if (userData.avatar) {
+              localStorage.setItem('avatar', userData.avatar);
+            }
+            
             setUser(userData);
             setIsAuthenticated(true);
             console.log('CheckAuth: Successfully authenticated user', userData);
@@ -58,37 +77,56 @@ export const AuthProvider = ({ children }) => {
               localStorage.setItem('token', refreshResponse.result.token);
               localStorage.setItem('refreshToken', refreshResponse.result.refreshToken || refreshToken);
               
-              // Small delay to ensure new token is stored
               await new Promise(resolve => setTimeout(resolve, 100));
               
               // Retry with new token
               console.log('CheckAuth: Fetching profile with refreshed token');
               const userProfile = await apiService.getProfile();
+              
+              // ✅ FIX: Include userId in userData
               const userData = {
                 id: userProfile.result.id,
+                userId: userProfile.result.id, // ✅ Add userId field
                 name: `${userProfile.result.firstName} ${userProfile.result.lastName}`,
                 email: userProfile.result.email,
                 role: userProfile.result.roleName,
                 isAdmin: userProfile.result.roleName === 'ADMIN',
                 username: userProfile.result.username,
+                departmentId: userProfile.result.departmentId, // ✅ Add departmentId
                 departmentName: userProfile.result.departmentName,
-                positionTitle: userProfile.result.positionTitle
+                positionTitle: userProfile.result.positionTitle,
+                avatar: userProfile.result.avatar || null // ✅ Add avatar
               };
+              
+              // ✅ Store essential info in localStorage
+              localStorage.setItem('userId', userData.userId);
+              localStorage.setItem('username', userData.username);
+              localStorage.setItem('departmentId', userData.departmentId || '');
+              if (userData.avatar) {
+                localStorage.setItem('avatar', userData.avatar);
+              }
+              
               setUser(userData);
               setIsAuthenticated(true);
               console.log('CheckAuth: Successfully authenticated with refreshed token');
             } catch (refreshError) {
               console.log('CheckAuth: Token refresh failed, clearing session');
-              // Refresh failed, clear tokens
               localStorage.removeItem('token');
               localStorage.removeItem('refreshToken');
+              localStorage.removeItem('userId');
+              localStorage.removeItem('username');
+              localStorage.removeItem('departmentId');
+              localStorage.removeItem('avatar');
               setUser(null);
               setIsAuthenticated(false);
             }
           } else {
             console.log('CheckAuth: No refresh token available, clearing session');
-            // No refresh token, clear session
             localStorage.removeItem('token');
+            localStorage.removeItem('userId');
+            localStorage.removeItem('username');
+            localStorage.removeItem('departmentId');
+            localStorage.removeItem('avatar');
             setUser(null);
             setIsAuthenticated(false);
           }
@@ -102,6 +140,10 @@ export const AuthProvider = ({ children }) => {
       console.error('CheckAuth: Authentication check failed:', error);
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('username');
+      localStorage.removeItem('departmentId');
+      localStorage.removeItem('avatar');
       setUser(null);
       setIsAuthenticated(false);
     } finally {
@@ -114,43 +156,50 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       
-      // Call backend authentication
       const response = await apiService.login({ username, password });
       
       if (response.result) {
         const { token, expiryTime, roleName, isAdmin } = response.result;
         
-        // Store tokens
         localStorage.setItem('token', token);
         if (response.result.refreshToken) {
           localStorage.setItem('refreshToken', response.result.refreshToken);
         }
         
-        // Small delay to ensure token is stored before making profile call
         await new Promise(resolve => setTimeout(resolve, 100));
         
         try {
-          // Get user profile after successful login
           const userProfile = await apiService.getProfile();
           
+          // ✅ FIX: Include userId in userData
           const userData = {
             id: userProfile.result.id,
+            userId: userProfile.result.id, // ✅ Add userId field
             name: `${userProfile.result.firstName} ${userProfile.result.lastName}`,
             email: userProfile.result.email,
             role: roleName,
             isAdmin: isAdmin,
             username: userProfile.result.username,
+            departmentId: userProfile.result.departmentId, // ✅ Add departmentId
             departmentName: userProfile.result.departmentName,
             positionTitle: userProfile.result.positionTitle,
+            avatar: userProfile.result.avatar || null, // ✅ Add avatar
             expiryTime: expiryTime
           };
+
+          // ✅ Store essential info in localStorage
+          localStorage.setItem('userId', userData.userId);
+          localStorage.setItem('username', userData.username);
+          localStorage.setItem('departmentId', userData.departmentId || '');
+          if (userData.avatar) {
+            localStorage.setItem('avatar', userData.avatar);
+          }
 
           setUser(userData);
           setIsAuthenticated(true);
           
           return { success: true, user: userData };
         } catch (profileError) {
-          // If profile fetch fails, clear tokens and return error
           localStorage.removeItem('token');
           localStorage.removeItem('refreshToken');
           return { 
@@ -169,7 +218,6 @@ export const AuthProvider = ({ children }) => {
       
       let errorMessage = 'An error occurred during login';
       if (error.response) {
-        // Server responded with error status
         if (error.response.status === 401) {
           errorMessage = 'Invalid username or password';
         } else if (error.response.data?.message) {

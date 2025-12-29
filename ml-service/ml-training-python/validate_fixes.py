@@ -9,7 +9,6 @@ print("=" * 80)
 print()
 
 print("✓ Step 1: Checking Python syntax...")
-import sys
 import os
 
 # Check if files exist and compile

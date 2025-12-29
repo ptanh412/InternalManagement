@@ -9,13 +9,13 @@ This provides much more sophisticated matching than simple category-based
 or synonym matching.
 """
 
-from typing import List, Dict, Tuple
-import numpy as np
-from sentence_transformers import SentenceTransformer
-import structlog
 import pickle
-import os
 from pathlib import Path
+from typing import Dict, List, Tuple
+
+import numpy as np
+import structlog
+from sentence_transformers import SentenceTransformer
 
 logger = structlog.get_logger(__name__)
 

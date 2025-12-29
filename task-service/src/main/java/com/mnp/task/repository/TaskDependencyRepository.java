@@ -9,6 +9,5 @@ import java.util.List;
 @Repository
 public interface TaskDependencyRepository extends JpaRepository<TaskDependency, String> {
     List<TaskDependency> findByTaskId(String taskId);
-    List<TaskDependency> findByDependsOnTaskId(String dependsOnTaskId);
     boolean existsByTaskIdAndDependsOnTaskId(String taskId, String dependsOnTaskId);
 }

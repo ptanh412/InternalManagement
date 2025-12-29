@@ -14,4 +14,6 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class EmailResponse {
     String messageId;
+    String status;
+    String recipient;
 }

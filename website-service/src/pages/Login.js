@@ -12,7 +12,7 @@ import { useAuth } from '../hooks/useAuth';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    username: '',
+    username: '', // Key là username
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -23,7 +23,6 @@ const Login = () => {
   const location = useLocation();
   const { login, isAuthenticated } = useAuth();
 
-  // Redirect if already authenticated
   React.useEffect(() => {
     if (isAuthenticated) {
       const from = location.state?.from?.pathname || '/dashboard';
@@ -36,7 +35,6 @@ const Login = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
-    // Clear error when user starts typing
     if (error) setError('');
   };
 
@@ -46,21 +44,13 @@ const Login = () => {
     setError('');
 
     try {
-      // console.log('Login: Starting login process');
       const result = await login(formData.username, formData.password);
-      
       if (result.success) {
-        // console.log('Login: Login successful, navigating to dashboard');
-        const from = location.state?.from?.pathname || '/dashboard';
-        // console.log('Login: Redirecting to:', from);
-        // navigate(from, { replace: true });
-        navigate("/chat");
+        navigate("/dashboard");
       } else {
-        console.log('Login: Login failed:', result.error);
         setError(result.error);
       }
     } catch (err) {
-      console.error('Login: Unexpected error:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setIsLoading(false);

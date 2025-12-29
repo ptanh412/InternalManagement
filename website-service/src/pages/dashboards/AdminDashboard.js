@@ -544,24 +544,24 @@ const AdminDashboard = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
         <div className="text-center">
           <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
+          <p className="mt-4 text-gray-600 dark:text-gray-300">Loading admin dashboard...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             Admin Dashboard
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
             Welcome back, {user?.username || user?.firstName || 'Administrator'}! Here's your system overview.
           </p>
         </div>
@@ -571,13 +571,13 @@ const AdminDashboard = () => {
           {adminStats.map((stat) => {
             const IconComponent = stat.icon;
             return (
-              <div key={stat.name} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-300 border border-gray-100">
+              <div key={stat.name} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition-all duration-300 border border-gray-100 dark:border-gray-700">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-500 uppercase tracking-wide mb-3">
+                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-3">
                       {stat.name}
                     </p>
-                    <p className="text-3xl font-bold text-gray-900 mb-2">
+                    <p className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                       {stat.value}
                     </p>
                     <div className="flex items-center gap-2">
@@ -597,31 +597,31 @@ const AdminDashboard = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* System Metrics */}
-          <div className="bg-white rounded-lg shadow-md p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                 System Metrics
               </h2>
-              <CogIcon className="h-5 w-5 text-gray-400" />
+              <CogIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
             <div className="space-y-4">
               {systemMetrics.map((metric) => (
                 <div key={metric.name}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                       {metric.name}
                     </span>
-                    <span className="text-sm text-gray-500">
+                    <span className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                       {metric.value}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                     <div 
                       className={`h-2 rounded-full transition-all duration-300 ${getMetricColor(metric.status)}`}
                       style={{ width: `${metric.value}%` }}
                     ></div>
                   </div>
-                  <p className="text-xs text-gray-500 mt-1 capitalize">{metric.status}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1 capitalize">{metric.status}</p>
                 </div>
               ))}
             </div>
@@ -629,17 +629,17 @@ const AdminDashboard = () => {
 
           {/* Recent Activities */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                   System Activities
                 </h2>
-                <EyeIcon className="h-5 w-5 text-gray-400" />
+                <EyeIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               </div>
               <div className="space-y-4 max-h-96 overflow-y-auto">
                 {recentActivities.length > 0 ? (
                   recentActivities.map((activity) => (
-                    <div key={activity.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg transition-colors">
+                    <div key={activity.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 dark:bg-gray-900 rounded-lg transition-colors">
                       <div className="flex-shrink-0">
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getStatusColor(activity.status)}`}>
                           <span className="text-xs font-medium">
@@ -648,17 +648,17 @@ const AdminDashboard = () => {
                         </div>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm text-gray-900">
+                        <p className="text-sm text-gray-900 dark:text-gray-100">
                           {activity.message}
                         </p>
-                        <p className="text-xs text-gray-500 mt-1">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
                           {activity.timestamp}
                         </p>
                       </div>
                     </div>
                   ))
                 ) : (
-                  <p className="text-gray-500 text-center py-8">No recent activities</p>
+                  <p className="text-gray-500 dark:text-gray-400 dark:text-gray-500 text-center py-8">No recent activities</p>
                 )}
               </div>
             </div>
@@ -668,16 +668,16 @@ const AdminDashboard = () => {
         {/* Comprehensive Analytics Charts */}
         <div className="mt-8">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">System Analytics & Performance</h2>
-            <p className="text-gray-600">Comprehensive system metrics and performance analytics</p>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">System Analytics & Performance</h2>
+            <p className="text-gray-600 dark:text-gray-300">Comprehensive system metrics and performance analytics</p>
           </div>
           
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             
             {/* User Growth Trends */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">User Growth Trends</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">User Growth Trends</h3>
                 <button
                   onClick={() => exportChart(chartRefs.userGrowth, 'user-growth-trends')}
                   className="text-blue-600 hover:text-blue-800"
@@ -697,9 +697,9 @@ const AdminDashboard = () => {
             </div>
 
             {/* Department Distribution */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Department Distribution</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Department Distribution</h3>
                 <button
                   onClick={() => exportChart(chartRefs.departments, 'department-distribution')}
                   className="text-blue-600 hover:text-blue-800"
@@ -719,9 +719,9 @@ const AdminDashboard = () => {
             </div>
 
             {/* System Performance Radar */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">System Performance</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">System Performance</h3>
                 <button
                   onClick={() => exportChart(chartRefs.system, 'system-performance')}
                   className="text-blue-600 hover:text-blue-800"
@@ -741,9 +741,9 @@ const AdminDashboard = () => {
             </div>
 
             {/* Activity Trends */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Activity Trends</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Activity Trends</h3>
                 <button
                   onClick={() => exportChart(chartRefs.activity, 'activity-trends')}
                   className="text-blue-600 hover:text-blue-800"
@@ -763,9 +763,9 @@ const AdminDashboard = () => {
             </div>
 
             {/* Resource Utilization */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Resource Utilization</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Resource Utilization</h3>
                 <button
                   onClick={() => exportChart(chartRefs.resources, 'resource-utilization')}
                   className="text-blue-600 hover:text-blue-800"
@@ -785,9 +785,9 @@ const AdminDashboard = () => {
             </div>
 
             {/* Performance Overview */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Performance Overview</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Performance Overview</h3>
                 <button
                   onClick={() => exportChart(chartRefs.performance, 'performance-overview')}
                   className="text-blue-600 hover:text-blue-800"
@@ -810,26 +810,26 @@ const AdminDashboard = () => {
 
         {/* Quick System Actions */}
         <div className="mt-8">
-          <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
               System Management
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors duration-200">
-                <UsersIcon className="h-8 w-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-700">Manage Users</span>
+              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors duration-200">
+                <UsersIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Manage Users</span>
               </button>
-              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors duration-200">
-                <BuildingOfficeIcon className="h-8 w-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-700">Departments</span>
+              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors duration-200">
+                <BuildingOfficeIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Departments</span>
               </button>
-              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-colors duration-200">
-                <ShieldCheckIcon className="h-8 w-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-700">Security</span>
+              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-colors duration-200">
+                <ShieldCheckIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Security</span>
               </button>
-              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-yellow-500 hover:bg-yellow-50 transition-colors duration-200">
-                <CogIcon className="h-8 w-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-700">System Settings</span>
+              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-yellow-500 hover:bg-yellow-50 transition-colors duration-200">
+                <CogIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">System Settings</span>
               </button>
             </div>
           </div>

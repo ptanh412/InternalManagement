@@ -4,13 +4,13 @@ Simple Web Dashboard for ML Training Data
 Run this to view data in your browser
 """
 
-import streamlit as st
+from datetime import datetime
+
+import numpy as np
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
+import streamlit as st
 from sqlalchemy import create_engine
-import numpy as np
-from datetime import datetime
 
 # Configure Streamlit
 st.set_page_config(

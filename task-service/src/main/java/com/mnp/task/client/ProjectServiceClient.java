@@ -8,6 +8,8 @@ import com.mnp.task.dto.response.ProjectResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @FeignClient(name = "project-service", url = "${app.services.project}", configuration = FeignClientConfiguration.class)
 public interface ProjectServiceClient {
 
@@ -30,14 +32,31 @@ public interface ProjectServiceClient {
     void addMemberToProject(@RequestBody AddProjectMemberRequest request);
 
     @GetMapping("/projects/team-lead/{teamLeadId}")
-    com.mnp.task.dto.response.ApiResponse<java.util.List<com.mnp.task.dto.response.ProjectResponse>> getProjectsByTeamLead(@PathVariable("teamLeadId") String teamLeadId);
+   ApiResponse<List<ProjectResponse>> getProjectsByTeamLead(@PathVariable("teamLeadId") String teamLeadId);
 
     @GetMapping("/projects/{projectId}")
-    com.mnp.task.dto.response.ApiResponse<com.mnp.task.dto.response.ProjectResponse> getProjectById(@PathVariable("projectId") String projectId);
+    ApiResponse<ProjectResponse> getProjectById(@PathVariable("projectId") String projectId);
+
+    @GetMapping("/internal/projects/{projectId}")
+    ApiResponse<ProjectResponse> getProjectByIdNoToken(@PathVariable("projectId") String projectId);
 
     @GetMapping("/project-members/projects/{projectId}/users/{userId}/exists")
     ApiResponse<Boolean> isUserInProject(@PathVariable("projectId") String projectId, @PathVariable("userId") String userId);
 
     @GetMapping("/projects/{projectId}")
     ApiResponse<ProjectResponse> getProjectName(@PathVariable("projectId") String projectId);
+
+    @GetMapping("/project-members/projects/{projectId}")
+    ApiResponse<java.util.List<ProjectMemberResponse>> getProjectMembers(@PathVariable("projectId") String projectId);
+
+    // DTO for ProjectMember
+    @lombok.Data
+    @lombok.NoArgsConstructor
+    @lombok.AllArgsConstructor
+    class ProjectMemberResponse {
+        private String userId;
+        private String userName;
+        private String role;
+        private String email;
+    }
 }

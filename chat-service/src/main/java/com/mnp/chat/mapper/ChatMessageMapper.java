@@ -19,10 +19,4 @@ public interface ChatMessageMapper {
     @Mapping(target = "fileName", source = "fileName")
     @Mapping(target = "fileSize", source = "fileSize")
     ChatMessageResponse toChatMessageResponse(ChatMessage chatMessage);
-
-    ChatMessage toChatMessage(ChatMessageRequest request);
-
-    ChatMessage toChatMessage(ReplyMessageRequest request);
-
-    List<ChatMessageResponse> toChatMessageResponses(List<ChatMessage> chatMessages);
 }

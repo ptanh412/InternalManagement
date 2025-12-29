@@ -80,10 +80,10 @@ public class UserController {
 
     // Additional endpoints for enhanced user management
 
-    @GetMapping("/department/{departmentId}")
-    ApiResponse<List<UserResponse>> getUsersByDepartment(@PathVariable String departmentId) {
+    @GetMapping("/department/{departmentName}")
+    ApiResponse<List<UserResponse>> getUsersByDepartment(@PathVariable String departmentName) {
         return ApiResponse.<List<UserResponse>>builder()
-                .result(userService.getUsersByDepartment(departmentId))
+                .result(userService.getUsersByDepartment(departmentName))
                 .build();
     }
 

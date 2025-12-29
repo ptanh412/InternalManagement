@@ -279,6 +279,7 @@ const AIRecommendations = () => {
       setLoading(false);
     }
   };
+      console.log('Fetched workload data for recommendations:', workloadData);
 
   const getScoreColor = (score) => {
     if (score >= 90) return 'text-green-600 bg-green-100';
@@ -310,17 +311,17 @@ const AIRecommendations = () => {
   const selectedTaskData = tasks.find(task => task.id === selectedTask);
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 flex items-center">
                 <SparklesIcon className="h-8 w-8 text-primary-600 mr-3" />
                 AI Task Assignment Recommendations
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-gray-600 dark:text-gray-300 mt-2">
                 Get AI-powered suggestions for optimal task assignments based on skills, availability, and performance
               </p>
             </div>
@@ -356,16 +357,16 @@ const AIRecommendations = () => {
         )}
 
         {/* Task Selection and Recommendation Type */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-8">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Select Task for Assignment
               </label>
               <select
                 value={selectedTask}
                 onChange={(e) => setSelectedTask(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 {tasks.map(task => (
                   <option key={task.id} value={task.id}>
@@ -376,13 +377,13 @@ const AIRecommendations = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Recommendation Type
               </label>
               <select
                 value={recommendationType}
                 onChange={(e) => setRecommendationType(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               >
                 <option value="standard">Standard Recommendations</option>
                 <option value="emergency">Emergency Assignment</option>
@@ -392,13 +393,13 @@ const AIRecommendations = () => {
 
             {recommendationType === 'team' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Select Team
                 </label>
                 <select
                   value={selectedTeam}
                   onChange={(e) => setSelectedTeam(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                 >
                   {teams.map(team => (
                     <option key={team.id} value={team.id}>
@@ -451,34 +452,34 @@ const AIRecommendations = () => {
 
         {/* Selected Task Details */}
         {selectedTaskData && (
-          <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
               <DocumentTextIcon className="h-5 w-5 mr-2" />
               Task Details
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h4 className="font-medium text-gray-900 mb-2">{selectedTaskData.title}</h4>
-                <p className="text-sm text-gray-600 mb-4">{selectedTaskData.description}</p>
+                <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">{selectedTaskData.title}</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">{selectedTaskData.description}</p>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Project:</span>
+                    <span className="text-gray-600 dark:text-gray-300">Project:</span>
                     <span className="font-medium">{selectedTaskData.projectName}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Priority:</span>
+                    <span className="text-gray-600 dark:text-gray-300">Priority:</span>
                     <span className={`px-2 py-1 text-xs font-medium rounded ${selectedTaskData.priority === 'CRITICAL' ? 'bg-red-100 text-red-800' : selectedTaskData.priority === 'HIGH' ? 'bg-orange-100 text-orange-800' : 'bg-yellow-100 text-yellow-800'}`}>
                       {selectedTaskData.priority}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Estimated Hours:</span>
+                    <span className="text-gray-600 dark:text-gray-300">Estimated Hours:</span>
                     <span className="font-medium">{selectedTaskData.estimatedHours}h</span>
                   </div>
                 </div>
               </div>
               <div>
-                <h5 className="font-medium text-gray-900 mb-2">Required Skills</h5>
+                <h5 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Required Skills</h5>
                 <div className="flex flex-wrap gap-2 mb-4">
                   {selectedTaskData.requiredSkills.map((skill, index) => (
                     <span key={index} className="px-2 py-1 text-xs bg-primary-100 text-primary-700 rounded">
@@ -488,13 +489,13 @@ const AIRecommendations = () => {
                 </div>
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Complexity:</span>
+                    <span className="text-gray-600 dark:text-gray-300">Complexity:</span>
                     <span className={`font-medium ${selectedTaskData.complexity === 'HIGH' ? 'text-red-600' : selectedTaskData.complexity === 'MEDIUM' ? 'text-yellow-600' : 'text-green-600'}`}>
                       {selectedTaskData.complexity}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-600">Deadline:</span>
+                    <span className="text-gray-600 dark:text-gray-300">Deadline:</span>
                     <span className="font-medium">{new Date(selectedTaskData.deadline).toLocaleDateString()}</span>
                   </div>
                 </div>
@@ -507,7 +508,7 @@ const AIRecommendations = () => {
         {getCurrentRecommendations().length > 0 && (
           <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h2 className="text-2xl font-bold text-gray-900 flex items-center">
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 flex items-center">
                 <LightBulbIcon className="h-6 w-6 text-yellow-500 mr-2" />
                 AI Recommendations
                 {recommendationType === 'emergency' && (
@@ -521,22 +522,22 @@ const AIRecommendations = () => {
                   </span>
                 )}
               </h2>
-              <div className="text-sm text-gray-600">
+              <div className="text-sm text-gray-600 dark:text-gray-300">
                 {getCurrentRecommendations().length} recommendation(s) found
               </div>
             </div>
 
             {getCurrentRecommendations().map((rec, index) => (
-              <div key={rec.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
+              <div key={rec.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-semibold text-lg">
                       #{index + 1}
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{rec.userName}</h3>
-                      <p className="text-sm text-gray-600">{rec.department} • {rec.experience}</p>
-                      <p className="text-sm text-gray-500">{rec.userEmail}</p>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{rec.userName}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">{rec.department} • {rec.experience}</p>
+                      <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{rec.userEmail}</p>
                     </div>
                   </div>
                   <div className="flex items-center space-x-2">
@@ -555,32 +556,32 @@ const AIRecommendations = () => {
                     <div className={`text-lg font-bold ${getScoreColor(rec.skillMatch).split(' ')[0]}`}>
                       {rec.skillMatch}%
                     </div>
-                    <div className="text-xs text-gray-600">Skill Match</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-300">Skill Match</div>
                   </div>
                   <div className="text-center">
                     <div className={`text-lg font-bold ${getScoreColor(rec.availabilityScore).split(' ')[0]}`}>
                       {rec.availabilityScore}%
                     </div>
-                    <div className="text-xs text-gray-600">Availability</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-300">Availability</div>
                   </div>
                   <div className="text-center">
                     <div className={`text-lg font-bold ${getScoreColor(rec.workloadScore).split(' ')[0]}`}>
                       {rec.workloadScore}%
                     </div>
-                    <div className="text-xs text-gray-600">Workload</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-300">Workload</div>
                   </div>
                   <div className="text-center">
                     <div className={`text-lg font-bold ${getScoreColor(rec.pastPerformance).split(' ')[0]}`}>
                       {rec.pastPerformance}%
                     </div>
-                    <div className="text-xs text-gray-600">Performance</div>
+                    <div className="text-xs text-gray-600 dark:text-gray-300">Performance</div>
                   </div>
                 </div>
 
                 {/* Skills and Details */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
                   <div>
-                    <h4 className="font-medium text-gray-900 mb-2">Skills</h4>
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Skills</h4>
                     <div className="flex flex-wrap gap-1">
                       {rec.skills.map((skill, skillIndex) => (
                         <span key={skillIndex} className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded">
@@ -591,11 +592,11 @@ const AIRecommendations = () => {
                   </div>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Current Workload:</span>
+                      <span className="text-gray-600 dark:text-gray-300">Current Workload:</span>
                       <span className="font-medium">{rec.currentWorkload}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Est. Completion:</span>
+                      <span className="text-gray-600 dark:text-gray-300">Est. Completion:</span>
                       <span className="font-medium">{new Date(rec.estimatedCompletion).toLocaleDateString()}</span>
                     </div>
                   </div>
@@ -603,7 +604,7 @@ const AIRecommendations = () => {
 
                 {/* Workload Summary Card */}
                 <div className="mb-4">
-                  <h4 className="font-medium text-gray-900 mb-2">Detailed Workload</h4>
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2">Detailed Workload</h4>
                   <WorkloadSummaryCard
                     workloadData={workloadData[rec.userId]}
                     compact={false}
@@ -614,11 +615,11 @@ const AIRecommendations = () => {
 
                 {/* AI Reasoning */}
                 <div className="mb-4">
-                  <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                  <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2 flex items-center">
                     <ChartBarIcon className="h-4 w-4 mr-1" />
                     AI Analysis
                   </h4>
-                  <ul className="text-sm text-gray-600 space-y-1">
+                  <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
                     {rec.reasons.map((reason, reasonIndex) => (
                       <li key={reasonIndex} className="flex items-start">
                         <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2 mt-0.5 flex-shrink-0" />
@@ -631,11 +632,11 @@ const AIRecommendations = () => {
                 {/* Risk Factors */}
                 {rec.riskFactors.length > 0 && (
                   <div className="mb-4">
-                    <h4 className="font-medium text-gray-900 mb-2 flex items-center">
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-2 flex items-center">
                       <ExclamationTriangleIcon className="h-4 w-4 mr-1 text-yellow-500" />
                       Risk Factors
                     </h4>
-                    <ul className="text-sm text-gray-600 space-y-1">
+                    <ul className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
                       {rec.riskFactors.map((risk, riskIndex) => (
                         <li key={riskIndex} className="flex items-start">
                           <ExclamationTriangleIcon className="h-4 w-4 text-yellow-500 mr-2 mt-0.5 flex-shrink-0" />
@@ -647,7 +648,7 @@ const AIRecommendations = () => {
                 )}
 
                 {/* Actions */}
-                <div className="flex justify-between pt-4 border-t border-gray-200">
+                <div className="flex justify-between pt-4 border-t border-gray-200 dark:border-gray-700">
                   <button className="btn-secondary flex items-center">
                     <UserIcon className="h-4 w-4 mr-2" />
                     View Profile
@@ -665,9 +666,9 @@ const AIRecommendations = () => {
         {/* Empty State */}
         {getCurrentRecommendations().length === 0 && !loading && (
           <div className="text-center py-12">
-            <SparklesIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No recommendations generated yet</h3>
-            <p className="text-gray-600 mb-6">
+            <SparklesIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No recommendations generated yet</h3>
+            <p className="text-gray-600 dark:text-gray-300 mb-6">
               Select a task and click "Generate AI Recommendations" to get intelligent assignment suggestions
             </p>
           </div>

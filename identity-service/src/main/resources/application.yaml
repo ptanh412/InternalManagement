@@ -29,3 +29,4 @@ app:
   services:
     profile: http://localhost:8081/profile
     task: http://localhost:8088/task
+    notification: http://localhost:8082/notification

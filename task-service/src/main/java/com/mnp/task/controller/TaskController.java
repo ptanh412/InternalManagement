@@ -80,12 +80,12 @@ public class TaskController {
         return ResponseEntity.ok(taskService.updateTaskStatus(taskId, request));
     }
 
-    @PutMapping("/{taskId}/assign/{userId}")
-    public ResponseEntity<TaskResponse> assignTask(
-            @PathVariable String taskId,
-            @PathVariable String userId) {
-        return ResponseEntity.ok(taskService.assignTask(taskId, userId));
-    }
+//    @PutMapping("/{taskId}/assign/{userId}")
+//    public ResponseEntity<TaskResponse> assignTask(
+//            @PathVariable String taskId,
+//            @PathVariable String userId) {
+//        return ResponseEntity.ok(taskService.assignTask(taskId, userId));
+//    }
 
     @PutMapping("/{taskId}/progress")
     public ResponseEntity<TaskResponse> updateTaskProgress(
@@ -147,5 +147,15 @@ public class TaskController {
     @GetMapping("/my-tasks")
     public ResponseEntity<List<TaskResponse>> getMyAssignedTasks() {
         return ResponseEntity.ok(taskService.getMyTasks());
+    }
+
+    /**
+     * Get task hours statistics by project
+     * Returns estimatedHours and actualHours grouped by team members
+     */
+    @GetMapping("/hours-stats")
+    public ResponseEntity<List<com.mnp.task.dto.response.TaskHoursStatsResponse>> getTaskHoursStats(
+            @RequestParam String projectId) {
+        return ResponseEntity.ok(taskService.getTaskHoursStatsByProject(projectId));
     }
 }

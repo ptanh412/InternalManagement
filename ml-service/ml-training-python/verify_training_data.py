@@ -12,11 +12,10 @@ Usage:
 """
 
 import argparse
-import sys
 import os
+import sys
 from datetime import datetime
-import pandas as pd
-import yaml
+
 from tabulate import tabulate
 
 # Add src to path
@@ -26,6 +25,7 @@ if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
 from src.data.data_collector import MultiDatabaseDataCollector
+
 
 class TrainingDataVerifier:
     """Verify training data against source databases"""

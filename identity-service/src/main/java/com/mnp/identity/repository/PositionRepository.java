@@ -16,6 +16,7 @@ import com.mnp.identity.enums.SeniorityLevel;
 public interface PositionRepository extends JpaRepository<Position, String> {
     List<Position> findByDepartment(Department department);
 
+
     List<Position> findBySeniorityLevel(SeniorityLevel seniorityLevel);
 
     Optional<Position> findBySeniorityLevelAndDepartment(SeniorityLevel seniorityLevel, Department department);

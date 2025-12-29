@@ -20,6 +20,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { useNotification } from '../../contexts/NotificationContext';
 import socketIOService from '../../services/socketIOService';
 import PerformanceAnalytics from '../../components/analytics/PerformanceAnalytics';
+import KPIWidget from '../../components/dashboard/KPIWidget';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -619,27 +620,27 @@ const EmployeeDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 dark:bg-black py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             My Dashboard
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
             Welcome back, {user?.name}! Here's your work overview.
           </p>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="border-b border-gray-200 mb-8">
+        {/* <div className="border-b border-gray-200 dark:border-gray-700 mb-8">
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab('dashboard')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'dashboard'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               <div className="flex items-center">
@@ -651,8 +652,8 @@ const EmployeeDashboard = () => {
               onClick={() => setActiveTab('performance')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'performance'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               <div className="flex items-center">
@@ -664,8 +665,8 @@ const EmployeeDashboard = () => {
               onClick={() => setActiveTab('profile')}
               className={`py-2 px-1 border-b-2 font-medium text-sm ${
                 activeTab === 'profile'
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
               }`}
             >
               <div className="flex items-center">
@@ -674,11 +675,16 @@ const EmployeeDashboard = () => {
               </div>
             </button>
           </nav>
-        </div>
+        </div> */}
 
         {/* Tab Content */}
         {activeTab === 'dashboard' && (
           <>
+            {/* KPI Widget */}
+            <div className="mb-8">
+              <KPIWidget userId={user?.id} />
+            </div>
+
             {/* Time Tracker */}
             {isTrackingTime && (
           <div className="bg-gradient-to-r from-green-500 to-green-600 text-white rounded-lg p-6 mb-8">
@@ -689,7 +695,7 @@ const EmployeeDashboard = () => {
               </div>
               <button
                 onClick={handleStopTimeTracking}
-                className="flex items-center bg-white text-green-600 px-4 py-2 rounded-lg font-medium hover:bg-green-50"
+                className="flex items-center bg-white dark:bg-gray-800 text-green-600 px-4 py-2 rounded-lg font-medium hover:bg-green-50"
               >
                 <PauseIcon className="h-4 w-4 mr-2" />
                 Stop Tracking
@@ -699,26 +705,26 @@ const EmployeeDashboard = () => {
         )}
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
+        {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
           {employeeStats.map((stat) => {
             const IconComponent = stat.icon;
             return (
-              <div key={stat.name} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
+              <div key={stat.name} className="bg-white dark:bg-gray-800 rounded-lg shadow-md dark:shadow-gray-900/50 p-6 hover:shadow-lg transition-shadow">
                 <div className="flex items-center">
                   <div className={`p-3 rounded-md ${stat.color}`}>
                     <IconComponent className="h-6 w-6 text-white" />
                   </div>
                   <div className="ml-4 flex-1">
-                    <p className="text-sm font-medium text-gray-600">
+                    <p className="text-sm font-medium text-gray-600 dark:text-gray-300">
                       {stat.name}
                     </p>
                     <div className="flex items-center">
-                      <p className="text-2xl font-semibold text-gray-900">
+                      <p className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
                         {stat.value}
                       </p>
                       <span className={`ml-2 text-sm font-medium ${
-                        stat.changeType === 'positive' ? 'text-green-600' : 
-                        stat.changeType === 'negative' ? 'text-red-600' : 'text-gray-600'
+                        stat.changeType === 'positive' ? 'text-green-600 dark:text-green-400' : 
+                        stat.changeType === 'negative' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'
                       }`}>
                         {stat.change}
                       </span>
@@ -728,23 +734,23 @@ const EmployeeDashboard = () => {
               </div>
             );
           })}
-        </div>
+        </div> */}
 
         {/* Employee Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
           
           {/* Personal Task Timeline */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6 dark:bg-black dark:border dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Personal Task Timeline</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 dark:text-white">Personal Task Timeline</h3>
               <button
                 onClick={() => exportChart(chartRefs.timeline, 'personal-timeline')}
-                className="text-blue-600 hover:text-blue-800"
+                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-600"
               >
                 <ArrowDownTrayIcon className="h-5 w-5" />
               </button>
             </div>
-            <div className="h-80">
+            <div className="h-80 dark:text-white">
               {chartData.personalTimeline && (
                 <Line 
                   ref={chartRefs.timeline}
@@ -756,17 +762,17 @@ const EmployeeDashboard = () => {
           </div>
 
           {/* Task Status Distribution */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 dark:bg-black dark:border dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Task Status</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 dark:text-white">Task Status</h3>
               <button
                 onClick={() => exportChart(chartRefs.status, 'task-status')}
-                className="text-blue-600 hover:text-blue-800"
+                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-600"
               >
                 <ArrowDownTrayIcon className="h-5 w-5" />
               </button>
             </div>
-            <div className="h-80">
+            <div className="h-80 dark:text-white">
               {chartData.taskStatus && (
                 <Doughnut 
                   ref={chartRefs.status}
@@ -778,17 +784,17 @@ const EmployeeDashboard = () => {
           </div>
 
           {/* Daily Hours Tracking */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6 dark:bg-black dark:border dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Daily Hours Tracking</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 dark:text-white">Daily Hours Tracking</h3>
               <button
                 onClick={() => exportChart(chartRefs.hours, 'daily-hours')}
-                className="text-blue-600 hover:text-blue-800"
+                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-600"
               >
                 <ArrowDownTrayIcon className="h-5 w-5" />
               </button>
             </div>
-            <div className="h-80">
+            <div className="h-80 dark:text-white">
               {chartData.dailyHours && (
                 <Bar 
                   ref={chartRefs.hours}
@@ -800,17 +806,17 @@ const EmployeeDashboard = () => {
           </div>
 
           {/* Performance Radar */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 dark:bg-black dark:border dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Performance Metrics</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 dark:text-white">Performance Metrics</h3>
               <button
                 onClick={() => exportChart(chartRefs.performance, 'performance-radar')}
-                className="text-blue-600 hover:text-blue-800"
+                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-600"
               >
                 <ArrowDownTrayIcon className="h-5 w-5" />
               </button>
             </div>
-            <div className="h-80">
+            <div className="h-80 dark:text-white">
               {chartData.performanceRadar && (
                 <Radar 
                   ref={chartRefs.performance}
@@ -822,17 +828,17 @@ const EmployeeDashboard = () => {
           </div>
 
           {/* Monthly Productivity */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6 dark:bg-black dark:border dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Monthly Productivity</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 dark:text-white">Monthly Productivity</h3>
               <button
                 onClick={() => exportChart(chartRefs.productivity, 'monthly-productivity')}
-                className="text-blue-600 hover:text-blue-800"
+                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-600"
               >
                 <ArrowDownTrayIcon className="h-5 w-5" />
               </button>
             </div>
-            <div className="h-80">
+            <div className="h-80 dark:text-white">
               {chartData.monthlyProductivity && (
                 <Line 
                   ref={chartRefs.productivity}
@@ -844,17 +850,17 @@ const EmployeeDashboard = () => {
           </div>
 
           {/* Skill Development */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 dark:bg-black dark:border dark:border-gray-700">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Skill Development</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 dark:text-white">Skill Development</h3>
               <button
                 onClick={() => exportChart(chartRefs.skills, 'skill-development')}
-                className="text-blue-600 hover:text-blue-800"
+                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-600"
               >
                 <ArrowDownTrayIcon className="h-5 w-5" />
               </button>
             </div>
-            <div className="h-80">
+            <div className="h-80 dark:text-white">
               {chartData.skillDevelopment && (
                 <Bar 
                   ref={chartRefs.skills}
@@ -865,260 +871,7 @@ const EmployeeDashboard = () => {
             </div>
           </div>
         </div>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* My Tasks */}
-          {/* <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  My Tasks
-                </h2>
-                <button className="btn-secondary flex items-center">
-                  <PlusIcon className="h-4 w-4 mr-2" />
-                  Request Task
-                </button>
-              </div>
-              <div className="space-y-4">
-                {tasks.map((task) => (
-                  <div key={task.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-lg font-medium text-gray-900">
-                        {task.title}
-                      </h3>
-                      <div className="flex items-center space-x-2">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getPriorityColor(task.priority)}`}>
-                          {task.priority}
-                        </span>
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${getTaskStatusColor(task.status)}`}>
-                          {task.status}
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <p className="text-sm text-gray-600 mb-3">
-                      Project: <span className="font-medium">{task.project}</span>
-                    </p>
-
-                    <div className="mb-3">
-                      <div className="flex justify-between text-sm text-gray-600 mb-1">
-                        <span>Progress</span>
-                        <span>{task.progress}%</span>
-                      </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
-                          className="h-2 rounded-full bg-blue-500"
-                          style={{ width: `${task.progress}%` }}
-                        ></div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-4 text-sm text-gray-600">
-                        <span className="flex items-center">
-                          <CalendarDaysIcon className="h-4 w-4 mr-1" />
-                          Due: {new Date(task.dueDate).toLocaleDateString()}
-                        </span>
-                        <span className="flex items-center">
-                          <ClockIcon className="h-4 w-4 mr-1" />
-                          Est: {task.estimatedTime}
-                        </span>
-                      </div>
-                      {task.status !== 'completed' && (
-                        <button
-                          onClick={() => handleStartTimeTracking(task)}
-                          className="flex items-center text-primary-600 hover:text-primary-500 text-sm font-medium"
-                          disabled={isTrackingTime}
-                        >
-                          <PlayIcon className="h-4 w-4 mr-1" />
-                          {isTrackingTime ? 'Tracking...' : 'Start'}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div> */}
-
-          <div>
-            {/* Time Entries */}
-            {/* <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Recent Time Entries
-                </h2>
-                <ClockIcon className="h-5 w-5 text-gray-400" />
-              </div>
-              <div className="space-y-4">
-                {timeEntries.map((entry) => (
-                  <div key={entry.id} className="border-l-4 border-blue-500 pl-4 py-2">
-                    <h3 className="text-sm font-medium text-gray-900">
-                      {entry.task}
-                    </h3>
-                    <p className="text-xs text-gray-600">
-                      {entry.project}
-                    </p>
-                    <div className="flex justify-between items-center mt-1">
-                      <span className="text-sm font-medium text-blue-600">
-                        {entry.duration}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {entry.date}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6">
-                <button className="w-full btn-primary">
-                  View Timesheet
-                </button>
-              </div>
-            </div> */}
-
-            {/* Recent Activities */}
-            {/* <div className="bg-white rounded-lg shadow-md p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  My Activities
-                </h2>
-                <EyeIcon className="h-5 w-5 text-gray-400" />
-              </div>
-              <div className="space-y-4">
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg">
-                    <div className="flex-shrink-0">
-                      <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                        <CheckCircleIcon className="h-4 w-4 text-primary-600" />
-                      </div>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-gray-900">
-                        {activity.action}
-                      </p>
-                      <p className="text-xs text-gray-500 mt-1">
-                        {activity.timestamp}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6">
-                <button className="text-primary-600 hover:text-primary-500 text-sm font-medium">
-                  View all activities →
-                </button>
-              </div>
-            </div> */}
-          </div>
-        </div>
-
-            {/* Quick Actions */}
-            {/* <div className="mt-8">
-              <div className="bg-white rounded-lg shadow-md p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">
-                  Quick Actions
-                </h2>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <button 
-                    onClick={() => window.location.href = '/employee/my-tasks'}
-                    className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200"
-                  >
-                    <DocumentTextIcon className="h-8 w-8 text-gray-400 mb-2" />
-                    <span className="text-sm font-medium text-gray-700">My Tasks</span>
-                  </button>
-                  <button 
-                    onClick={() => window.location.href = '/employee/time-tracking'}
-                    className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200"
-                  >
-                    <ClockIcon className="h-8 w-8 text-gray-400 mb-2" />
-                    <span className="text-sm font-medium text-gray-700">Time Tracking</span>
-                  </button>
-                  <button 
-                    onClick={() => window.location.href = '/employee/submissions'}
-                    className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200"
-                  >
-                    <CalendarDaysIcon className="h-8 w-8 text-gray-400 mb-2" />
-                    <span className="text-sm font-medium text-gray-700">Submissions</span>
-                  </button>
-                  <button 
-                    onClick={() => window.location.href = '/employee/chat'}
-                    className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200"
-                  >
-                    <ChatBubbleLeftRightIcon className="h-8 w-8 text-gray-400 mb-2" />
-                    <span className="text-sm font-medium text-gray-700">Team Chat</span>
-                  </button>
-                  <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200">
-                    <BellIcon className="h-8 w-8 text-gray-400 mb-2" />
-                    <span className="text-sm font-medium text-gray-700">Notifications</span>
-                  </button>
-                </div>
-              </div>
-            </div> */}
           </>
-        )}
-
-        {/* Performance Analytics Tab */}
-        {activeTab === 'performance' && (
-          <PerformanceAnalytics userId={user?.id} />
-        )}
-
-        {/* Profile Tab */}
-        {activeTab === 'profile' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">My Profile</h2>
-            <div className="space-y-6">
-              <div className="flex items-center space-x-4">
-                <div className="h-16 w-16 rounded-full bg-gray-300 flex items-center justify-center">
-                  <span className="text-xl font-medium text-gray-700">
-                    {user?.name?.charAt(0) || 'U'}
-                  </span>
-                </div>
-                <div>
-                  <h3 className="text-lg font-medium text-gray-900">{user?.name}</h3>
-                  <p className="text-gray-600">{user?.email}</p>
-                  <p className="text-sm text-gray-500">{user?.role} • {user?.department}</p>
-                </div>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Position</label>
-                  <p className="mt-1 text-sm text-gray-900">{user?.position || 'Software Developer'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Department</label>
-                  <p className="mt-1 text-sm text-gray-900">{user?.department || 'Engineering'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Employee ID</label>
-                  <p className="mt-1 text-sm text-gray-900">{user?.employeeId || 'EMP001'}</p>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Join Date</label>
-                  <p className="mt-1 text-sm text-gray-900">{user?.joinDate || 'Jan 15, 2024'}</p>
-                </div>
-              </div>
-
-              <div className="border-t pt-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-4">Performance Summary</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">{stats.completedTasks}</div>
-                    <div className="text-sm text-gray-600">Tasks Completed</div>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">{stats.hoursThisWeek}h</div>
-                    <div className="text-sm text-gray-600">Hours This Week</div>
-                  </div>
-                  <div className="bg-gray-50 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">92%</div>
-                    <div className="text-sm text-gray-600">Performance Score</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
         )}
       </div>
     </div>

@@ -15,6 +15,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { apiService } from '../../services/apiService';
 import { useApiNotifications } from '../../hooks/useApiNotifications';
 import { useSocketEvent } from '../../hooks/useSocket';
+import CustomSelect from '../../components/CustomSelect';
 
 const TeamLeadProjectsManagement = () => {
   const { user } = useAuth();
@@ -364,16 +365,16 @@ const TeamLeadProjectsManagement = () => {
     <div className="space-y-6 animate-slideInFromBottom">
       <div className="mb-8">
         <h1 className="text-3xl font-bold gradient-text mb-2">My Projects</h1>
-        <p className="text-gray-600">Projects where you are assigned as Team Lead</p>
+        <p className="text-gray-600 dark:text-gray-300">Projects where you are assigned as Team Lead</p>
       </div>
 
       {/* Filters */}
       <div className="card p-6 mb-8 animate-slideInFromLeft">
         <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-          <div className="flex flex-col sm:flex-row gap-4">
+          <div className="flex flex-col sm:flex-row gap-4 z-50">
             {/* Search */}
             <div className="relative animate-slideInFromLeft animation-delay-200">
-              <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+              <MagnifyingGlassIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 placeholder="Search projects..."
@@ -384,27 +385,24 @@ const TeamLeadProjectsManagement = () => {
             </div>
 
             {/* Status Filter */}
-            <div className="relative animate-slideInFromLeft animation-delay-300">
-              <FunnelIcon className="h-5 w-5 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <select
+            <div className="relative animate-slideInFromLeft animation-delay-300 z-50">
+              <CustomSelect
+                label="Status"
+                name="statusFilter"
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="input-field pl-10 pr-8 py-3 appearance-none"
-              >
-                <option value="all">All Status</option>
-                {PROJECT_STATUSES.map(status => (
-                  <option key={status} value={status}>
-                    {status.replace('_', ' ')}
-                  </option>
-                ))}
-              </select>
+                options={[{ value: 'all', label: 'All Status' }, ...PROJECT_STATUSES.map(status => ({ value: status, label: status.replace('_', ' ') }))]}
+                required={false}
+                Icon={FunnelIcon}
+                placeholder="All Status"
+              />
             </div>
           </div>
         </div>
       </div>
 
       {/* Projects Grid */}
-      <div className="space-y-6">
+      <div className="space-y-6 z-0">
         {filteredProjects.length > 0 ? (
           <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-3 animate-slideInFromBottom">
             {filteredProjects.map((project, index) => (
@@ -417,8 +415,8 @@ const TeamLeadProjectsManagement = () => {
                   {/* Header */}
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-1">{project.name}</h3>
-                      <p className="text-sm text-gray-600 line-clamp-2">{project.description}</p>
+                      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-1">{project.name}</h3>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2">{project.description}</p>
                     </div>
                   </div>
 
@@ -434,7 +432,7 @@ const TeamLeadProjectsManagement = () => {
 
                    {/* Progress */}
                   <div className="mb-4">
-                    <div className="flex justify-between text-sm text-gray-600 mb-1">
+                    <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-1">
                       <span>Progress</span>
                       <div className="flex items-center gap-2">
                         <span className="font-medium">
@@ -451,7 +449,7 @@ const TeamLeadProjectsManagement = () => {
                         </button>
                       </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-3">
+                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                       <div 
                         className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-500 animate-glow"
                         style={{ width: `${project.progress || 0}%` }}
@@ -461,11 +459,11 @@ const TeamLeadProjectsManagement = () => {
 
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                    <div className="flex items-center text-gray-600">
+                    <div className="flex items-center text-gray-600 dark:text-gray-300">
                       <UserGroupIcon className="h-4 w-4 mr-1" />
                       {project.totalPeople || project.memberCount || 0} members
                     </div>
-                    <div className="flex items-center text-gray-600">
+                    <div className="flex items-center text-gray-600 dark:text-gray-300">
                       <DocumentTextIcon className="h-4 w-4 mr-1" />
                       {project.completedTasks || 0}/{project.totalTasks || 0} tasks
                     </div>
@@ -474,11 +472,11 @@ const TeamLeadProjectsManagement = () => {
                   {/* Budget */}
                   {project.budget && (
                     <div className="mb-4">
-                      <div className="flex justify-between text-sm text-gray-600 mb-1">
+                      <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-1">
                         <span>Budget Used</span>
                         <span>${project.spentBudget?.toLocaleString() || 0} / ${project.budget?.toLocaleString() || 0}</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-3">
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
                         <div 
                           className="bg-gradient-to-r from-green-500 to-blue-500 h-3 rounded-full transition-all duration-500"
                           style={{ width: `${calculateBudgetUsage(project.budget, project.spentBudget)}%` }}
@@ -488,7 +486,7 @@ const TeamLeadProjectsManagement = () => {
                   )}
 
                   {/* Dates */}
-                  <div className="text-xs text-gray-500 mb-4">
+                  <div className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-4">
                     <div className="flex items-center mb-1">
                       <CalendarDaysIcon className="h-3 w-3 mr-1" />
                       {project.endDate ? new Date(project.endDate).toLocaleDateString() : 'No deadline'}
@@ -497,7 +495,7 @@ const TeamLeadProjectsManagement = () => {
                   </div>
 
                   {/* Action */}
-                  <div className="pt-4 border-t border-gray-200">
+                  <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
                     <button
                       onClick={() => handleViewProjectTasks(project)}
                       className="w-full flex items-center justify-center bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white text-sm font-medium py-3 px-4 rounded-xl transition-all duration-300 hover:scale-105 shadow-lg hover:shadow-xl"
@@ -512,9 +510,9 @@ const TeamLeadProjectsManagement = () => {
           </div>
         ) : (
           <div className="text-center py-12">
-            <Bars3BottomLeftIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No projects found</h3>
-            <p className="text-gray-600">
+            <Bars3BottomLeftIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No projects found</h3>
+            <p className="text-gray-600 dark:text-gray-300">
               {searchTerm || statusFilter !== 'all' 
                 ? 'Try adjusting your search or filter criteria'
                 : 'You are not assigned as team lead to any projects yet'

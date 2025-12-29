@@ -60,13 +60,13 @@ const About = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="bg-white py-20">
+      <section className="bg-white dark:bg-gray-800 py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
-            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+            <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-gray-100 mb-6">
               About Our Company
             </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-3xl mx-auto mb-8">
               We're on a mission to revolutionize internal management systems, 
               making them more efficient, user-friendly, and powerful for modern businesses.
             </p>
@@ -75,14 +75,14 @@ const About = () => {
       </section>
 
       {/* Story Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl font-bold text-gray-900 mb-6">
+              <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-6">
                 Our Story
               </h2>
-              <div className="space-y-4 text-gray-600">
+              <div className="space-y-4 text-gray-600 dark:text-gray-300">
                 <p>
                   Founded in 2020, our company emerged from a simple observation: 
                   businesses were struggling with fragmented internal management 
@@ -100,23 +100,23 @@ const About = () => {
                 </p>
               </div>
             </div>
-            <div className="bg-white rounded-lg shadow-lg p-8">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-8">
               <div className="grid grid-cols-2 gap-6 text-center">
                 <div>
                   <div className="text-3xl font-bold text-primary-600 mb-2">2020</div>
-                  <div className="text-gray-600">Founded</div>
+                  <div className="text-gray-600 dark:text-gray-300">Founded</div>
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-primary-600 mb-2">500+</div>
-                  <div className="text-gray-600">Clients</div>
+                  <div className="text-gray-600 dark:text-gray-300">Clients</div>
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-primary-600 mb-2">50+</div>
-                  <div className="text-gray-600">Team Members</div>
+                  <div className="text-gray-600 dark:text-gray-300">Team Members</div>
                 </div>
                 <div>
                   <div className="text-3xl font-bold text-primary-600 mb-2">99.9%</div>
-                  <div className="text-gray-600">Uptime</div>
+                  <div className="text-gray-600 dark:text-gray-300">Uptime</div>
                 </div>
               </div>
             </div>
@@ -125,13 +125,13 @@ const About = () => {
       </section>
 
       {/* Values Section */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white dark:bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Our Values
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               The principles that guide everything we do and help us deliver 
               exceptional value to our customers.
             </p>
@@ -147,10 +147,10 @@ const About = () => {
                       <IconComponent className="h-8 w-8 text-primary-600" />
                     </div>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
                     {value.name}
                   </h3>
-                  <p className="text-gray-600">
+                  <p className="text-gray-600 dark:text-gray-300">
                     {value.description}
                   </p>
                 </div>
@@ -161,13 +161,13 @@ const About = () => {
       </section>
 
       {/* Team Section */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Meet Our Team
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               The passionate individuals behind our innovative internal 
               management platform.
             </p>
@@ -175,7 +175,7 @@ const About = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {team.map((member) => (
-              <div key={member.name} className="bg-white rounded-lg shadow-md overflow-hidden">
+              <div key={member.name} className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
                 <div className="aspect-w-1 aspect-h-1">
                   <div className="w-full h-48 bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
                     <div className="w-24 h-24 bg-primary-300 rounded-full flex items-center justify-center">
@@ -186,13 +186,13 @@ const About = () => {
                   </div>
                 </div>
                 <div className="p-6">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-1">
+                  <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-1">
                     {member.name}
                   </h3>
                   <p className="text-primary-600 font-medium mb-3">
                     {member.role}
                   </p>
-                  <p className="text-gray-600 text-sm">
+                  <p className="text-gray-600 dark:text-gray-300 text-sm">
                     {member.bio}
                   </p>
                 </div>

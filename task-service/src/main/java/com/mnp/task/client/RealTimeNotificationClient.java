@@ -28,6 +28,15 @@ public interface RealTimeNotificationClient {
     @PostMapping("/api/notifications/realtime/review-task")
     void sendTaskReviewNotification(@RequestBody TaskReviewNotificationRequest request);
 
+    @PostMapping("/api/notifications/realtime/task-extension-request")
+    void sendTaskExtensionRequestNotification(@RequestBody TaskExtensionRequestNotificationRequest request);
+
+    @PostMapping("/api/notifications/realtime/task-extension-review")
+    void sendTaskExtensionReviewNotification(@RequestBody TaskExtensionReviewNotificationRequest request);
+
+    @PostMapping("/api/notifications/realtime/deadline-reminder")
+    void sendDeadlineReminderNotification(@RequestBody DeadlineReminderNotificationRequest request);
+
     // DTO Classes
     @Setter
     @Getter
@@ -95,5 +104,53 @@ public interface RealTimeNotificationClient {
         private String title;
         private String message;
         private Map<String, Object> additionalData;
+    }
+
+    @Data
+    @Setter
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    class TaskExtensionRequestNotificationRequest {
+        private String teamLeadId;
+        private String taskId;
+        private String taskTitle;
+        private String projectName;
+        private String requestedBy;
+        private String requestedByName;
+        private Integer extensionHours;
+        private String newDueDate;
+        private String reason;
+    }
+
+    @Data
+    @Setter
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    class TaskExtensionReviewNotificationRequest {
+        private String employeeId;
+        private String taskId;
+        private String taskTitle;
+        private String projectName;
+        private String reviewedBy;
+        private String reviewedByName;
+        private String status;
+        private String reviewComments;
+        private String newDueDate;
+    }
+
+    @Data
+    @Setter
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    class DeadlineReminderNotificationRequest {
+        private String employeeId;
+        private String taskId;
+        private String taskTitle;
+        private String projectName;
+        private String dueDate;
+        private String reminderType; // "3_DAYS", "1_DAY", "OVERDUE"
     }
 }

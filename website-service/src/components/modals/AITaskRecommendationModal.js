@@ -493,16 +493,16 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center">
             <SparklesIcon className="h-6 w-6 text-purple-600 mr-3" />
-            <h2 className="text-xl font-semibold text-gray-900">AI Task Recommendations</h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">AI Task Recommendations</h2>
           </div>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-500"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:text-gray-400"
           >
             <XMarkIcon className="h-6 w-6" />
           </button>
@@ -513,17 +513,17 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
             // Analysis Setup
             <div className="space-y-6">
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
                   Generate AI Task Recommendations for {projectName}
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 dark:text-gray-300">
                   Provide project requirements to generate intelligent task recommendations using AI.
                 </p>
               </div>
 
               {/* Analysis Mode Selection */}
               <div>
-                <label className="text-sm font-medium text-gray-700 mb-3 block">Analysis Mode</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 block">Analysis Mode</label>
                 <div className="flex space-x-4">
                   <label className="flex items-center">
                     <input
@@ -533,7 +533,7 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
                       onChange={(e) => setAnalysisMode(e.target.value)}
                       className="mr-2"
                     />
-                    <DocumentTextIcon className="h-5 w-5 mr-2 text-gray-600" />
+                    <DocumentTextIcon className="h-5 w-5 mr-2 text-gray-600 dark:text-gray-300" />
                     Text Description
                   </label>
                   <label className="flex items-center">
@@ -544,7 +544,7 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
                       onChange={(e) => setAnalysisMode(e.target.value)}
                       className="mr-2"
                     />
-                    <CloudArrowUpIcon className="h-5 w-5 mr-2 text-gray-600" />
+                    <CloudArrowUpIcon className="h-5 w-5 mr-2 text-gray-600 dark:text-gray-300" />
                     Upload File
                   </label>
                 </div>
@@ -553,26 +553,26 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
               {/* Content Input */}
               {analysisMode === 'text' ? (
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                     Project Requirements *
                   </label>
                   <textarea
                     value={textContent}
                     onChange={(e) => setTextContent(e.target.value)}
                     rows={8}
-                    className="w-full border border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-700"
                     placeholder="Describe your project requirements, features, goals, and any specific tasks you need help with..."
                   />
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
                     Provide detailed project requirements to get better AI recommendations
                   </p>
                 </div>
               ) : (
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                     Requirements Document *
                   </label>
-                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
+                  <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
                     <input
                       type="file"
                       onChange={handleFileSelect}
@@ -581,11 +581,11 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
                       id="file-upload"
                     />
                     <label htmlFor="file-upload" className="cursor-pointer">
-                      <CloudArrowUpIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-sm text-gray-600">
+                      <CloudArrowUpIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                      <p className="text-sm text-gray-600 dark:text-gray-300">
                         Click to upload or drag and drop
                       </p>
-                      <p className="text-xs text-gray-500 mt-1">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
                         Supports PDF, DOC, DOCX, TXT, MD files
                       </p>
                     </label>
@@ -601,13 +601,13 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
               {/* Project Configuration */}
               {/* <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                     Project Type
                   </label>
                   <select
                     value={projectType}
                     onChange={(e) => setProjectType(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
                     {PROJECT_TYPES.map(type => (
                       <option key={type} value={type}>
@@ -618,13 +618,13 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
                 </div>
                 
                 <div>
-                  <label className="text-sm font-medium text-gray-700 mb-2 block">
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">
                     Methodology
                   </label>
                   <select
                     value={methodology}
                     onChange={(e) => setMethodology(e.target.value)}
-                    className="w-full border border-gray-300 rounded-lg p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    className="w-full border border-gray-300 dark:border-gray-600 rounded-lg p-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                   >
                     {METHODOLOGIES.map(method => (
                       <option key={method} value={method}>
@@ -667,16 +667,16 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
                 </div>
                 <p className="text-sm text-purple-700 mb-4 leading-relaxed">{recommendations.projectSummary}</p>
                 <div className="grid grid-cols-3 gap-4">
-                  <div className="bg-white rounded-lg p-3 border border-purple-100">
-                    <div className="text-xs text-gray-500 mb-1">Total Tasks</div>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-purple-100">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">Total Tasks</div>
                     <div className="text-2xl font-bold text-purple-600">{recommendations.totalTasks}</div>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-blue-100">
-                    <div className="text-xs text-gray-500 mb-1">Estimated Hours</div>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-blue-100">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">Estimated Hours</div>
                     <div className="text-2xl font-bold text-blue-600">{recommendations.estimatedTotalHours}h</div>
                   </div>
-                  <div className="bg-white rounded-lg p-3 border border-indigo-100">
-                    <div className="text-xs text-gray-500 mb-1">AI Model</div>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-indigo-100">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">AI Model</div>
                     <div className="text-sm font-semibold text-indigo-600 truncate" title={recommendations.aiModel}>
                       {recommendations.aiModel}
                     </div>
@@ -687,8 +687,8 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
               {/* Task Selection Controls */}
               <div className="flex items-center justify-between pb-2">
                 <div className="flex items-center">
-                  <ClipboardDocumentIcon className="h-5 w-5 text-gray-600 mr-2" />
-                  <h3 className="text-lg font-semibold text-gray-900">
+                  <ClipboardDocumentIcon className="h-5 w-5 text-gray-600 dark:text-gray-300 mr-2" />
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
                     Recommended Tasks
                   </h3>
                   <span className="ml-3 px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-sm font-medium">
@@ -740,7 +740,7 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
                         <div className="flex-1 min-w-0">
                           {/* Task Header with Title and Type */}
                           <div className="flex items-start justify-between mb-3">
-                            <h4 className="font-semibold text-gray-900 text-base leading-tight pr-4">
+                            <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-base leading-tight pr-4">
                               {task.title}
                             </h4>
                             <div className={`flex items-center px-3 py-1 rounded-full border ${typeConfig.color} flex-shrink-0`}>
@@ -750,7 +750,7 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
                           </div>
                           
                           {/* Description */}
-                          <p className="text-sm text-gray-600 leading-relaxed mb-4">
+                          <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed mb-4">
                             {task.description}
                           </p>
                           
@@ -761,7 +761,7 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
                             </span>
                             
                             {task.estimatedHours && (
-                              <span className="flex items-center px-3 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                              <span className="flex items-center px-3 py-1 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">
                                 <ClockIcon className="h-3.5 w-3.5 mr-1.5" />
                                 {task.estimatedHours}h
                               </span>
@@ -781,7 +781,7 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
                               {(task.requiredSkills || task.tags || []).map((skill, skillIndex) => (
                                 <span
                                   key={skillIndex}
-                                  className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 border border-gray-200"
+                                  className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-gray-50 to-gray-100 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700"
                                 >
                                   {skill}
                                 </span>
@@ -796,10 +796,10 @@ const AITaskRecommendationModal = ({ isOpen, onClose, projectId, projectName, on
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-between items-center pt-6 border-t-2 border-gray-100">
+              <div className="flex justify-between items-center pt-6 border-t-2 border-gray-100 dark:border-gray-700">
                 <button
                   onClick={() => setRecommendations(null)}
-                  className="flex items-center px-5 py-2.5 text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all font-medium"
+                  className="flex items-center px-5 py-2.5 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:bg-gray-900 hover:border-gray-400 transition-all font-medium"
                 >
                   <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />

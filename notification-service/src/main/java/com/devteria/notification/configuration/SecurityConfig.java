@@ -18,6 +18,7 @@ public class SecurityConfig {
     // Thêm nhiều endpoints SockJS vào danh sách public
     private static final String[] PUBLIC_ENDPOINTS = {
         "/email/send",
+        "/api/notifications/realtime/**", // Internal service-to-service calls
         "/ws/**", // Tất cả WebSocket endpoints
         "/ws", // Base WebSocket endpoint
         "/ws/info", // SockJS info endpoint

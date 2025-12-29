@@ -219,8 +219,8 @@ const AdminAnalyticsDashboard = () => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Analytics Dashboard</h2>
-          <p className="text-gray-600 mt-1">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Analytics Dashboard</h2>
+          <p className="text-gray-600 dark:text-gray-300 mt-1">
             Comprehensive project and user analytics with timeline visualization
           </p>
         </div>
@@ -248,51 +248,51 @@ const AdminAnalyticsDashboard = () => {
 
       {/* Key Metrics */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <BriefcaseIcon className="h-8 w-8 text-blue-600" />
             <div className="ml-4">
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {analyticsData.projectTimeline.reduce((sum, item) => sum + item.projects, 0)}
               </p>
-              <p className="text-sm text-gray-500">Total Projects</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Total Projects</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <CheckCircleIcon className="h-8 w-8 text-green-600" />
             <div className="ml-4">
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {analyticsData.projectTimeline.reduce((sum, item) => sum + item.completed, 0)}
               </p>
-              <p className="text-sm text-gray-500">Completed</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Completed</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <TrendingUpIcon className="h-8 w-8 text-purple-600" />
             <div className="ml-4">
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {analyticsData.projectTimeline.reduce((sum, item) => sum + item.active, 0)}
               </p>
-              <p className="text-sm text-gray-500">Active Projects</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Active Projects</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <UsersIcon className="h-8 w-8 text-orange-600" />
             <div className="ml-4">
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {analyticsData.userGrowth.length > 0 ? 
                   analyticsData.userGrowth[analyticsData.userGrowth.length - 1].totalUsers : 0}
               </p>
-              <p className="text-sm text-gray-500">Total Users</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">Total Users</p>
             </div>
           </div>
         </div>
@@ -301,8 +301,8 @@ const AdminAnalyticsDashboard = () => {
       {/* Charts Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Project Timeline Chart */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
             Project Timeline - {timeRanges.find(r => r.value === timeRange)?.label}
           </h3>
           <ResponsiveContainer width="100%" height={300}>
@@ -343,8 +343,8 @@ const AdminAnalyticsDashboard = () => {
         </div>
 
         {/* User Growth Chart */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">User Growth</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">User Growth</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={analyticsData.userGrowth}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -370,8 +370,8 @@ const AdminAnalyticsDashboard = () => {
         </div>
 
         {/* Project Status Distribution */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Project Status Distribution</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Project Status Distribution</h3>
           <ResponsiveContainer width="100%" height={300}>
             <PieChart>
               <Pie
@@ -394,8 +394,8 @@ const AdminAnalyticsDashboard = () => {
         </div>
 
         {/* Department Performance */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Department Performance</h3>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Department Performance</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={analyticsData.departmentStats}>
               <CartesianGrid strokeDasharray="3 3" />
@@ -410,43 +410,43 @@ const AdminAnalyticsDashboard = () => {
       </div>
 
       {/* Workload Distribution Table */}
-      <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-medium text-gray-900">Top Performers</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">Top Performers</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   User
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Tasks
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Completed
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wider">
                   Efficiency
                 </th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {analyticsData.workloadDistribution.map((user, index) => (
                 <tr key={index}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-gray-100">
                     {user.name}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                     {user.tasks}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                     {user.completed}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
                     <div className="flex items-center">
-                      <div className="w-16 bg-gray-200 rounded-full h-2 mr-2">
+                      <div className="w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-2">
                         <div 
                           className="bg-green-600 h-2 rounded-full" 
                           style={{ width: `${user.efficiency}%` }}

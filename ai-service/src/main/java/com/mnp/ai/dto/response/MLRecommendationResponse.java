@@ -1,4 +1,4 @@
-package com.mnp.ai.dto;
+package com.mnp.ai.dto.response;
 
 import java.time.LocalDateTime;
 import java.util.List;

@@ -4,13 +4,11 @@ PostgreSQL ML Data Viewer
 Easy-to-use script to view ML training data in PostgreSQL
 """
 
-import pandas as pd
-import numpy as np
-from sqlalchemy import create_engine
-import matplotlib.pyplot as plt
-import seaborn as sns
-from datetime import datetime
 import warnings
+
+import pandas as pd
+from sqlalchemy import create_engine
+
 warnings.filterwarnings('ignore')
 
 class MLDataViewer:

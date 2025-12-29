@@ -4,5 +4,6 @@ public enum SkillType {
     PROGRAMMING_LANGUAGE,
     FRAMEWORK,
     DATABASE,
-    TOOL
+    TOOL,
+    TECHNICAL
 }

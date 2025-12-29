@@ -239,18 +239,4 @@ public class ProjectIntegrationService {
             return ProficiencyLevel.BEGINNER;
         }
     }
-
-    /**
-     * Get all required skills for a project
-     */
-    public List<ProjectRequiredSkill> getProjectRequiredSkills(String projectId) {
-        return projectRequiredSkillRepository.findByProjectId(projectId);
-    }
-
-    /**
-     * Get all active members of a project
-     */
-    public List<ProjectMember> getActiveProjectMembers(String projectId) {
-        return projectMemberRepository.findByProjectIdAndIsActive(projectId, true);
-    }
 }

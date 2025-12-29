@@ -40,8 +40,14 @@ public interface IdentityClient {
         private Integer qualityRating;
         private boolean completedOnTime;
         private String taskComplexity;
-        private Integer estimatedHours;
+        private Integer estimatedHours;  // Current estimated hours (after extensions)
         private Integer actualHours;
         private String comments;
+
+        // NEW FIELDS for extension tracking
+        private Integer originalEstimatedHours;  // Original estimate before any extensions
+        private Integer extensionCount;           // Number of extensions
+        private Integer totalExtensionHours;      // Total hours extended
+        private Boolean hadExtension;
     }
 }

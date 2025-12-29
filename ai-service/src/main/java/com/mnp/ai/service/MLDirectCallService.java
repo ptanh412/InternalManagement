@@ -1,6 +1,6 @@
 package com.mnp.ai.service;
 
-import com.mnp.ai.dto.TaskAssignmentRequest;
+import com.mnp.ai.dto.request.TaskAssignmentRequest;
 import com.mnp.ai.model.AssignmentRecommendation;
 import com.mnp.ai.model.TaskProfile;
 import lombok.RequiredArgsConstructor;

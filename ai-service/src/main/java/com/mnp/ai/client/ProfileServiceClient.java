@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import com.mnp.ai.dto.ApiResponse;
-import com.mnp.ai.dto.UserProfileResponse;
+import com.mnp.ai.dto.response.UserProfileResponse;
 
 @FeignClient(
         name = "profile-service",

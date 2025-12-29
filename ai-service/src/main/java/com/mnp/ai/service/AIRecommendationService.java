@@ -7,9 +7,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.mnp.ai.client.MLServiceClient;
-import com.mnp.ai.dto.MLPredictionRequest;
-import com.mnp.ai.dto.MLPredictionResponse;
-import com.mnp.ai.dto.MLPredictionResult;
+import com.mnp.ai.client.ProjectClient;
+import com.mnp.ai.dto.request.MLPredictionRequest;
+import com.mnp.ai.dto.response.MLPredictionResponse;
+import com.mnp.ai.dto.response.MLPredictionResult;
 import com.mnp.ai.model.AssignmentRecommendation;
 import com.mnp.ai.model.TaskProfile;
 import com.mnp.ai.model.UserProfile;
@@ -23,8 +24,8 @@ public class AIRecommendationService {
     private final FeatureEngineeringService featureEngineering;
     private final MLServiceClient mlServiceClient;
     private final DataIntegrationService dataIntegrationService;
-    private final GeminiRecommendationService geminiRecommendationService;
-    private final SkillCategoryMatcher skillCategoryMatcher;
+    private final ProjectClient projectClient;
+    private final BatchDataFetchService batchDataFetchService;  // ✅ NEW: For parallel data fetching
 
     @Autowired
     private SkillNormalizer skillNormalizer;
@@ -37,13 +38,13 @@ public class AIRecommendationService {
             FeatureEngineeringService featureEngineering,
             MLServiceClient mlServiceClient,
             DataIntegrationService dataIntegrationService,
-            GeminiRecommendationService geminiRecommendationService,
-            SkillCategoryMatcher skillCategoryMatcher) {
+            ProjectClient projectClient,
+            BatchDataFetchService batchDataFetchService) {  // ✅ NEW parameter
         this.featureEngineering = featureEngineering;
         this.mlServiceClient = mlServiceClient;
         this.dataIntegrationService = dataIntegrationService;
-        this.geminiRecommendationService = geminiRecommendationService;
-        this.skillCategoryMatcher = skillCategoryMatcher;
+        this.projectClient = projectClient;
+        this.batchDataFetchService = batchDataFetchService;  // ✅ Initialize
     }
 
     /**
@@ -82,27 +83,62 @@ public class AIRecommendationService {
             return Collections.emptyList();
         }
 
-        // STEP 1.5: Filter out PRINCIPAL and DIRECTOR seniority levels
+        // STEP 1.5: Filter out PRINCIPAL, DIRECTOR, PROJECT_MANAGER, and LEAD (if not in project)
         // These high-level positions should not be assigned to regular tasks
+        // Exception: LEAD can be assigned if they are part of the project team
+        String projectId = task.getProjectId();
         List<UserProfile> eligibleCandidates = filteredCandidates.stream()
                 .filter(c -> {
                     String seniority = c.getSeniorityLevel();
-                    if (seniority == null) return true;
+                    String role = c.getRole();
 
-                    String normalizedSeniority = seniority.toUpperCase().trim();
-                    boolean isExcluded = "PRINCIPAL".equals(normalizedSeniority) ||
-                                       "DIRECTOR".equals(normalizedSeniority);
+                    if (seniority == null && role == null) return true;
 
-                    if (isExcluded) {
+                    String normalizedSeniority = seniority != null ? seniority.toUpperCase().trim() : "";
+                    String normalizedRole = role != null ? role.toUpperCase().trim() : "";
+
+                    // Always exclude PRINCIPAL and DIRECTOR
+                    if ("PRINCIPAL".equals(normalizedSeniority) || "DIRECTOR".equals(normalizedSeniority)) {
                         log.debug("Excluding candidate {} with seniority level: {}",
                                 c.getUserId(), seniority);
+                        return false;
                     }
 
-                    return !isExcluded;
+                    // Always exclude PROJECT_MANAGER role
+                    if ("PROJECT_MANAGER".equals(normalizedRole)) {
+                        log.debug("Excluding candidate {} with role: PROJECT_MANAGER", c.getUserId());
+                        return false;
+                    }
+
+                    // For LEAD: check if they are part of the project team
+                    if ("LEAD".equals(normalizedSeniority)) {
+                        try {
+                            Boolean isTeamLead = projectClient.isTeamLead(projectId, c.getUserId());
+                            if (Boolean.TRUE.equals(isTeamLead)) {
+                                log.info("✅ Including LEAD {} - they are part of project {}",
+                                        c.getUserId(), projectId);
+                                return true;
+                            } else {
+                                log.info("❌ Excluding LEAD {} - not part of project {}",
+                                        c.getUserId(), projectId);
+                                return false;
+                            }
+                        } catch (Exception e) {
+                            log.error("Error checking if LEAD {} is in project {}: {}",
+                                    c.getUserId(), projectId, e.getMessage());
+                            // On error, exclude LEAD to be safe
+                            return false;
+                        }
+                    }
+
+                    return true;
                 })
                 .collect(Collectors.toList());
-        log.info("Info candidate: {}" , eligibleCandidates.getFirst());
-        log.info("Candidates after seniority filter: {} out of {} (excluded PRINCIPAL/DIRECTOR)",
+
+        if (!eligibleCandidates.isEmpty()) {
+            log.info("Info candidate: {}", eligibleCandidates.get(0));
+        }
+        log.info("Candidates after seniority filter: {} out of {} (excluded PRINCIPAL/DIRECTOR/PROJECT_MANAGER/LEAD not in project)",
                 eligibleCandidates.size(), filteredCandidates.size());
 
         if (eligibleCandidates.isEmpty()) {
@@ -111,12 +147,53 @@ public class AIRecommendationService {
             return Collections.emptyList();
         }
 
-        // STEP 2: Calculate AI scores for filtered candidates
-        // ML service will fetch full user data from databases
+        // ✅ PERFORMANCE OPTIMIZATION: Batch fetch all user data in parallel
+        // Old approach: N sequential API calls per user (workload + availability + performance)
+        // New approach: 3 parallel batch calls for ALL users at once
+        log.info("🚀 Batch fetching workload/availability/profiles for {} candidates", eligibleCandidates.size());
+        List<String> userIds = eligibleCandidates.stream()
+                .map(UserProfile::getUserId)
+                .collect(Collectors.toList());
+
+        BatchDataFetchService.BatchUserData batchData = batchDataFetchService.fetchAllDataBatch(userIds);
+        log.info("✅ Batch data fetched: {} workloads, {} availabilities, {} profiles",
+                batchData.workloads().size(),
+                batchData.availabilities().size(),
+                batchData.userProfiles().size());
+
+        // Enrich UserProfile objects with batch-fetched data
+        eligibleCandidates.forEach(candidate -> {
+            String userId = candidate.getUserId();
+
+            // Set workload data if available
+            var workload = batchData.workloads().get(userId);
+            if (workload != null && workload.getUtilizationPercentage() != null) {
+                candidate.setWorkloadCapacity(workload.getUtilizationPercentage() / 100.0);
+            }
+
+            // Set availability data if available
+            var availability = batchData.availabilities().get(userId);
+            if (availability != null && availability.getAvailabilityPercentage() != null) {
+                candidate.setAvailabilityScore(availability.getAvailabilityPercentage() / 100.0);
+                if (availability.getIsAvailable() != null) {
+                    candidate.setAvailabilityStatus(availability.getIsAvailable() ? "AVAILABLE" : "UNAVAILABLE");
+                }
+            }
+
+            // ✅ Set performance score from UserProfileResponse.user.performanceScore
+            var userProfile = batchData.userProfiles().get(userId);
+            if (userProfile != null && userProfile.getUser() != null && userProfile.getUser().getPerformanceScore() != null) {
+                candidate.setPerformanceScore(userProfile.getUser().getPerformanceScore());
+            }
+        });
+
+        // STEP 2: Calculate AI scores for filtered candidates (now with enriched data)
         List<Map<String, Object>> candidatesWithAIScores = eligibleCandidates.stream()
                 .map(c -> {
                     double baseMatch = calculateBaseSkillMatch(task, c);
                     Map<String, Double> aiScores = featureEngineering.calculateAIScores(c, task, baseMatch);
+
+                    log.debug("AI Scores for candidate {}: {}", c.getUserId(), aiScores);
 
                     // Return minimal data: userId + AI scores only
                     Map<String, Object> candidateData = new HashMap<>();
@@ -213,49 +290,98 @@ public class AIRecommendationService {
 
     /**
      * Check if candidate's department aligns with task type
+     * Maps all TaskType enum values to appropriate departments:
+     * - Backend Development: BACKEND_DEVELOPMENT, DATABASE_DEVELOPMENT, ARCHITECTURE, SECURITY
+     * - Frontend Development: FRONTEND_DEVELOPMENT, DESIGN
+     * - Mobile Development: MOBILE_DEVELOPMENT
+     * - DevOps: DEPLOYMENT, MAINTENANCE
+     * - Quality Assurance: TESTING, UNIT_TESTING, INTEGRATION_TESTING, BUG_FIX
+     * - Engineering: DEVELOPMENT, RESEARCH, DOCUMENTATION, CODE_REVIEW, PLANNING
      */
     private boolean isDepartmentAlignedWithTask(String department, String taskType) {
         log.info("Checking department alignment for {} and {} task", department, taskType);
-        // Backend Development alignment
+
+        // Normalize for case-insensitive comparison
+        String normalizedType = taskType.replace("_", " ").toLowerCase();
+
+        // ==================== BACKEND DEVELOPMENT ====================
+        // Handles: BACKEND_DEVELOPMENT, DATABASE_DEVELOPMENT, ARCHITECTURE, SECURITY
         if (department.contains("backend") || department.contains("back-end")) {
-            return taskType.contains("backend") || taskType.contains("back-end") ||
-                   taskType.contains("api") || taskType.contains("server") ||
-                   taskType.contains("database") || taskType.contains("microservice");
+            return normalizedType.contains("backend") ||
+                   normalizedType.contains("back-end") ||
+                   normalizedType.contains("database") ||
+                   normalizedType.contains("api") ||
+                   normalizedType.contains("server") ||
+                   normalizedType.contains("microservice") ||
+                   normalizedType.contains("architecture") ||
+                   normalizedType.contains("security");
         }
 
-        // Frontend Development alignment
+        // ==================== FRONTEND DEVELOPMENT ====================
+        // Handles: FRONTEND_DEVELOPMENT, DESIGN
         if (department.contains("frontend") || department.contains("front-end")) {
-            return taskType.contains("frontend") || taskType.contains("front-end") ||
-                   taskType.contains("ui") || taskType.contains("ux") ||
-                   taskType.contains("web") || taskType.contains("interface");
+            return normalizedType.contains("frontend") ||
+                   normalizedType.contains("front-end") ||
+                   normalizedType.contains("ui") ||
+                   normalizedType.contains("ux") ||
+                   normalizedType.contains("web") ||
+                   normalizedType.contains("interface") ||
+                   normalizedType.contains("design");
         }
 
-        // Mobile Development alignment
+        // ==================== MOBILE DEVELOPMENT ====================
+        // Handles: MOBILE_DEVELOPMENT
         if (department.contains("mobile") || department.contains("app")) {
-            return taskType.contains("mobile") || taskType.contains("ios") ||
-                   taskType.contains("android") || taskType.contains("app");
+            return normalizedType.contains("mobile") ||
+                   normalizedType.contains("ios") ||
+                   normalizedType.contains("android") ||
+                   normalizedType.contains("app");
         }
 
-        // DevOps alignment
+        // ==================== DEVOPS ====================
+        // Handles: DEPLOYMENT, MAINTENANCE
         if (department.contains("devops") || department.contains("infrastructure")) {
-            return taskType.contains("devops") || taskType.contains("deployment") ||
-                   taskType.contains("infrastructure") || taskType.contains("ci/cd") ||
-                   taskType.contains("docker") || taskType.contains("kubernetes");
+            return normalizedType.contains("devops") ||
+                   normalizedType.contains("deployment") ||
+                   normalizedType.contains("infrastructure") ||
+                   normalizedType.contains("ci/cd") ||
+                   normalizedType.contains("ci cd") ||
+                   normalizedType.contains("docker") ||
+                   normalizedType.contains("kubernetes") ||
+                   normalizedType.contains("maintenance");
         }
 
-        // QA/Testing alignment
-        if (department.contains("qa") || department.contains("quality") || department.contains("test")) {
-            return taskType.contains("test") || taskType.contains("qa") ||
-                   taskType.contains("quality") || taskType.contains("bug");
+        // ==================== QUALITY ASSURANCE (QA) ====================
+        // Handles: TESTING, UNIT_TESTING, INTEGRATION_TESTING, BUG_FIX
+        if (department.contains("qa") ||
+            department.contains("quality") ||
+            department.contains("test") ||
+            department.contains("assurance")) {
+            return normalizedType.contains("test") ||
+                   normalizedType.contains("qa") ||
+                   normalizedType.contains("quality") ||
+                   normalizedType.contains("bug") ||
+                   normalizedType.contains("unit testing") ||
+                   normalizedType.contains("integration testing") ||
+                   normalizedType.contains("fix");
         }
 
-        // Engineering department - can match most development tasks
+        // ==================== ENGINEERING (General) ====================
+        // Handles: DEVELOPMENT, RESEARCH, DOCUMENTATION, CODE_REVIEW, PLANNING
+        // This is a catch-all for general development tasks that don't fit specific departments
         if (department.contains("engineering") && !department.contains("devops")) {
-            return taskType.contains("development") || taskType.contains("feature") ||
-                   taskType.contains("implementation");
+            return normalizedType.contains("development") ||
+                   normalizedType.contains("feature") ||
+                   normalizedType.contains("implementation") ||
+                   normalizedType.contains("research") ||
+                   normalizedType.contains("documentation") ||
+                   normalizedType.contains("code review") ||
+                   normalizedType.contains("planning");
         }
 
-        // No specific match found - allow through (will be evaluated by skill match)
+        // No specific match found - reject to enforce strict department matching
+        log.info("⚠️  No department alignment found for {} department and {} task type",
+                department, taskType);
         return false;
     }
 
@@ -407,13 +533,14 @@ public class AIRecommendationService {
         try {
             Map<String, Object> taskData = new HashMap<>();
             taskData.put("task_id", task.getTaskId());
+            taskData.put("title", task.getTitle() != null ? task.getTitle() : "");
             taskData.put("priority", task.getPriority() != null ? task.getPriority() : "MEDIUM");
             taskData.put("difficulty", task.getDifficulty() != null ? task.getDifficulty() : "MEDIUM");
             taskData.put("estimated_hours", task.getEstimatedHours() != null ? task.getEstimatedHours() : 40.0);
             taskData.put("required_skills", task.getRequiredSkills() != null ?
                 new ArrayList<>(task.getRequiredSkills().keySet()) : Collections.emptyList());
             taskData.put("task_type", task.getType() != null ? task.getType() : "GENERAL");
-            taskData.put("description", task.getDescription());
+            taskData.put("description", task.getDescription() != null ? task.getDescription() : "");
 
             MLPredictionRequest request = MLPredictionRequest.builder()
                     .taskId(task.getTaskId())
@@ -466,279 +593,234 @@ public class AIRecommendationService {
             TaskProfile task,
             List<UserProfile> candidates) {
 
+        // --- BƯỚC 1: TÌM ỨNG VIÊN ---
         UserProfile candidate = candidates.stream()
                 .filter(c -> c.getUserId().equals(mlPred.getUserId()))
                 .findFirst()
                 .orElse(null);
-
 
         if (candidate == null) {
             log.warn("Candidate not found for ML prediction: {}", mlPred.getUserId());
             return null;
         }
 
-        double mlScore = mlPred.getMlConfidenceScore();
-
-        log.info("ML Score: {}", mlScore);
+        // --- BƯỚC 2: TÍNH TOÁN BUSINESS BOOST (Điểm thưởng nghiệp vụ) ---
         double businessBoost = 0.0;
         List<String> boostReasons = new ArrayList<>();
 
-        // 1. Department Alignment Boost (NEW - HIGHEST PRIORITY)
+        // 2.1 Department Alignment
         String candidateDept = candidate.getDepartment();
         String taskType = task.getType();
         if (candidateDept != null && taskType != null) {
-            boolean isDeptMatch = isDepartmentAlignedWithTask(
-                candidateDept.toLowerCase().trim(),
-                taskType.toLowerCase().trim()
-            );
-            if (isDeptMatch) {
-                businessBoost += 0.10; // Strong boost for department match
-                boostReasons.add("Department matches task type (+10%)");
-                log.info("✅ Department alignment: {} matches {} task", candidateDept, taskType);
-            } else {
-                log.info("⚠️  Cross-department: {} for {} task (no boost)", candidateDept, taskType);
+            if (isDepartmentAlignedWithTask(candidateDept, taskType)) {
+                businessBoost += 0.10;
+                boostReasons.add("Department matches task type");
             }
         }
 
-        // 2. Priority Boost
-        if ("URGENT".equals(task.getPriority()) || "HIGH".equals(task.getPriority())) {
-            // Convert seniority level string to numeric for comparison
+        // 2.2 Priority & Seniority
+        if (("URGENT".equals(task.getPriority()) || "HIGH".equals(task.getPriority()))) {
             int seniorityNum = parseSeniorityLevel(candidate.getSeniorityLevel());
             if (seniorityNum >= 4) {
                 businessBoost += 0.05;
-                boostReasons.add("Senior developer for urgent task (+5%)");
-            }
-            Double successRate = candidate.getTaskCompletionRate();
-            if (successRate != null && successRate > 0.9) {
-                businessBoost += 0.03;
-                boostReasons.add("High success rate for urgent task (+3%)");
+                boostReasons.add("Senior developer for urgent task");
             }
         }
 
-        // 2. Priority Boost
-        if ("URGENT".equals(task.getPriority()) || "HIGH".equals(task.getPriority())) {
-            // Convert seniority level string to numeric for comparison
-            int seniorityNum = parseSeniorityLevel(candidate.getSeniorityLevel());
-            if (seniorityNum >= 4) {
-                businessBoost += 0.05;
-                boostReasons.add("Senior developer for urgent task (+5%)");
-            }
-            Double successRate = candidate.getTaskCompletionRate();
-            if (successRate != null && successRate > 0.9) {
-                businessBoost += 0.03;
-                boostReasons.add("High success rate for urgent task (+3%)");
-            }
-        }
-
-        // 3. Availability Boost
+        // 2.3 Availability Boost
         if ("AVAILABLE".equals(candidate.getAvailabilityStatus())) {
             businessBoost += 0.03;
-            boostReasons.add("Currently available (+3%)");
+            boostReasons.add("Currently available");
         }
 
-        log.info("Business Boost: {}", businessBoost);
-
-        // 4. Recent Performance Boost
-        Double successRate = candidate.getTaskCompletionRate();
-        log.info("Success Rate: {}", successRate);
-        if (successRate != null && successRate > 0.9) {
+        // 2.4 Recent Performance Boost
+        if (candidate.getTaskCompletionRate() != null && candidate.getTaskCompletionRate() > 0.9) {
             businessBoost += 0.03;
-            boostReasons.add("Excellent track record (+3%)");
+            boostReasons.add("Excellent track record");
         }
 
-        // 5. Capacity Match
+        // 2.5 Capacity Match
         Double capacity = candidate.getWorkloadCapacity();
-        log.info("Capacity: {}", capacity);
         Integer estimatedHours = task.getEstimatedHours();
-        log.info("Estimated Hours: {}", estimatedHours);
         if (capacity != null && estimatedHours != null && estimatedHours > 0) {
             double capacityRatio = capacity / estimatedHours;
             if (capacityRatio >= 1.5) {
                 businessBoost += 0.02;
-                boostReasons.add("Has plenty of capacity (+2%)");
+                boostReasons.add("Has plenty of capacity");
             }
         }
 
-        // 6. Experience Match for Difficulty
-        int seniorityNum = parseSeniorityLevel(candidate.getSeniorityLevel());
-        log.info("Seniority Num: {}", seniorityNum);
-        if ("HARD".equals(task.getDifficulty()) && seniorityNum >= 4) {
-            businessBoost += 0.04;
-            boostReasons.add("Senior for hard task (+4%)");
-        }
-        log.info("Business Boost After Experience Match: {}", businessBoost);
-        // Calculate final score: 80% ML, 20% Business Rules
+        // --- BƯỚC 3: TÍNH ĐIỂM TỔNG (FINAL SCORE) ---
+        double mlScore = mlPred.getMlConfidenceScore();
+        // Công thức: 80% từ AI + 20% từ Business Rules
         double finalScore = (mlScore * 0.8) + (businessBoost * 0.2);
+        finalScore = Math.min(1.0, finalScore);
 
-        log.info("Final Score: {}", finalScore);
-
+        // --- BƯỚC 4: KHỞI TẠO DTO ---
         AssignmentRecommendation recommendation = new AssignmentRecommendation();
         recommendation.setUserId(candidate.getUserId());
         recommendation.setTaskId(task.getTaskId());
         recommendation.setOverallScore(finalScore);
+        recommendation.setHybridScore(mlScore);
         recommendation.setContentBasedScore(mlScore);
         recommendation.setCollaborativeFilteringScore(0.0);
-        recommendation.setHybridScore(finalScore);
 
-        // Extract individual scores from feature importance if available
-        Map<String, Double> featureImportance = mlPred.getFeatureImportance();
-        if (featureImportance != null) {
-            recommendation.setSkillMatchScore(featureImportance.getOrDefault("skill_match_score", mlScore));
-            recommendation.setWorkloadScore(featureImportance.getOrDefault("workload_score", 0.0));
-            recommendation.setPerformanceScore(featureImportance.getOrDefault("performance_score", 0.0));
-            recommendation.setAvailabilityScore(featureImportance.getOrDefault("availability_score", 0.0));
-            recommendation.setCollaborationScore(featureImportance.getOrDefault("collaboration_score", 0.0));
+        // --- BƯỚC 5: GÁN CHỈ SỐ HIỂN THỊ (DISPLAY METRICS - TỪ DB) ---
+
+        // 5.1 Performance Score (Rating)
+        if (candidate.getPerformanceRating() != null) {
+            recommendation.setPerformanceScore(candidate.getPerformanceRating());
         } else {
-            // Use defaults based on candidate profile
-            recommendation.setSkillMatchScore(mlScore);
-            recommendation.setWorkloadScore(candidate.getWorkloadCapacity() != null ?
-                Math.min(1.0, candidate.getWorkloadCapacity() / 100.0) : 0.5);
-            recommendation.setPerformanceScore(candidate.getTaskCompletionRate() != null ?
-                candidate.getTaskCompletionRate() : 0.7);
-            recommendation.setAvailabilityScore("AVAILABLE".equals(candidate.getAvailabilityStatus()) ? 1.0 : 0.5);
-            recommendation.setCollaborationScore(0.7);
+            recommendation.setPerformanceScore(0.5);
         }
 
-        // ========== ADD SKILL MATCHING DETAILS USING EXISTING SERVICES ==========
-        // Use SkillCategoryMatcher for intelligent skill matching
-        // candidate.getSkills() returns Map<String, Double> - extract keys as skill names
-        List<String> candidateSkillNames = candidate.getSkills() != null ?
-            new ArrayList<>(candidate.getSkills().keySet()) :
-            new ArrayList<>();
+        // 5.2 Task Success Rate (Statistic)
+        if (candidate.getTaskCompletionRate() != null) {
+            recommendation.setTaskSuccessRate(candidate.getTaskCompletionRate());
+        } else {
+            recommendation.setTaskSuccessRate(0.0);
+        }
 
-        // task.getRequiredSkills() also returns Map<String, Double> - extract keys
-        List<String> requiredSkills = task.getRequiredSkills() != null ?
-            new ArrayList<>(task.getRequiredSkills().keySet()) :
-            new ArrayList<>();
+        // 5.3 Workload Score
+        double workloadScore = 0.5;
+        if (candidate.getWorkloadCapacity() != null && candidate.getWorkloadCapacity() > 0) {
+            workloadScore = Math.min(1.0, candidate.getWorkloadCapacity() / 40.0);
+        }
+        recommendation.setWorkloadScore(workloadScore);
 
-        Set<String> candidateSkillSet = new HashSet<>(candidateSkillNames);
-        Set<String> requiredSkillSet = new HashSet<>(requiredSkills);
+        // 5.4 Availability Score
+        double availabilityScore = "AVAILABLE".equalsIgnoreCase(candidate.getAvailabilityStatus()) ? 1.0 : 0.5;
+        recommendation.setAvailabilityScore(availabilityScore);
 
-        // Find exact matches using SkillNormalizer
-        Set<String> normalizedCandidateSkills = candidateSkillNames.stream()
-            .map(s -> s.toLowerCase().trim())
-            .collect(Collectors.toSet());
-        Set<String> normalizedRequiredSkills = requiredSkills.stream()
-            .map(s -> s.toLowerCase().trim())
-            .collect(Collectors.toSet());
+        // 5.5 Collaboration Score
+        recommendation.setCollaborationScore(0.7);
+
+        // --- BƯỚC 6: XỬ LÝ SKILL MATCHING & BONUS SKILLS ---
+        List<String> candidateSkillNames = candidate.getSkills() != null ? new ArrayList<>(candidate.getSkills().keySet()) : new ArrayList<>();
+        List<String> requiredSkills = task.getRequiredSkills() != null ? new ArrayList<>(task.getRequiredSkills().keySet()) : new ArrayList<>();
+
+        Set<String> normalizedCandidateSkills = candidateSkillNames.stream().map(s -> s.toLowerCase().trim()).collect(Collectors.toSet());
+        Set<String> normalizedRequiredSkills = requiredSkills.stream().map(s -> s.toLowerCase().trim()).collect(Collectors.toSet());
 
         List<String> matchedSkills = new ArrayList<>();
         List<String> missingSkills = new ArrayList<>();
+        List<String> bonusSkills = new ArrayList<>();
 
-        // Check each required skill
         for (String required : requiredSkills) {
             String normalizedRequired = required.toLowerCase().trim();
             boolean found = normalizedCandidateSkills.stream()
-                .anyMatch(cs -> cs.contains(normalizedRequired) || normalizedRequired.contains(cs));
-
-            if (found) {
-                matchedSkills.add(required);
-            } else {
-                missingSkills.add(required);
-            }
+                    .anyMatch(cs -> cs.contains(normalizedRequired) || normalizedRequired.contains(cs));
+            if (found) matchedSkills.add(required);
+            else missingSkills.add(required);
         }
 
-        // Find bonus skills (skills candidate has beyond requirements)
-        List<String> bonusSkills = new ArrayList<>();
         for (String candidateSkill : candidateSkillNames) {
             String normalized = candidateSkill.toLowerCase().trim();
             boolean isRequired = normalizedRequiredSkills.stream()
-                .anyMatch(rs -> normalized.contains(rs) || rs.contains(normalized));
-            if (!isRequired) {
-                bonusSkills.add(candidateSkill);
-            }
+                    .anyMatch(rs -> normalized.contains(rs) || rs.contains(normalized));
+            if (!isRequired) bonusSkills.add(candidateSkill);
         }
 
         recommendation.setMatchedSkills(matchedSkills);
         recommendation.setMissingSkills(missingSkills);
         recommendation.setBonusSkills(bonusSkills.size() > 5 ? bonusSkills.subList(0, 5) : bonusSkills);
 
-        // Create skill match summary using category matching
-        Set<String> matchedCategories = skillCategoryMatcher.getMatchedCategories(candidateSkillSet, requiredSkillSet);
-        Set<String> candidateCategories = skillCategoryMatcher.getCategoriesForSkills(candidateSkillSet);
+        // --- BƯỚC 7: QUYẾT ĐỊNH ĐIỂM SKILL & TÍNH TOÁN CONTRIBUTION MAP ---
 
-        StringBuilder skillSummary = new StringBuilder();
-        if (!matchedSkills.isEmpty()) {
-            skillSummary.append(String.format("%d/%d required skills matched",
-                matchedSkills.size(), requiredSkills.size()));
-            if (!matchedCategories.isEmpty()) {
-                skillSummary.append(String.format(" (%s domain)",
-                    String.join(", ", matchedCategories)));
-            }
+        // 7.1 Tính toán Exact Skill Match
+        double exactMatchScore = requiredSkills.isEmpty() ? 1.0 : (double) matchedSkills.size() / requiredSkills.size();
+
+        // 7.2 Lấy Feature Importance từ ML
+        Map<String, Double> featureImportance = mlPred.getFeatureImportance();
+        double aiSemanticSkillScore = 0.0;
+
+        // Tạo Map đóng góp (Contribution Map)
+        Map<String, Double> contributionMap = new HashMap<>();
+
+        // Các nhóm đóng góp
+        double skillContrib = 0.0;
+        double perfContrib = 0.0;
+        double availContrib = 0.0;
+
+        if (featureImportance != null) {
+            // Cộng gộp các feature vào nhóm tương ứng
+            // Skill Group
+            skillContrib += featureImportance.getOrDefault("base_skill_match_score", 0.0);
+            skillContrib += featureImportance.getOrDefault("overall_skill_match_score", 0.0);
+            skillContrib += featureImportance.getOrDefault("related_skills_score", 0.0);
+            aiSemanticSkillScore = featureImportance.getOrDefault("base_skill_match_score", 0.0);
+
+            // Performance Group
+            perfContrib += featureImportance.getOrDefault("performance_score", 0.0);
+            perfContrib += featureImportance.getOrDefault("task_success_rate", 0.0);
+
+            // Availability Group
+            availContrib += featureImportance.getOrDefault("workload_availability_score", 0.0);
+            availContrib += featureImportance.getOrDefault("workload_score", 0.0);
+        } else {
+            // Fallback nếu ML không trả về importance
+            skillContrib = 0.3;
+            perfContrib = 0.4;
+            availContrib = 0.3;
         }
-        if (!missingSkills.isEmpty() && !matchedCategories.isEmpty()) {
-            // If they have category overlap, they can learn the missing skills
-            if (skillSummary.length() > 0) skillSummary.append(". ");
-            skillSummary.append("Can learn: ");
-            skillSummary.append(String.join(", ", missingSkills.subList(0, Math.min(3, missingSkills.size()))));
-            if (missingSkills.size() > 3) {
-                skillSummary.append(String.format(" +%d more", missingSkills.size() - 3));
-            }
+
+        // 7.3 Tính điểm Skill hiển thị
+        if (aiSemanticSkillScore > exactMatchScore + 0.2) {
+            recommendation.setSkillMatchScore(aiSemanticSkillScore);
+        } else {
+            recommendation.setSkillMatchScore(Math.max(exactMatchScore, aiSemanticSkillScore));
+        }
+
+        // --- BƯỚC 8: CHUẨN HÓA & ĐÓNG GÓI CONTRIBUTION MAP ---
+        // Mục tiêu: Map các giá trị thô thành tỷ lệ đóng góp vào Final Score
+
+        // Trọng số của ML là 80% (0.8), Business là 20% (0.2)
+        // Ta chuẩn hóa sao cho tổng các thành phần = 100% (hoặc tỉ lệ tương đối)
+
+        // Đóng góp từ AI (Skill, Perf, Avail)
+        contributionMap.put("Skill Match", skillContrib * 0.8);
+        contributionMap.put("Performance History", perfContrib * 0.8);
+        contributionMap.put("Availability & Workload", availContrib * 0.8);
+
+        // Đóng góp từ Business Boost (Strategic Fit)
+        // Nếu có boost, phần này sẽ chiếm tỷ trọng trong 20% còn lại
+        if (businessBoost > 0) {
+            contributionMap.put("Strategic Fit", businessBoost * 0.2 * 5); // Nhân hệ số để hiển thị rõ hơn trên biểu đồ
+        } else {
+            contributionMap.put("Strategic Fit", 0.0);
+        }
+
+        // Gán vào DTO
+        recommendation.setScoreContribution(contributionMap);
+
+        // --- BƯỚC 9: EXPLANATION & REASONING ---
+        StringBuilder skillSummary = new StringBuilder();
+        skillSummary.append(String.format("%d/%d required skills matched.", matchedSkills.size(), requiredSkills.size()));
+        if (aiSemanticSkillScore > exactMatchScore + 0.2) {
+            skillSummary.append(" 💡 AI detected related technical competency.");
         }
         recommendation.setSkillMatchSummary(skillSummary.toString());
 
-        // Use FeatureEngineeringService to calculate learning potential
-        // candidate.getSkills() is already Map<String, Double> where Double is proficiency level
-        Map<String, Double> candidateSkillMap = candidate.getSkills() != null ?
-            candidate.getSkills() : new HashMap<>();
-
-        double learningPotential = featureEngineering.calculateLearningPotential(
-            requiredSkills, candidateSkillMap, candidate.getSeniorityLevel());
-
         if (!missingSkills.isEmpty()) {
-            StringBuilder devOpportunity = new StringBuilder();
-
-            // Check which missing skills are in related categories
-            List<String> canLearnEasily = new ArrayList<>();
-            List<String> needsTraining = new ArrayList<>();
-
-            for (String missing : missingSkills) {
-                Set<String> missingCategories = skillCategoryMatcher.getCategories(missing);
-                // If candidate has experience in same category, they can learn easily
-                boolean hasRelatedExperience = missingCategories.stream()
-                    .anyMatch(candidateCategories::contains);
-
-                if (hasRelatedExperience) {
-                    canLearnEasily.add(missing);
-                } else {
-                    needsTraining.add(missing);
-                }
-            }
-
-            if (!canLearnEasily.isEmpty()) {
-                devOpportunity.append("Can quickly learn ");
-                devOpportunity.append(String.join(", ", canLearnEasily));
-                devOpportunity.append(" (has ").append(String.join(", ", matchedCategories))
-                    .append(" experience)");
-            }
-            if (!needsTraining.isEmpty()) {
-                if (devOpportunity.length() > 0) devOpportunity.append(". ");
-                devOpportunity.append("Will need training for ");
-                devOpportunity.append(String.join(", ", needsTraining.subList(0, Math.min(2, needsTraining.size()))));
-            }
-
-            // Add learning potential score info
-            if (learningPotential > 0.15) {
-                devOpportunity.append(String.format(" (High learning potential: %.1f%%)", learningPotential * 100));
-            }
-
-            recommendation.setSkillDevelopmentOpportunity(devOpportunity.toString());
+            recommendation.setSkillDevelopmentOpportunity("Can learn: " + String.join(", ", missingSkills));
         } else if (!bonusSkills.isEmpty()) {
-            recommendation.setSkillDevelopmentOpportunity(
-                String.format("Expert with %d bonus skills including %s",
-                    bonusSkills.size(),
-                    String.join(", ", bonusSkills.subList(0, Math.min(3, bonusSkills.size())))));
+            recommendation.setSkillDevelopmentOpportunity("Brings extra expertise in: " +
+                    String.join(", ", bonusSkills.subList(0, Math.min(3, bonusSkills.size()))));
         }
 
-        // Generate concise recommendation reason using Gemini AI
-        String geminiReason = geminiRecommendationService.generateRecommendationReasonForCandidate(
-            recommendation, task, candidate);
-        recommendation.setRecommendationReason(geminiReason);
-        recommendation.setGeminiReasoning(geminiReason);
+        String finalReason = mlPred.getExplanation();
+        if (finalReason == null || finalReason.length() < 10) {
+            finalReason = String.format("Strong candidate with %.0f%% confidence score.", finalScore * 100);
+        }
+        if (!boostReasons.isEmpty()) {
+            finalReason += " Boosted by: " + String.join(", ", boostReasons) + ".";
+        }
+
+        recommendation.setRecommendationReason(finalReason);
+        recommendation.setGeminiReasoning(finalReason);
 
         return recommendation;
     }
-
 
     /**
      * Parse seniority level string to numeric value

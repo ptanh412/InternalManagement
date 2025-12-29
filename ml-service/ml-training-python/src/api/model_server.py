@@ -8,21 +8,21 @@ This module provides REST API endpoints for ML model inference:
 - Training triggers
 """
 
+import os
+import sys
 from contextlib import asynccontextmanager
-from src.data.data_collector import MultiDatabaseDataCollector
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from datetime import datetime
+from typing import Any, Dict, List, Optional
+
+import joblib
+import pandas as pd
+import structlog
+import yaml
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any
-import pandas as pd
-import joblib
-import yaml
-import logging
-from datetime import datetime
-import uvicorn
-import structlog
-import sys
-import os
+
+from src.data.data_collector import MultiDatabaseDataCollector
 
 # Add src to path if running from project root
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -30,9 +30,9 @@ src_path = os.path.join(os.path.dirname(current_dir))
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-from src.models.hybrid_recommender import HybridRecommenderTrainer
-from src.models.continuous_learning import ContinuousModelTrainer
 from src.data.data_collector import SyntheticDataGenerator
+from src.models.continuous_learning import ContinuousModelTrainer
+from src.models.hybrid_recommender import HybridRecommenderTrainer
 
 logger = structlog.get_logger(__name__)
 
@@ -53,7 +53,7 @@ async def lifespan(app: FastAPI):
     try:
         # Load configuration
         with open("config/model_config.yaml", 'r') as file:
-            config = yaml.safe_load(file)
+            yaml.safe_load(file)
 
         # Initialize database connector for direct queries
         try:
@@ -288,8 +288,26 @@ async def get_recommendations(request: RecommendationRequest):
                 logger.info(f"Features columns: {features_df.columns.tolist()}")
 
                 # Make predictions
-                confidence_scores = ml_model.predict(features_df)
-                logger.info(f"Generated {len(confidence_scores)} predictions")
+                raw_confidence_scores = ml_model.predict(features_df)
+                logger.info(f"Generated {len(raw_confidence_scores)} raw predictions")
+                
+                # Apply confidence floor based on skill match
+                # Prevents model from completely zeroing out good skill matches due to workload alone
+                confidence_scores = []
+                for idx, raw_conf in enumerate(raw_confidence_scores):
+                    # Get skill match from features
+                    skill_match = features_df.iloc[idx].get('base_skill_match_score', 0.0)
+                    
+                    # If skill match is good (>= 60%) but model predicts very low (<= 10%), apply floor
+                    if skill_match >= 0.60 and raw_conf <= 0.10:
+                        # Use weighted average: 70% model + 30% skill match
+                        adjusted_conf = max(raw_conf, skill_match * 0.3)
+                        confidence_scores.append(adjusted_conf)
+                        logger.info(f"  Adjusted candidate #{idx+1}: raw={raw_conf:.4f} → adjusted={adjusted_conf:.4f} (skill_match={skill_match:.2f})")
+                    else:
+                        confidence_scores.append(raw_conf)
+                
+                logger.info(f"Final confidence scores after adjustment: {[f'{c:.4f}' for c in confidence_scores]}")
 
                 # Create recommendations
                 for i, (candidate, confidence) in enumerate(zip(request.candidates[:len(confidence_scores)], confidence_scores)):
@@ -390,7 +408,8 @@ async def predict_candidates(request: dict):
         start_time = datetime.now()
 
         task_id = request.get('task_id') or request.get('taskId')
-        task_data = request.get('task_data', {})
+        task_data = request.get('task_data') or request.get('taskData') or {}
+        # task_data = request.get('task_data', {})
         candidates_with_ai_scores = request.get('candidates', [])
 
         logger.info(f"Received prediction request for task {task_id} with {len(candidates_with_ai_scores)} candidates")
@@ -458,7 +477,7 @@ async def predict_candidates(request: dict):
                 'seniority_level': user_data.get('seniority_level', 'JUNIOR'),
                 'years_experience': user_data.get('years_experience', 0.0),
 
-                # Performance metrics from database (calculated from task history)
+                # Performance metrics from database
                 'performance_score': user_data.get('performance_score', 0.0) / 100.0 if user_data.get('performance_score') else 0.75,
                 'task_success_rate': user_data.get('task_success_rate', 0.0),
                 'average_actual_hours': user_data.get('average_task_time', 25.0),
@@ -467,7 +486,15 @@ async def predict_candidates(request: dict):
                 'current_utilization': user_data.get('current_utilization', 0.0),
                 'available_capacity': user_data.get('available_capacity', 40.0),
 
+                # --- THÊM CÁC DÒNG NÀY ĐỂ TRUYỀN DỮ LIỆU THÔ VÀO MODEL ---
+                'weekly_capacity_hours': user_data.get('weekly_capacity_hours', 40.0),
+                'total_estimate_hours': user_data.get('total_estimate_hours', 0.0),
+                'availability_percentage': user_data.get('availability_percentage', 100.0),
+                # -----------------------------------------------------------
+
                 # Task attributes
+                'task_title': task_data.get('title', ''),
+                'task_description': task_data.get('description', ''),
                 'task_priority': task_data.get('priority', 'MEDIUM'),
                 'task_difficulty': task_data.get('difficulty', 'MEDIUM'),
                 'estimated_hours': task_data.get('estimated_hours', 40.0),
@@ -1213,7 +1240,7 @@ async def _run_training_task(
             training_status.message = "Training model with synthetic data..."
             training_status.progress = 0.4
             
-            results = ml_model.train_hybrid_model(training_data)
+            ml_model.train_hybrid_model(training_data)
             
         else:
             # Use continuous trainer with real data
@@ -1255,9 +1282,7 @@ def _prepare_ml_features(df_candidates: pd.DataFrame, task_data: dict) -> pd.Dat
     """Prepare features for ML model from AI-engineered features"""
     df = df_candidates.copy()
 
-    # ✅ Task data is already in the DataFrame from normalized candidates
-    # Extract priority and difficulty from the candidate data (each candidate has these)
-
+    # Task data encoding
     if 'task_priority' in df.columns:
         df['priority'] = df['task_priority']
     else:
@@ -1268,68 +1293,130 @@ def _prepare_ml_features(df_candidates: pd.DataFrame, task_data: dict) -> pd.Dat
     else:
         df['difficulty'] = task_data.get('difficulty', 'MEDIUM')
 
-    # Encode categorical for model
     priority_map = {'LOW': 0, 'MEDIUM': 1, 'HIGH': 2, 'URGENT': 3}
     df['priority_encoded'] = df['priority'].map(priority_map).fillna(1)
 
     difficulty_map = {'EASY': 0, 'MEDIUM': 1, 'HARD': 2}
     df['difficulty_encoded'] = df['difficulty'].map(difficulty_map).fillna(1)
 
-    # ✅ Convert seniority_level string to numeric for calculations
     seniority_map = {
-        'INTERN': 1,
-        'JUNIOR': 2,
-        'MID_LEVEL': 3,
-        'SENIOR': 4,
-        'LEAD': 5,
-        'PRINCIPAL': 6,
-        'DIRECTOR': 7
+        'INTERN': 1, 'JUNIOR': 2, 'MID_LEVEL': 3,
+        'SENIOR': 4, 'LEAD': 5, 'PRINCIPAL': 6, 'DIRECTOR': 7
     }
 
-    # If seniority_level is already in the dataframe as string, convert it to numeric
     if 'seniority_level' in df.columns:
         df['seniority_level_numeric'] = df['seniority_level'].map(seniority_map).fillna(2)
-        # Keep the original for logging/debugging but use numeric for calculations
 
-    # ✅ Time efficiency features (only if missing)
     if 'time_efficiency' not in df.columns:
         df['time_efficiency'] = 1.0
-
     if 'time_variance' not in df.columns:
         df['time_variance'] = 0.1
-
-    # ✅ Assignment tracking - only add if they don't exist (candidates who haven't been assigned yet)
     if 'assignment_date' not in df.columns:
         df['assignment_date'] = None
-
     if 'actual_hours' not in df.columns:
         df['actual_hours'] = None
 
+    # ============================================================
+    # 🔥 CRITICAL FIX: ENSURE WORKLOAD COLUMNS EXIST
+    # ============================================================
+    # These columns should come from _fetch_users_data(), but if missing,
+    # calculate them here to prevent "MISSING" warnings in hybrid_recommender.py
+
+    logger.info("=" * 80)
+    logger.info("WORKLOAD COLUMNS CHECK IN _prepare_ml_features")
+    logger.info("=" * 80)
+
+    # Check if workload columns already exist (from _fetch_users_data)
+    has_workload = 'workload_score' in df.columns
+    has_availability = 'availability_score' in df.columns
+    has_utilization = 'utilization' in df.columns
+    has_capacity = 'capacity' in df.columns
+
+    logger.info(f"Incoming columns status:")
+    logger.info(f"  - workload_score: {'✓ EXISTS' if has_workload else '✗ MISSING'}")
+    logger.info(f"  - availability_score: {'✓ EXISTS' if has_availability else '✗ MISSING'}")
+    logger.info(f"  - utilization: {'✓ EXISTS' if has_utilization else '✗ MISSING'}")
+    logger.info(f"  - capacity: {'✓ EXISTS' if has_capacity else '✗ MISSING'}")
+
+    # If workload columns are missing, calculate them
+    if not has_workload or not has_availability or not has_utilization:
+        logger.warning("⚠️  Some workload columns missing - calculating now...")
+
+        # Check if we have raw data to calculate from
+        has_current_util = 'current_utilization' in df.columns
+        has_avail_cap = 'available_capacity' in df.columns
+
+        if has_current_util:
+            # Calculate workload_score from current_utilization
+            if not has_utilization:
+                df['utilization'] = df['current_utilization']
+                logger.info("  ✓ Calculated utilization from current_utilization")
+
+            if not has_workload:
+                df['workload_score'] = 1.0 - df['current_utilization']
+                logger.info("  ✓ Calculated workload_score = 1 - current_utilization")
+        else:
+            # No raw data - use defaults
+            if not has_utilization:
+                df['utilization'] = 0.5
+                logger.warning("  ⚠️  No current_utilization, using default utilization=0.5")
+            if not has_workload:
+                df['workload_score'] = 0.5
+                logger.warning("  ⚠️  No current_utilization, using default workload_score=0.5")
+
+        # Calculate availability_score if missing
+        if not has_availability:
+            if 'availability_percentage' in df.columns:
+                df['availability_score'] = df['availability_percentage'] / 100.0
+                df['availability'] = df['availability_score']
+                logger.info("  ✓ Calculated availability_score from availability_percentage")
+            else:
+                df['availability_score'] = 0.5
+                df['availability'] = 0.5
+                logger.warning("  ⚠️  No availability_percentage, using default availability_score=0.5")
+
+        # Calculate capacity if missing
+        if not has_capacity:
+            if has_avail_cap:
+                # Derive capacity from available_capacity and utilization
+                df['capacity'] = df['available_capacity'] / (1.0 - df['utilization'].replace(0, 0.5))
+                logger.info("  ✓ Calculated capacity from available_capacity / (1 - utilization)")
+            else:
+                df['capacity'] = 40.0
+                logger.warning("  ⚠️  No available_capacity, using default capacity=40.0")
+    else:
+        logger.info("✅ All workload columns already present - using existing values")
+        logger.info(f"  - workload_score: mean={df['workload_score'].mean():.3f}")
+        logger.info(f"  - availability_score: mean={df['availability_score'].mean():.3f}")
+
+    logger.info("=" * 80)
+
     # Calculate derived features
     df['total_ai_score'] = (
-        df.get('base_skill_match_score', 0) +
-        df.get('related_skills_score', 0) +
-        df.get('learning_potential_score', 0) +
-        df.get('domain_experience_bonus', 0) +
-        df.get('tech_stack_cohesion_bonus', 0) +
-        df.get('certification_bonus', 0)
-    ) / 6
+                                   df.get('base_skill_match_score', 0) +
+                                   df.get('related_skills_score', 0) +
+                                   df.get('learning_potential_score', 0) +
+                                   df.get('domain_experience_bonus', 0) +
+                                   df.get('tech_stack_cohesion_bonus', 0) +
+                                   df.get('certification_bonus', 0)
+                           ) / 6
 
     df['capacity_utilization_ratio'] = (
-        df.get('available_capacity', 40) / (df.get('estimated_hours', 40) + 1)
+            df.get('available_capacity', 40) / (df.get('estimated_hours', 40) + 1)
     ).clip(0, 2)
 
     df['experience_seniority_ratio'] = (
-        df.get('years_experience', 0) / (df.get('seniority_level_numeric', 2) + 1)
+            df.get('years_experience', 0) / (df.get('seniority_level_numeric', 2) + 1)
     )
 
-    df['workload_availability_score'] = 1 - df.get('current_utilization', 0.5)
+    # Use workload_score instead of current_utilization here
+    df['workload_availability_score'] = df.get('workload_score', 0.5)
 
     df['performance_adjusted_skill'] = (
-        df.get('total_ai_score', 0) * df.get('performance_score', 0.75)
+            df.get('total_ai_score', 0) * df.get('performance_score', 0.75)
     )
 
-    # Add TF-IDF features with default values (0)
+    # Add TF-IDF features with default values
     tfidf_features = [
         'tfidf_743', 'tfidf_85', 'tfidf_230', 'tfidf_764', 'tfidf_823',
         'tfidf_94', 'tfidf_115', 'tfidf_313', 'tfidf_334', 'tfidf_609',
@@ -1350,15 +1437,17 @@ def _prepare_ml_features(df_candidates: pd.DataFrame, task_data: dict) -> pd.Dat
         if tfidf_col not in df.columns:
             df[tfidf_col] = 0.0
 
-    # ✅ Return DataFrame with ALL columns (not just feature columns)
-    # The model's feature engineering pipeline needs metadata columns too
     logger.info(f"Prepared features for {len(df)} candidates")
 
-    if len(df) > 0:
-        logger.info(f"Metadata check - priority: {df['priority'].iloc[0]}, difficulty: {df['difficulty'].iloc[0]}, department_name: {df['department_name'].iloc[0]}")
-        logger.info(f"Skills check - user_skills count: {len(df['user_skills'].iloc[0])}, required_skills count: {len(df['required_skills'].iloc[0])}")
+    # Final verification
+    final_check = ['workload_score', 'availability_score', 'utilization', 'capacity']
+    missing_final = [col for col in final_check if col not in df.columns]
 
-    # Return the full DataFrame - the model will select what it needs
+    if missing_final:
+        logger.error(f"❌ STILL MISSING after preparation: {missing_final}")
+    else:
+        logger.info(f"✅ All workload columns present in final DataFrame")
+
     return df
 
 
@@ -1368,46 +1457,25 @@ def _prepare_ml_features(df_candidates: pd.DataFrame, task_data: dict) -> pd.Dat
 
 async def _fetch_users_data(user_ids: list) -> dict:
     """
-    Fetch user data DIRECTLY from databases using existing connections
-
-    MUCH FASTER than HTTP calls - queries databases directly:
-    - MySQL (identity DB): user info, department, seniority, performance
-    - Neo4j (profile DB): skills, task completion rate, workload
-
-    Returns dict: {user_id: {name, department, skills, performance_score, ...}}
+    Fixed version with proper workload data merging
     """
     global db_connector
-
     users_data = {}
-    logger.info(f"Fetching data for {len(user_ids)} users DIRECTLY from databases")
 
     try:
-        # Use global database connector
         if not db_connector:
             logger.warning("Database connector not initialized - using fallback data")
             raise Exception("Database connector not initialized")
 
-        # Get MySQL connection for identity database
+        # ========== STEP 1: Fetch from Identity DB ==========
         identity_conn = db_connector.mysql_connections.get('identity')
-
-        # Get Neo4j connection for profile data
         neo4j_driver = db_connector.neo4j_driver
-
-        if not identity_conn:
-            logger.error("MySQL identity connection not available")
-            logger.info(f"Available MySQL connections: {list(db_connector.mysql_connections.keys()) if db_connector.mysql_connections else 'None'}")
-
-        if not neo4j_driver:
-            logger.error("Neo4j driver not available")
 
         if not identity_conn or not neo4j_driver:
             raise Exception("Required database connections not available")
 
-        # ========== STEP 1: Fetch user info from MySQL (identity DB) ==========
+        # Fetch identity data (existing code is OK)
         identity_cursor = identity_conn.cursor(dictionary=True)
-
-        # Build query for multiple users with correct schema
-        # JOIN with departments and positions to get department_name and seniority_level
         user_ids_str = "', '".join(user_ids)
         identity_query = f"""
             SELECT 
@@ -1423,19 +1491,13 @@ async def _fetch_users_data(user_ids: list) -> dict:
             LEFT JOIN position p ON u.position_id = p.id
             WHERE u.id IN ('{user_ids_str}')
         """
-
         identity_cursor.execute(identity_query)
         identity_results = identity_cursor.fetchall()
         identity_cursor.close()
-
-        # Map results by user_id
         identity_map = {row['user_id']: row for row in identity_results}
-        logger.info(f"✅ Fetched {len(identity_results)} users from MySQL identity DB")
 
-        # ========== STEP 2: Fetch profile data from Neo4j ==========
+        # ========== STEP 2: Fetch from Neo4j ==========
         with neo4j_driver.session() as session:
-            # Cypher query to get user profiles with skills
-            # UserSkill is a separate node, not a relationship property
             cypher_query = """
                 MATCH (up:user_profile)
                 WHERE up.userId IN $userIds
@@ -1451,11 +1513,9 @@ async def _fetch_users_data(user_ids: list) -> dict:
                         yearsOfExperience: us.yearsOfExperience
                     }) as skills
             """
-
             result = session.run(cypher_query, userIds=user_ids)
             neo4j_results = list(result)
 
-        # Map Neo4j results by user_id
         neo4j_map = {}
         for record in neo4j_results:
             user_id = record['userId']
@@ -1466,12 +1526,101 @@ async def _fetch_users_data(user_ids: list) -> dict:
                 'skills': [s for s in record.get('skills', []) if s.get('skillName')]
             }
 
-        logger.info(f"✅ Fetched {len(neo4j_results)} user profiles from Neo4j")
+        # ========== STEP 3: Fetch WORKLOAD DATA (THE CRITICAL PART!) ==========
+        logger.info("=" * 100)
+        logger.info("FETCHING WORKLOAD DATA FOR PREDICTION")
+        logger.info("=" * 100)
 
-        # ========== STEP 3: Combine data from both databases ==========
+        workload_map = {}
+        workload_found = False
+
+        # Priority order for workload database
+        priority_dbs = ['workload', 'task', 'identity', 'project']
+
+        for db_name in priority_dbs:
+            if db_name not in db_connector.mysql_connections:
+                continue
+
+            workload_conn = db_connector.mysql_connections.get(db_name)
+            if not workload_conn:
+                continue
+
+            try:
+                logger.info(f"Checking for user_workloads table in '{db_name}' database...")
+                workload_cursor = workload_conn.cursor(dictionary=True)
+
+                # Check if table exists
+                workload_cursor.execute("SHOW TABLES LIKE 'user_workloads'")
+                table_exists = workload_cursor.fetchone()
+
+                if not table_exists:
+                    logger.info(f"  ✗ Table user_workloads NOT found in '{db_name}'")
+                    workload_cursor.close()
+                    continue
+
+                logger.info(f"  ✓ Found user_workloads table in '{db_name}' database!")
+
+                # Fetch workload data for all users
+                workload_query = f"""
+                    SELECT 
+                        w.user_id,
+                        w.weekly_capacity_hours,
+                        w.total_estimate_hours,
+                        w.availability_percentage
+                    FROM user_workloads w
+                    WHERE w.user_id IN ('{user_ids_str}')
+                """
+
+                workload_cursor.execute(workload_query)
+                workload_results = workload_cursor.fetchall()
+                workload_cursor.close()
+
+                logger.info(f"  ✓ Fetched {len(workload_results)} workload records")
+
+                # ✅ CRITICAL: Process workload data into workload_map
+                for row in workload_results:
+                    user_id = row['user_id']
+                    weekly_capacity = row.get('weekly_capacity_hours', 40.0)
+                    total_estimate = row.get('total_estimate_hours', 0.0)
+                    availability_pct = row.get('availability_percentage', 100.0)
+
+                    # Calculate workload metrics
+                    utilization_percentage = (total_estimate / max(weekly_capacity, 1)) * 100.0
+                    workload_score = max(0.0, min(1.0, (100.0 - utilization_percentage) / 100.0))
+                    utilization = utilization_percentage / 100.0
+                    availability_score = max(0.0, min(1.0, availability_pct / 100.0))
+
+                    workload_map[user_id] = {
+                        'weekly_capacity_hours': weekly_capacity,
+                        'total_estimate_hours': total_estimate,
+                        'utilization_percentage': utilization_percentage,
+                        'utilization': utilization,
+                        'workload_score': workload_score,
+                        'availability_percentage': availability_pct,
+                        'availability_score': availability_score,
+                        'availability': availability_score,
+                        'capacity': weekly_capacity
+                    }
+
+                    logger.debug(f"    User {user_id[:8]}... workload: util={utilization:.2%}, score={workload_score:.3f}")
+
+                workload_found = True
+                break  # Found workload data, exit loop
+
+            except Exception as e:
+                logger.warning(f"Could not fetch workload data from '{db_name}': {e}")
+                continue
+
+        if not workload_found:
+            logger.warning("No workload data found in any database - using defaults")
+
+        logger.info("=" * 100)
+
+        # ========== STEP 4: Combine all data sources ==========
         for user_id in user_ids:
             identity_data = identity_map.get(user_id)
             neo4j_data = neo4j_map.get(user_id, {})
+            workload_data = workload_map.get(user_id, {})  # ✅ Get workload data
 
             if not identity_data:
                 logger.warning(f"User {user_id} not found in identity database")
@@ -1480,11 +1629,11 @@ async def _fetch_users_data(user_ids: list) -> dict:
             # Get identity data
             first_name = identity_data.get('first_name', '')
             last_name = identity_data.get('last_name', '')
-            performance_score = identity_data.get('performance_score', 75.0)  # 0-100 scale
+            performance_score = identity_data.get('performance_score', 75.0)
             seniority_level = identity_data.get('seniority_level', 'MID_LEVEL')
             department = identity_data.get('department_name', 'Unknown')
 
-            # Get Neo4j profile data
+            # Get Neo4j data
             completion_rate = neo4j_data.get('completionRate', 0.8)
             workload_hours = neo4j_data.get('workloadHours', 24)
             skills_list = neo4j_data.get('skills', [])
@@ -1493,10 +1642,31 @@ async def _fetch_users_data(user_ids: list) -> dict:
             task_success_rate = completion_rate if completion_rate else 0.80
             average_task_time = max(4.0, 16.0 - (completion_rate * 12.0)) if completion_rate else 8.0
 
-            # Calculate workload metrics
-            current_utilization = workload_hours / 40.0
-            workload_capacity = 1.0 - current_utilization
-            available_capacity = workload_capacity * 40.0
+            # ✅ CRITICAL: Use workload data if available, otherwise calculate
+            if workload_data:
+                # Use actual workload data from database
+                current_utilization = workload_data.get('utilization', 0.6)
+                workload_capacity = workload_data.get('workload_score', 0.4)
+                available_capacity = workload_data.get('capacity', 40.0) * workload_capacity
+                utilization_percentage = workload_data.get('utilization_percentage', 60.0)
+                availability_score = workload_data.get('availability_score', 1.0)
+                availability = workload_data.get('availability', 1.0)
+                weekly_capacity_hours = workload_data.get('weekly_capacity_hours', 40.0)
+                total_estimate_hours = workload_data.get('total_estimate_hours', workload_hours)
+
+                logger.debug(f"✓ User {user_id[:8]}... using workload DB data: util={current_utilization:.2%}")
+            else:
+                # Fallback: Calculate from Neo4j workload hours
+                current_utilization = workload_hours / 40.0
+                workload_capacity = 1.0 - current_utilization
+                available_capacity = workload_capacity * 40.0
+                utilization_percentage = current_utilization * 100.0
+                availability_score = 1.0
+                availability = 1.0
+                weekly_capacity_hours = 40.0
+                total_estimate_hours = workload_hours
+
+                logger.debug(f"⚠ User {user_id[:8]}... using fallback workload calculation")
 
             # Extract skills
             skill_names = [s.get('skillName', '') for s in skills_list]
@@ -1504,7 +1674,7 @@ async def _fetch_users_data(user_ids: list) -> dict:
             skill_experience_years = [s.get('yearsOfExperience', 1) for s in skills_list]
             years_experience = sum(skill_experience_years) / len(skill_experience_years) if skill_experience_years else 3.0
 
-            # Build user data
+            # ✅ Build complete user data with ALL workload columns
             users_data[user_id] = {
                 'name': f"{first_name} {last_name}".strip() or f'User-{user_id[:8]}',
                 'department': department,
@@ -1512,22 +1682,40 @@ async def _fetch_users_data(user_ids: list) -> dict:
                 'years_experience': years_experience,
                 'skills': skill_names,
                 'skill_levels': skill_levels,
-                'performance_score': performance_score,  # 0-100 scale
-                'task_success_rate': task_success_rate,  # 0-1 scale
-                'average_task_time': average_task_time,  # hours
-                'current_utilization': current_utilization,  # 0-1 scale
-                'available_capacity': available_capacity,  # hours/week
+                'performance_score': performance_score,
+                'task_success_rate': task_success_rate,
+                'average_task_time': average_task_time,
+                'current_utilization': current_utilization,
+                'available_capacity': available_capacity,
+
+                # ===== WORKLOAD METRICS (CRITICAL!) =====
+                'utilization': current_utilization,
+                'utilization_percentage': utilization_percentage,
+                'workload_score': workload_capacity,
+                'availability_score': availability_score,
+                'availability': availability,
+                'availability_percentage': availability_score * 100.0,
+                'capacity': weekly_capacity_hours,
+                'weekly_capacity_hours': weekly_capacity_hours,
+                'total_estimate_hours': total_estimate_hours,
             }
 
-            logger.info(f"✅ Combined data for user {user_id[:8]}... - {users_data[user_id]['name']}")
+        logger.info(f"✅ Successfully fetched {len(users_data)} users with complete workload data")
 
-        logger.info(f"✅ Successfully fetched {len(users_data)} users from databases (DIRECT QUERY)")
+        # ✅ VERIFY workload columns are present
+        if users_data:
+            sample_user = next(iter(users_data.values()))
+            workload_cols = ['utilization', 'workload_score', 'weekly_capacity_hours', 'capacity']
+            logger.info("Verifying workload columns in users_data:")
+            for col in workload_cols:
+                if col in sample_user:
+                    logger.info(f"  ✓ {col}: {sample_user[col]}")
+                else:
+                    logger.error(f"  ✗ {col}: MISSING!")
 
     except Exception as e:
         logger.error(f"Error fetching from databases: {e}", exc_info=True)
-        logger.warning("Using fallback mock data for development")
-
-        # Fallback: Use mock data for development/testing
+        # Fallback with defaults including workload columns
         for user_id in user_ids:
             users_data[user_id] = {
                 'name': f'User-{user_id[:8]}',
@@ -1536,11 +1724,21 @@ async def _fetch_users_data(user_ids: list) -> dict:
                 'years_experience': 3.0,
                 'skills': ['javascript', 'node.js', 'react'],
                 'skill_levels': ['ADVANCED', 'INTERMEDIATE', 'ADVANCED'],
-                'performance_score': 85.0,  # 0-100 scale
-                'task_success_rate': 0.80,  # 0-1 scale
-                'average_task_time': 25.0,  # hours
-                'current_utilization': 0.60,  # 0-1 scale
-                'available_capacity': 16.0,  # hours/week
+                'performance_score': 85.0,
+                'task_success_rate': 0.80,
+                'average_task_time': 25.0,
+                'current_utilization': 0.60,
+                'available_capacity': 16.0,
+                # ===== WORKLOAD METRICS =====
+                'utilization': 0.60,
+                'utilization_percentage': 60.0,
+                'workload_score': 0.40,
+                'availability_score': 1.0,
+                'availability': 1.0,
+                'availability_percentage': 100.0,
+                'capacity': 40.0,
+                'weekly_capacity_hours': 40.0,
+                'total_estimate_hours': 24.0,
             }
 
     return users_data
@@ -1668,7 +1866,13 @@ def _generate_candidate_explanation(candidate: pd.Series, confidence_score: floa
     Generate human-readable explanation for candidate recommendation
     """
     explanations = []
+    skill_match = candidate.get('base_skill_match_score', 0)
+    perf_score = candidate.get('performance_score', 0)
 
+    if confidence_score > 0.8 and skill_match < 0.3:
+        return f"High potential candidate! Despite low exact skill match ({skill_match:.0%}), " \
+               f"recommendation is driven by excellent performance ({perf_score:.0%}) and availability. " \
+               f"Suggested for upskilling."
     # Overall fit
     if confidence_score > 0.8:
         explanations.append("Excellent match")

@@ -47,4 +47,7 @@ public class AssignmentRecommendation {
     // Additional skill analysis
     List<String> bonusSkills; // extra skills the candidate has that could be beneficial
     String skillDevelopmentOpportunity; // areas where this assignment could help candidate grow
+    Double taskSuccessRate;
+
+    Map<String, Double> scoreContribution;
 }

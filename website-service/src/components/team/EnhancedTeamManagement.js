@@ -331,39 +331,39 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
   const teamSummary = getTeamWorkloadSummary();
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 p-6">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2 flex items-center gap-3">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-2 flex items-center gap-3">
             <UserGroupIcon className="h-8 w-8 text-blue-600" />
             Team Management
-            {teamLeadMode && <span className="text-xl text-gray-600">(Team Lead View)</span>}
+            {teamLeadMode && <span className="text-xl text-gray-600 dark:text-gray-300">(Team Lead View)</span>}
           </h1>
 
           {/* New: Team Workload Summary */}
           {teamSummary && !workloadLoading && (
-            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-              <h3 className="font-medium text-gray-900 mb-3 flex items-center gap-2">
+            <div className="bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 p-4 mb-6">
+              <h3 className="font-medium text-gray-900 dark:text-gray-100 mb-3 flex items-center gap-2">
                 <ClockIcon className="h-4 w-4" />
                 Team Workload Overview
               </h3>
               <div className="grid grid-cols-4 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">{teamSummary.available}</div>
-                  <div className="text-sm text-gray-600">Available</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Available</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-yellow-600">{teamSummary.busy}</div>
-                  <div className="text-sm text-gray-600">Busy</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Busy</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-red-600">{teamSummary.overloaded}</div>
-                  <div className="text-sm text-gray-600">Overloaded</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Overloaded</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-blue-600">{teamSummary.avgUtilization.toFixed(0)}%</div>
-                  <div className="text-sm text-gray-600">Avg Utilization</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Avg Utilization</div>
                 </div>
               </div>
             </div>
@@ -371,17 +371,17 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
         </div>
 
         {/* Project Selection and Controls */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
           <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
             {/* Project Selection */}
             <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Select Project
               </label>
               <select
                 value={selectedProject}
                 onChange={(e) => setSelectedProject(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 {projects.map(project => (
                   <option key={project.id} value={project.id}>
@@ -405,17 +405,17 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
         </div>
 
         {/* Enhanced Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             {/* Search */}
             <div className="relative">
-              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400 dark:text-gray-500" />
               <input
                 type="text"
                 placeholder="Search members..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
 
@@ -423,7 +423,7 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
             <select
               value={roleFilter}
               onChange={(e) => setRoleFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Roles</option>
               {PROJECT_ROLES.map(role => (
@@ -435,7 +435,7 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
             <select
               value={workloadFilter}
               onChange={(e) => setWorkloadFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="all">All Workload Status</option>
               <option value="available">Available (75%+)</option>
@@ -447,7 +447,7 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
             <button
               onClick={loadTeamWorkloadData}
               disabled={workloadLoading}
-              className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors disabled:opacity-50"
+              className="flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-50 dark:bg-gray-900 transition-colors disabled:opacity-50"
             >
               <ArrowPathIcon className={`h-4 w-4 ${workloadLoading ? 'animate-spin' : ''}`} />
               Refresh Workload
@@ -459,7 +459,7 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
         {loading ? (
           <div className="text-center py-12">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="mt-2 text-gray-600">Loading team members...</p>
+            <p className="mt-2 text-gray-600 dark:text-gray-300">Loading team members...</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -468,9 +468,9 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
               const showDetails = showWorkloadDetails[member.userId];
 
               return (
-                <div key={member.id} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
+                <div key={member.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-shadow">
                   {/* Member Header */}
-                  <div className="p-6 border-b border-gray-200">
+                  <div className="p-6 border-b border-gray-200 dark:border-gray-700">
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
@@ -479,8 +479,8 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
                           </span>
                         </div>
                         <div>
-                          <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                          <p className="text-sm text-gray-600">{member.role}</p>
+                          <h3 className="font-semibold text-gray-900 dark:text-gray-100">{member.name}</h3>
+                          <p className="text-sm text-gray-600 dark:text-gray-300">{member.role}</p>
                         </div>
                       </div>
 
@@ -494,7 +494,7 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
                     </div>
 
                     {/* Contact Info */}
-                    <div className="space-y-2 text-sm text-gray-600 mb-4">
+                    <div className="space-y-2 text-sm text-gray-600 dark:text-gray-300 mb-4">
                       <div className="flex items-center gap-2">
                         <EnvelopeIcon className="h-4 w-4" />
                         <span>{member.email}</span>
@@ -511,7 +511,7 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
 
                     {/* Department and Experience */}
                     <div className="flex items-center justify-between text-sm mb-4">
-                      <span className="px-2 py-1 bg-gray-100 rounded-full text-gray-700">
+                      <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-700 dark:text-gray-300">
                         {member.department}
                       </span>
                       <span className="flex items-center gap-1 text-yellow-600">
@@ -532,7 +532,7 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
                           </span>
                         ))}
                         {member.skills.length > 3 && (
-                          <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                          <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs rounded-full">
                             +{member.skills.length - 3} more
                           </span>
                         )}
@@ -572,7 +572,7 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
                       {memberWorkload && (
                         <button
                           onClick={() => toggleWorkloadDetails(member.userId)}
-                          className="text-xs text-gray-500 hover:text-gray-700 transition-colors"
+                          className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:text-gray-300 transition-colors"
                         >
                           {showDetails ? 'Hide Details' : 'Show Details'}
                         </button>
@@ -582,7 +582,7 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
 
                   {/* New: Expandable Workload Details */}
                   {memberWorkload && showDetails && (
-                    <div className="p-4 bg-gray-50">
+                    <div className="p-4 bg-gray-50 dark:bg-gray-900">
                       <WorkloadSummaryCard
                         workloadData={memberWorkload}
                         compact={false}
@@ -600,9 +600,9 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
         {/* No Results */}
         {!loading && filteredMembers.length === 0 && (
           <div className="text-center py-12">
-            <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400" />
-            <h3 className="mt-2 text-sm font-medium text-gray-900">No team members found</h3>
-            <p className="mt-1 text-sm text-gray-500">
+            <UserGroupIcon className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500" />
+            <h3 className="mt-2 text-sm font-medium text-gray-900 dark:text-gray-100">No team members found</h3>
+            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">
               Try adjusting your search or filter criteria.
             </p>
           </div>
@@ -612,7 +612,7 @@ const EnhancedTeamManagement = ({ teamLeadMode = false }) => {
       {/* Loading overlay for workload data */}
       {workloadLoading && (
         <div className="fixed inset-0 bg-black bg-opacity-25 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 flex items-center gap-3">
+          <div className="bg-white dark:bg-gray-800 rounded-lg p-6 flex items-center gap-3">
             <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
             <span>Loading workload data...</span>
           </div>

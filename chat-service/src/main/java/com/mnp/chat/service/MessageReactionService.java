@@ -196,28 +196,4 @@ public class MessageReactionService {
                 })
                 .collect(Collectors.toList());
     }
-
-    public List<MessageReaction> getMessageReactions(String messageId) {
-        return messageReactionRepository.findByMessageId(messageId);
-    }
-
-    // New method to get total reaction count for a specific icon
-    public int getTotalReactionCount(String messageId, String icon) {
-        return messageReactionRepository
-                .getTotalCountByMessageIdAndIcon(messageId, icon)
-                .orElse(0);
-    }
-
-    // Method to reset user's reaction count for a specific icon (optional feature)
-    @Transactional
-    public boolean removeAllUserReactions(String messageId, String userId, String icon) {
-        var existingReaction = messageReactionRepository.findByMessageIdAndUserIdAndIcon(messageId, userId, icon);
-
-        if (existingReaction.isPresent()) {
-            messageReactionRepository.deleteByMessageIdAndUserIdAndIcon(messageId, userId, icon);
-            log.info("Removed all reactions {} from message {} by user {}", icon, messageId, userId);
-            return true;
-        }
-        return false;
-    }
 }

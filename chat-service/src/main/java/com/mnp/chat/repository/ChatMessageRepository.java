@@ -17,9 +17,6 @@ public interface ChatMessageRepository extends MongoRepository<ChatMessage, Stri
     long countByConversationIdAndSenderUserIdNotAndStatusNotAndTypeNotIn(
             String conversationId, String userId, String status, List<String> types);
 
-    // Find all unread messages for a user in a conversation (messages not sent by the user and not seen)
-    List<ChatMessage> findAllByConversationIdAndSenderUserIdNotAndStatusNot(
-            String conversationId, String userId, String status);
 
     // Find all messages in a conversation to calculate unread count properly
     List<ChatMessage> findByConversationId(String conversationId);

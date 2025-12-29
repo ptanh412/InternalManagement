@@ -29,5 +29,4 @@ public class UserWorkloadResponse {
     Integer currentTasksCount;
 
     LocalDateTime lastUpdated;
-
 }

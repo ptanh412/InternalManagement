@@ -27,11 +27,22 @@ import {
 import { apiService } from '../../services/apiService';
 import { useApiNotifications } from '../../hooks/useApiNotifications';
 import WorkloadSummaryCard from '../workload/WorkloadSummaryCard';
+import CustomSelect from '../CustomSelect';
 
 // Recommendation Card Component
-const RecommendationCard = ({ recommendation, index, onSelect, getScoreColor, getScoreText, workloadData, onRefreshWorkload }) => {
-  // console.log("Workload data for recommendation:", recommendation.userId, workloadData);
+const RecommendationCard = ({ recommendation, onSelect, getScoreColor, workloadData, onRefreshWorkload }) => {
+  console.log("Workload data for recommendation:", recommendation.userId, workloadData);
   const [showDetails, setShowDetails] = useState(false);
+
+  // Helper function to map keys to colors
+  const getContributionColor = (key) => {
+    const k = key.toLowerCase();
+    if (k.includes('skill')) return 'bg-blue-500 text-blue-700 bg-blue-50';
+    if (k.includes('performance')) return 'bg-green-500 text-green-700 bg-green-50';
+    if (k.includes('availability') || k.includes('workload')) return 'bg-purple-500 text-purple-700 bg-purple-50';
+    if (k.includes('strategic') || k.includes('business')) return 'bg-amber-500 text-amber-700 bg-amber-50';
+    return 'bg-gray-500 text-gray-700 bg-gray-50';
+  };
 
   const handleSelect = (e) => {
     e.stopPropagation();
@@ -44,172 +55,194 @@ const RecommendationCard = ({ recommendation, index, onSelect, getScoreColor, ge
   };
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:border-purple-300 transition-colors">
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:border-purple-300 transition-all shadow-sm hover:shadow-md">
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center">
-          <StarIcon className="h-4 w-4 text-yellow-500 mr-2" />
-          <span className="text-sm font-medium text-gray-900">
-            #{recommendation.rank || index + 1} {recommendation.displayName}
-          </span>
-          <span className={`ml-2 px-2 py-1 text-xs rounded-full ${getScoreColor(recommendation.overallScore)}`}>
-            {getScoreText(recommendation.overallScore)} match
+          {recommendation.rank === 1 && <SparklesIcon className="h-4 w-4 text-purple-600 mr-1 animate-pulse" />}
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-gray-900 dark:text-gray-100 flex items-center">
+              #{recommendation.rank} {recommendation.displayName || recommendation.user?.firstName + ' ' + recommendation.user?.lastName}
+            </span>
+            <span className="text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">{recommendation.email}</span>
+          </div>
+          <span className={`ml-3 px-2 py-0.5 text-xs font-medium rounded-full border ${getScoreColor(recommendation.overallScore)}`}>
+            {Math.round(recommendation.overallScore * 100)}% Match
           </span>
         </div>
+        
         <div className="flex gap-2">
           <button
             type="button"
             onClick={toggleDetails}
-            className="flex items-center px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded hover:bg-gray-200"
+            className="flex items-center px-2 py-1 text-xs bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-300 rounded border border-gray-200 dark:border-gray-700 hover:bg-gray-100 dark:bg-gray-800 transition-colors"
           >
-            <InformationCircleIcon className="h-3 w-3 mr-1" />
-            Details
+            <InformationCircleIcon className="h-3.5 w-3.5 mr-1" />
+            {showDetails ? 'Hide' : 'Why?'}
           </button>
           <button
             type="button"
             onClick={handleSelect}
-            className="px-2 py-1 text-xs bg-purple-600 text-white rounded hover:bg-purple-700"
+            className="px-3 py-1 text-xs font-medium bg-purple-600 text-white rounded hover:bg-purple-700 shadow-sm transition-colors"
           >
-            Select
+            Assign
           </button>
         </div>
       </div>
 
-      {/* Basic Info */}
-      <div className="mb-3">
-        <p className="text-xs text-gray-600 mb-1">{recommendation.email}</p>
-        {recommendation.recommendationReason && (
-          <p className="text-xs text-gray-700 mb-2">{recommendation.recommendationReason}</p>
-        )}
+      {/* AI Reasoning Summary (Always visible mostly) */}
+      <div className="mb-3 bg-purple-50 p-2 rounded-md border border-purple-100">
+        <div className="flex items-start">
+          <LightBulbIcon className="h-4 w-4 text-purple-600 mt-0.5 mr-2 flex-shrink-0" />
+          <p className="text-xs text-purple-900 leading-snug">
+            {recommendation.geminiReasoning || recommendation.recommendationReason}
+          </p>
+        </div>
       </div>
 
-      {/* Skills Section */}
-      <div className="mb-3">
-        {/* Matched Skills */}
-        {recommendation.matchedSkills && recommendation.matchedSkills.length > 0 && (
-          <div className="mb-2">
-            <div className="flex items-center mb-1">
-              <CheckCircleIcon className="h-3 w-3 text-green-600 mr-1" />
-              <span className="text-xs font-medium text-gray-700">Matched Skills:</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {recommendation.matchedSkills.map((skill, idx) => (
-                <span
-                  key={idx}
-                  className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded-full"
-                >
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Missing Skills */}
-        {recommendation.missingSkills && recommendation.missingSkills.length > 0 && (
-          <div className="mb-2">
-            <div className="flex items-center mb-1">
-              <MinusCircleIcon className="h-3 w-3 text-red-600 mr-1" />
-              <span className="text-xs font-medium text-gray-700">Missing Skills:</span>
-            </div>
-            <div className="flex flex-wrap gap-1">
-              {recommendation.missingSkills.map((skill, idx) => (
-                <span
-                  key={idx}
-                  className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded-full"
-                >
-                  {skill}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Score Grid */}
-      <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-        {recommendation.skillMatchScore !== undefined && (
-          <div className="flex justify-between">
-            <span>Skills:</span>
-            <span className={getScoreColor(recommendation.skillMatchScore).split(' ')[0]}>
-              {getScoreText(recommendation.skillMatchScore)}
-            </span>
-          </div>
-        )}
-        {recommendation.availabilityScore !== undefined && (
-          <div className="flex justify-between">
-            <span>Available:</span>
-            <span className={getScoreColor(recommendation.availabilityScore).split(' ')[0]}>
-              {getScoreText(recommendation.availabilityScore)}
-            </span>
-          </div>
-        )}
-        {recommendation.workloadScore !== undefined && (
-          <div className="flex justify-between">
-            <span>Workload:</span>
-            <span className={getScoreColor(recommendation.workloadScore).split(' ')[0]}>
-              {getScoreText(recommendation.workloadScore)}
-            </span>
-          </div>
-        )}
-        {recommendation.performanceScore !== undefined && (
-          <div className="flex justify-between">
-            <span>Performance:</span>
-            <span className={getScoreColor(recommendation.performanceScore).split(' ')[0]}>
-              {getScoreText(recommendation.performanceScore)}
-            </span>
-          </div>
-        )}
-      </div>
+      {/* Compact Metrics Grid */}
+      {!showDetails && (
+        <div className="grid grid-cols-3 gap-2 mb-2">
+           <div className="text-center p-1 bg-gray-50 dark:bg-gray-900 rounded">
+             <span className="block text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">Skills</span>
+             <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{Math.round((recommendation.skillMatchScore || 0) * 100)}%</span>
+           </div>
+           <div className="text-center p-1 bg-gray-50 dark:bg-gray-900 rounded">
+             <span className="block text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">Perf.</span>
+             <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{recommendation.performanceScore ? recommendation.performanceScore.toFixed(1) : 'N/A'}</span>
+           </div>
+           <div className="text-center p-1 bg-gray-50 dark:bg-gray-900 rounded">
+             <span className="block text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500">Avail.</span>
+             <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">{Math.round((recommendation.availabilityScore || 0) * 100)}%</span>
+           </div>
+        </div>
+      )}
 
       {/* Details Expansion */}
       {showDetails && (
-        <div className="border-t border-gray-200 pt-3 mt-3">
-          {recommendation.skillMatchSummary && (
-            <div className="mb-3">
-              <h5 className="text-xs font-medium text-gray-700 mb-1">Skill Match Summary:</h5>
-              <p className="text-xs text-gray-600">{recommendation.skillMatchSummary}</p>
-            </div>
-          )}
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-3 mt-3 space-y-4 animate-in fade-in slide-in-from-top-2 duration-200">
           
-          {recommendation.skillDevelopmentOpportunity && (
-            <div className="mb-3">
-              <h5 className="text-xs font-medium text-gray-700 mb-1">Development Opportunity:</h5>
-              <p className="text-xs text-gray-600">{recommendation.skillDevelopmentOpportunity}</p>
-            </div>
-          )}
+          {/* --- NEW: SCORE CONTRIBUTION CHART --- */}
+          {recommendation.scoreContribution && (
+            <div>
+              <h5 className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2 flex items-center">
+                <ChartBarIcon className="h-3.5 w-3.5 mr-1" />
+                Score Contribution Analysis
+              </h5>
+              <div className="space-y-2 bg-gray-50 dark:bg-gray-900 p-3 rounded-md border border-gray-100 dark:border-gray-700">
+                {Object.entries(recommendation.scoreContribution)
+                  .sort(([, a], [, b]) => b - a) // Sort by highest contribution
+                  .map(([key, value]) => {
+                    const percentage = Math.round(value * 100);
+                    // Scaling: Assume standard contribution max is around 40-50% for a single factor to look full visually
+                    // or just use 100% width relative to the max possible value (e.g. 0.4)
+                    const visualWidth = Math.min(100, (value / 0.4) * 100); 
+                    const colors = getContributionColor(key);
+                    const [barColor, textColor, bgColor] = colors.split(' ');
 
-          {/* {recommendation.geminiReasoning && (
-            <div className="mb-3">
-              <h5 className="text-xs font-medium text-gray-700 mb-1">AI Reasoning:</h5>
-              <p className="text-xs text-gray-600">{recommendation.geminiReasoning}</p>
-            </div>
-          )} */}
+                    // Highlight Strategic Fit nếu nó cao
+                    const isStrategicKey = key.includes('Strategic') || key.includes('Business');
+                    const highlightClass = isStrategicKey && value > 0.05 ? "ring-2 ring-amber-300 bg-amber-50" : "";
 
-          {recommendation.bonusSkills && recommendation.bonusSkills.length > 0 && (
-            <div className="mb-3">
-              <h5 className="text-xs font-medium text-gray-700 mb-1">Bonus Skills:</h5>
-              <div className="flex flex-wrap gap-1">
-                {recommendation.bonusSkills.map((skill, idx) => (
-                  <span
-                    key={idx}
-                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded-full"
-                  >
-                    {skill}
-                  </span>
-                ))}
+                    return (
+                      <div key={key} className="flex flex-col">
+                        <div className="flex justify-between text-[10px] mb-0.5">
+                          <span className={`font-medium ${textColor.replace('text-', 'text-gray-')}`}>
+                            {key}
+                            {isStrategicKey && value > 0.05 && (
+                              <StarIcon className="h-3 w-3 text-amber-500 ml-1 inline" />
+                            )}
+                          </span>
+                          <span className="font-bold text-gray-700 dark:text-gray-300">+{percentage}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${barColor}`}
+                            style={{ width: `${visualWidth}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <p className="text-[10px] text-gray-400 dark:text-gray-500 text-right mt-1 italic">
+                    * Factors contributing to the final {Math.round(recommendation.overallScore * 100)}% score
+                  </p>
               </div>
             </div>
           )}
 
-          {/* Workload Information */}
-          <div className="mb-3">
-            <h5 className="text-xs font-medium text-gray-700 mb-2">Current Workload:</h5>
+          {/* Skills Details */}
+          <div>
+            <h5 className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">Skill Analysis</h5>
+            
+            {/* Matched */}
+            <div className="flex flex-wrap gap-1 mb-2">
+              {recommendation.matchedSkills?.map((skill, idx) => (
+                <span key={idx} className="px-2 py-0.5 text-[10px] font-medium bg-green-100 text-green-700 rounded-full border border-green-200 flex items-center">
+                  <CheckCircleIcon className="h-3 w-3 mr-1" /> {skill}
+                </span>
+              ))}
+              {recommendation.matchedSkills?.length === 0 && (
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500 italic">No exact keyword matches</span>
+              )}
+            </div>
+
+            {/* Missing / Learning Opportunity */}
+            {recommendation.missingSkills?.length > 0 && (
+              <div className="mt-2">
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">Missing / Learning Opportunity:</span>
+                <div className="flex flex-wrap gap-1">
+                  {recommendation.missingSkills.map((skill, idx) => (
+                    <span key={idx} className="px-2 py-0.5 text-[10px] font-medium bg-amber-50 text-amber-700 rounded-full border border-amber-200 flex items-center">
+                      <AcademicCapIcon className="h-3 w-3 mr-1" /> {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Bonus Skills */}
+            {recommendation.bonusSkills?.length > 0 && (
+              <div className="mt-2">
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500 block mb-1">Bonus Skills:</span>
+                <div className="flex flex-wrap gap-1">
+                  {recommendation.bonusSkills.map((skill, idx) => (
+                    <span key={idx} className="px-2 py-0.5 text-[10px] font-medium bg-blue-50 text-blue-600 rounded-full border border-blue-100">
+                      + {skill}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Detailed Stats */}
+          <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+             <div>
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500 block">Performance Rating</span>
+                <div className="flex items-center">
+                   <span className="text-sm font-bold text-gray-800 dark:text-gray-200">{recommendation.performanceScore?.toFixed(1) || 'N/A'}</span>
+                   <span className="text-[10px] text-gray-400 dark:text-gray-500 ml-1">/ 5.0</span>
+                </div>
+             </div>
+             <div>
+                <span className="text-[10px] text-gray-500 dark:text-gray-400 dark:text-gray-500 block">Task Success Rate</span>
+                <div className="flex items-center">
+                   <span className="text-sm font-bold text-gray-800 dark:text-gray-200">
+                     {recommendation.taskSuccessRate ? Math.round(recommendation.taskSuccessRate * 100) : 0}%
+                   </span>
+                </div>
+             </div>
+          </div>
+
+          {/* Workload Visualization (Existing) */}
+          <div className="pt-2 border-t border-gray-100 dark:border-gray-700">
+            <h5 className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-2">Current Workload Context</h5>
             <WorkloadSummaryCard
               workloadData={workloadData}
               compact={false}
               onRefresh={onRefreshWorkload}
-              className="w-full"
+              className="w-full border-0 shadow-none bg-transparent p-0"
             />
           </div>
         </div>
@@ -219,7 +252,7 @@ const RecommendationCard = ({ recommendation, index, onSelect, getScoreColor, ge
 };
 
 const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
-  console.log("Opening TaskEditModal for task:", task);
+  // console.log("Opening TaskEditModal for task:", task);
   const notify = useApiNotifications();
   const [formData, setFormData] = useState({
     title: '',
@@ -230,6 +263,7 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
     dueDate: ''
   });
   const [users, setUsers] = useState([]);
+  const [project, setProject] = useState(null);
   const [loading, setLoading] = useState(false);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [showRecommendations, setShowRecommendations] = useState(false);
@@ -255,13 +289,20 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
       
       // Load users for assignment
       loadUsers();
+      
+      // Load project data for validation
+      if (task.projectId) {
+        loadProject(task.projectId);
+      }
     }
   }, [isOpen, task]);
 
   const loadUsers = async () => {
     try {
       setLoadingUsers(true);
-      const response = await apiService.getAllUsers();
+      // ⚡ Use optimized endpoint - only fetches EMPLOYEE role users
+      const response = await apiService.getEmployeesOnly();
+      console.log('⚡ Loaded employees only:', response.result?.length || 0);
       const userData = response.result || response || [];
       setUsers(Array.isArray(userData) ? userData : []);
     } catch (error) {
@@ -271,6 +312,70 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
       setLoadingUsers(false);
     }
   };
+
+  const loadProject = async (projectId) => {
+    try {
+      const response = await apiService.getProject(projectId);
+      setProject(response.result || response);
+    } catch (error) {
+      console.error('Failed to load project:', error);
+      setProject(null);
+    }
+  };
+
+  // --- THÊM LOGIC MAPPING (Tương tự CreateTaskModal) ---
+  const getAllowedDepartments = (taskType) => {
+    const type = (taskType || '').toUpperCase();
+    const baseDepts = ['Engineering']; 
+
+    switch (true) {
+      case ['FRONTEND_DEVELOPMENT', 'DESIGN'].includes(type):
+        return [...baseDepts, 'Frontend Development'];
+      case ['BACKEND_DEVELOPMENT', 'DATABASE_DEVELOPMENT', 'DATABASE'].includes(type):
+        return [...baseDepts, 'Backend Development'];
+      case ['MOBILE_DEVELOPMENT'].includes(type):
+        return [...baseDepts, 'Mobile Development'];
+      case ['TESTING', 'UNIT_TESTING', 'INTEGRATION_TESTING'].includes(type):
+        return [...baseDepts, 'Quality Assurance'];
+      case ['DEPLOYMENT', 'MAINTENANCE', 'SECURITY', 'PERFORMANCE'].includes(type):
+        return [...baseDepts, 'DevOps'];
+      default:
+        return ['Engineering', 'Frontend Development', 'Backend Development', 'Mobile Development', 'Quality Assurance', 'DevOps'];
+    }
+
+  };
+
+  // --- XỬ LÝ LỌC USER ---
+  // Sử dụng useMemo để tối ưu hiệu năng khi users hoặc task type thay đổi
+  const filteredUsers = React.useMemo(() => {
+    const currentTaskType = task?.type || 'DEVELOPMENT';
+    const allowedDepts = getAllowedDepartments(currentTaskType);
+
+    // 1. Lọc danh sách trước
+    const eligibleUsers = users.filter(profile => {
+      const user = profile.user;
+      if (!user) return false;
+
+      const isEligibleRole = user.roleName === 'EMPLOYEE';
+      const isEligibleDept = allowedDepts.includes(user.departmentName);
+      const isCurrentAssignee = user.id === formData?.assigneeId;
+
+      return (isEligibleRole && isEligibleDept) || isCurrentAssignee;
+    });
+
+    // 2. KHỬ TRÙNG LẶP: Sử dụng Map để giữ lại bản ghi duy nhất theo profile.id
+    // Đây là chìa khóa để sửa lỗi của bạn
+    const uniqueUsersMap = new Map();
+    eligibleUsers.forEach(profile => {
+      if (!uniqueUsersMap.has(profile.id)) {
+        uniqueUsersMap.set(profile.id, profile);
+      }
+    });
+
+    return Array.from(uniqueUsersMap.values());
+  }, [users, task?.type, formData.assigneeId]);
+
+  console.log("Filtered users for assignment:", filteredUsers);
 
   const fetchWorkloadForUser = async (userId) => {
     try {
@@ -313,6 +418,7 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
           recommendationsData.map(async (rec) => {
             try {
               const userResponse = await apiService.getUser(rec.userId);
+              console.log("Fetched user data for recommendation:", rec.userId, userResponse);
               const userData = userResponse.result || userResponse;
               return {
                 ...rec,
@@ -498,6 +604,24 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
     }
   };
 
+
+  const handleDateChange = (e) => {
+    const localValue = e.target.value; // Giá trị nhận được là "2025-12-25"
+    
+    if (!localValue) {
+      setFormData(prev => ({ ...prev, dueDate: '' }));
+      return;
+    }
+
+    // Bổ sung giờ vào cuối chuỗi để khớp với LocalDateTime (thường là cuối ngày 23:59:59)
+    const formattedDateTime = `${localValue}T23:59:59`;
+
+    setFormData(prev => ({
+      ...prev,
+      dueDate: formattedDateTime 
+    }));
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -520,6 +644,16 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
       return;
     }
 
+    // Validate: dueDate must be before project endDate
+    if (formData.dueDate && project && project.endDate) {
+      const dueDate = new Date(formData.dueDate);
+      const projectEndDate = new Date(project.endDate);
+      if (dueDate > projectEndDate) {
+        notify.error(`Due date must be before project end date (${new Date(project.endDate).toLocaleDateString()})`, 'Invalid Due Date');
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       // Prepare update data
@@ -529,7 +663,7 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
         status: formData.status,
         priority: formData.priority,
         assigneeId: formData.assigneeId || null,
-        dueDate: formData.dueDate ? new Date(formData.dueDate).toISOString() : null
+        dueDate: formData.dueDate || null,      
       };
       console.log("Form data before updated", updateData);
       const response = await apiService.updateTask(task.id, updateData);
@@ -573,35 +707,43 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
   const typeConfig = getTypeConfig(task.type);
   const TypeIcon = typeConfig.icon;
 
+  // ✅ FIX formatForDateTimeInput - Đơn giản hóa
+  const formatForDateTimeInput = (isoString) => {
+    if (!isoString) return '';
+    return isoString.slice(0, 10);
+  };
+
+  
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 ">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-3xl w-full max-h-[90vh] overflow-hidden dark:border-gray-700 border">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-900 dark:to-gray-800">
           <div className="flex items-center">
             <div className="bg-blue-600 rounded-lg p-2 mr-3 shadow-md">
               <PencilSquareIcon className="h-6 w-6 text-white" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Edit Task</h2>
-              <p className="text-xs text-gray-600 mt-0.5">Update task details and assignments</p>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Edit Task</h2>
+              <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">Update task details and assignments</p>
             </div>
           </div>
           <button
             onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg p-2 transition-colors"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:bg-gray-800 rounded-lg p-2 transition-colors"
           >
             <XMarkIcon className="h-6 w-6" />
           </button>
         </div>
 
         {/* Task Type and Skills Info Banner */}
-        <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border-b border-indigo-100 p-5">
+        <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border-b border-indigo-100 p-5 dark:from-gray-900 dark:via-gray-800 dark:to-gray-800 dark:border-gray-700">
           <div className="flex flex-wrap items-center gap-4">
             {/* Task Type */}
             <div className="flex items-center">
-              <span className="text-xs font-medium text-gray-600 mr-2">TYPE:</span>
-              <div className={`inline-flex items-center px-3 py-1.5 rounded-full border ${typeConfig.color} shadow-sm`}>
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-300 mr-2">TYPE:</span>
+              <div className={`inline-flex items-center px-3 py-1.5 rounded-full border dark:border-gray-700 ${typeConfig.color} shadow-sm`}>
                 <TypeIcon className="h-4 w-4 mr-1.5" />
                 <span className="text-sm font-medium">{typeConfig.label}</span>
               </div>
@@ -611,20 +753,20 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
             {(task.requiredSkills || task.skills || task.tags) && (task.requiredSkills || task.skills || task.tags).length > 0 && (
               <div className="flex items-center flex-1">
                 <div className="flex items-center mr-2">
-                  <AcademicCapIcon className="h-4 w-4 text-gray-600 mr-1" />
-                  <span className="text-xs font-medium text-gray-600 uppercase">Skills:</span>
+                  <AcademicCapIcon className="h-4 w-4 text-gray-600 dark:text-gray-300 mr-1" />
+                  <span className="text-xs font-medium text-gray-600 dark:text-gray-300 uppercase">Skills:</span>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {(task.requiredSkills || task.skills || task.tags || []).slice(0, 5).map((skill, index) => (
                     <span
                       key={index}
-                      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-white text-indigo-700 border border-indigo-200 shadow-sm"
+                      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-white dark:bg-gray-800 text-indigo-700 border border-indigo-200 shadow-sm dark:border-gray-700"
                     >
                       {skill}
                     </span>
                   ))}
                   {(task.requiredSkills || task.skills || task.tags || []).length > 5 && (
-                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-white text-gray-600 border border-gray-200">
+                    <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
                       +{(task.requiredSkills || task.skills || task.tags).length - 5} more
                     </span>
                   )}
@@ -640,7 +782,7 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
                 {(task.requiredSkills || task.skills || task.tags || []).map((skill, index) => (
                   <span
                     key={index}
-                    className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-white text-indigo-700 border border-indigo-200 shadow-sm"
+                    className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-white dark:bg-gray-800 text-indigo-700 border border-indigo-200 shadow-sm"
                   >
                     {skill}
                   </span>
@@ -655,7 +797,7 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
           <div className="space-y-6">
             {/* Title */}
             <div>
-              <label htmlFor="title" className="block text-sm font-semibold text-gray-700 mb-2">
+              <label htmlFor="title" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                 Task Title <span className="text-red-500">*</span>
               </label>
               <input
@@ -665,14 +807,14 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
                 value={formData.title}
                 onChange={handleInputChange}
                 required
-                className="w-full border-2 border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                className="w-full border-2 border-gray-300 dark:border-gray-700 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-700 dark:text-gray-200"
                 placeholder="Enter a clear and concise task title"
               />
             </div>
 
             {/* Description */}
             <div>
-              <label htmlFor="description" className="block text-sm font-semibold text-gray-700 mb-2">
+              <label htmlFor="description" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                 Description
               </label>
               <textarea
@@ -681,7 +823,7 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
                 value={formData.description}
                 onChange={handleInputChange}
                 rows={4}
-                className="w-full border-2 border-gray-300 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none"
+                className="w-full border-2 border-gray-300 dark:border-gray-600 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all resize-none dark:bg-gray-700 dark:text-gray-200"
                 placeholder="Provide detailed information about the task..."
               />
             </div>
@@ -689,25 +831,23 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
             {/* Status and Priority */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label htmlFor="status" className="block text-sm font-semibold text-gray-700 mb-2">
+                <label htmlFor="status" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   Status
                 </label>
                 <div className="relative">
-                  <select
+                  <CustomSelect
                     id="status"
                     name="status"
                     value={formData.status}
                     onChange={handleInputChange}
-                    className="w-full border-2 border-gray-300 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer transition-all"
-                  >
-                    {TASK_STATUSES.map(status => (
-                      <option key={status} value={status}>
-                        {status.replace('_', ' ')}
-                      </option>
-                    ))}
-                  </select>
+                    options={TASK_STATUSES.map(status => ({
+                      value: status,
+                      label: status.replace('_', ' ')
+                    }))}
+
+                  />
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <svg className="h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                   </div>
@@ -715,25 +855,36 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
               </div>
 
               <div>
-                <label htmlFor="priority" className="block text-sm font-semibold text-gray-700 mb-2">
+                <label htmlFor="priority" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                   Priority
                 </label>
                 <div className="relative">
-                  <select
+                  <CustomSelect
                     id="priority"
                     name="priority"
                     value={formData.priority}
                     onChange={handleInputChange}
-                    className="w-full border-2 border-gray-300 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white cursor-pointer transition-all"
+                    options={TASK_PRIORITIES.map(priority => ({
+                      value: priority,
+                      label: priority
+                    }))}
+                  
+                  />
+                  {/* <select
+                    id="priority"
+                    name="priority"
+                    value={formData.priority}
+                    onChange={handleInputChange}
+                    className="w-full border-2 border-gray-300 dark:border-gray-600 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none bg-white dark:bg-gray-800 cursor-pointer transition-all"
                   >
                     {TASK_PRIORITIES.map(priority => (
                       <option key={priority} value={priority}>
                         {priority}
                       </option>
                     ))}
-                  </select>
+                  </select> */}
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                    <svg className="h-5 w-5 text-gray-400 dark:text-gray-500" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                   </div>
@@ -742,9 +893,9 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
             </div>
 
             {/* Assignee */}
-            <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-5 border-2 border-purple-100">
+            <div className="bg-gradient-to-br from-purple-50 to-blue-50 rounded-xl p-5 border-2 border-purple-100 dark:from-gray-900 dark:to-gray-800 dark:border-gray-700">
               <div className="flex items-center justify-between mb-3">
-                <label htmlFor="assigneeId" className="flex items-center text-sm font-semibold text-gray-800">
+                <label htmlFor="assigneeId" className="flex items-center text-sm font-semibold text-gray-800 dark:text-gray-200">
                   <UserIcon className="h-5 w-5 mr-2 text-purple-600" />
                   Assign Task to Team Member
                 </label>
@@ -769,28 +920,29 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
               </div>
               
               {loadingUsers ? (
-                <div className="flex items-center justify-center py-4 bg-white rounded-lg">
+                <div className="flex items-center justify-center py-4 bg-white dark:bg-gray-800 rounded-lg">
                   <div className="animate-spin rounded-full h-6 w-6 border-2 border-purple-600 border-t-transparent"></div>
-                  <span className="ml-3 text-sm text-gray-600 font-medium">Loading team members...</span>
+                  <span className="ml-3 text-sm text-gray-600 dark:text-gray-300 font-medium">Loading team members...</span>
                 </div>
               ) : (
                 <div className="relative">
-                  <select
+
+                  <CustomSelect
                     id="assigneeId"
                     name="assigneeId"
                     value={formData.assigneeId}
                     onChange={handleInputChange}
-                    className="w-full border-2 border-purple-200 rounded-lg p-3 pr-10 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 appearance-none bg-white cursor-pointer hover:border-purple-300 transition-all shadow-sm"
-                  >
-                    <option value="" className="text-gray-500">
-                      🔍 Select team member (optional)
-                    </option>
-                    {users.map(user => (
-                      <option key={user.id} value={user.id} className="py-2">
-                        👤 {user.firstName} {user.lastName} • {user.email}
-                      </option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: '', label: '🔍 Select team member (optional)' },
+                      ...filteredUsers.map(profile => ({
+                        value: profile.userId,
+                        label: `👤 ${profile.user.firstName} ${profile.user.lastName} • ${profile.user.positionTitle}`,
+                        skills: profile.skills || []
+                      }))
+                    ]}
+                    showSkills={true}
+                  />
+                
                   {/* Custom dropdown icon */}
                   <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
                     <svg className="h-5 w-5 text-purple-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -802,34 +954,57 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
               
               {/* Display selected user info */}
               {formData.assigneeId && users.length > 0 && (
-                <div className="mt-3 p-4 bg-white border-2 border-purple-200 rounded-xl shadow-sm">
+                <div className="mt-3 p-4 bg-white dark:bg-gray-800 border-2 border-purple-200 rounded-xl shadow-sm">
                   <div className="flex items-center">
                     <div className="flex-shrink-0">
                       <div className="h-12 w-12 rounded-full bg-gradient-to-br from-purple-500 to-indigo-600 flex items-center justify-center text-white font-bold shadow-lg text-lg">
                         {(() => {
-                          const selectedUser = users.find(u => u.id === formData.assigneeId);
-                          return selectedUser ? `${selectedUser.firstName[0]}${selectedUser.lastName[0]}` : '?';
+                          const selectedProfile = users.find(p => p.userId === formData.assigneeId);
+                          return selectedProfile ? `${selectedProfile.user.firstName[0]}${selectedProfile.user.lastName[0]}` : '?';
                         })()}
                       </div>
                     </div>
                     <div className="ml-4 flex-1">
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                         {(() => {
-                          const selectedUser = users.find(u => u.id === formData.assigneeId);
-                          return selectedUser ? `${selectedUser.firstName} ${selectedUser.lastName}` : 'Unknown User';
+                          const selectedProfile = users.find(p => p.userId === formData.assigneeId);
+                          console.log("Selected assignee profile:", selectedProfile);
+                          return selectedProfile ? `${selectedProfile.user.firstName} ${selectedProfile.user.lastName}` : 'Unknown User';
                         })()}
                       </p>
-                      <p className="text-xs text-gray-600 mt-0.5">
+                      <p className="text-xs text-gray-600 dark:text-gray-300 mt-0.5">
                         {(() => {
-                          const selectedUser = users.find(u => u.id === formData.assigneeId);
-                          return selectedUser?.email || 'No email';
+                          const selectedProfile = users.find(p => p.userId === formData.assigneeId);
+                          return selectedProfile?.user.email || 'No email';
                         })()}
                       </p>
+                      {/* Display skills */}
+                      {(() => {
+                        const selectedProfile = users.find(p => p.userId === formData.assigneeId);
+                        const skills = selectedProfile?.skills || [];
+                        if (skills.length > 0) {
+                          return (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {skills.slice(0, 3).map((skill, idx) => (
+                                <span key={idx} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-700">
+                                  {skill.skillName}
+                                </span>
+                              ))}
+                              {skills.length > 3 && (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-600">
+                                  +{skills.length - 3} more
+                                </span>
+                              )}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </div>
                     <button
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, assigneeId: '' }))}
-                      className="ml-3 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg p-2 transition-colors"
+                      className="ml-3 text-gray-400 dark:text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg p-2 transition-colors"
                       title="Remove assignee"
                     >
                       <XMarkIcon className="h-5 w-5" />
@@ -881,7 +1056,7 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
 
             {/* Due Date */}
             <div>
-              <label htmlFor="dueDate" className="flex items-center text-sm font-semibold text-gray-700 mb-2">
+              <label htmlFor="dueDate" className="flex items-center text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                 <CalendarIcon className="h-5 w-5 mr-2 text-blue-600" />
                 Due Date {formData.assigneeId && <span className="text-red-600 ml-1">*</span>}
               </label>
@@ -894,12 +1069,12 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
                 </div>
               )}
               <input
-                type="datetime-local"
+                type="date"
                 id="dueDate"
                 name="dueDate"
-                value={formData.dueDate}
-                onChange={handleInputChange}
-                className={`w-full border-2 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all ${
+                value={formatForDateTimeInput(formData.dueDate)}                
+                onChange={handleDateChange}
+                className={`w-full border-2 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all dark:bg-gray-700 dark:text-gray-200 dark:border-gray-700 ${
                   formData.assigneeId && !formData.dueDate
                     ? 'border-yellow-400 bg-yellow-50'
                     : 'border-gray-300'
@@ -908,31 +1083,31 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
             </div>
 
             {/* Task Info Display */}
-            <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-5 border-2 border-gray-200">
-              <h4 className="text-sm font-semibold text-gray-900 mb-4 flex items-center">
+            <div className="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-5 border-2 border-gray-200 dark:border-gray-700 dark:from-gray-900 dark:to-gray-800">
+              <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-4 flex items-center">
                 <InformationCircleIcon className="h-5 w-5 mr-2 text-blue-600" />
                 Task Information
               </h4>
               <div className="grid grid-cols-2 gap-4">
-                <div className="bg-white rounded-lg p-3 border border-gray-200">
-                  <span className="text-xs font-medium text-gray-500 uppercase block mb-1">Project ID</span>
-                  <span className="text-sm font-semibold text-gray-900">{task.projectId || 'N/A'}</span>
-                </div>
-                <div className="bg-white rounded-lg p-3 border border-gray-200">
-                  <span className="text-xs font-medium text-gray-500 uppercase block mb-1">Created</span>
-                  <span className="text-sm font-semibold text-gray-900">
+                {/* <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase block mb-1">Project ID</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">{task.projectId || 'N/A'}</span>
+                </div> */}
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase block mb-1">Created</span>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
                     {task.createdAt ? new Date(task.createdAt).toLocaleDateString() : 'N/A'}
                   </span>
                 </div>
                 {task.estimatedHours && (
-                  <div className="bg-white rounded-lg p-3 border border-gray-200">
-                    <span className="text-xs font-medium text-gray-500 uppercase block mb-1">Estimated</span>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase block mb-1">Estimated</span>
                     <span className="text-sm font-semibold text-blue-600">{task.estimatedHours}h</span>
                   </div>
                 )}
                 {task.actualHours !== null && task.actualHours !== undefined && (
-                  <div className="bg-white rounded-lg p-3 border border-gray-200">
-                    <span className="text-xs font-medium text-gray-500 uppercase block mb-1">Actual</span>
+                  <div className="bg-white dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                    <span className="text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase block mb-1">Actual</span>
                     <span className="text-sm font-semibold text-green-600">{task.actualHours}h</span>
                   </div>
                 )}
@@ -942,11 +1117,11 @@ const TaskEditModal = ({ isOpen, onClose, task, onTaskUpdated }) => {
         </form>
 
         {/* Footer */}
-        <div className="flex justify-end gap-3 px-6 py-4 border-t-2 border-gray-200 bg-gradient-to-r from-gray-50 to-blue-50">
+        <div className="flex justify-end gap-3 px-6 py-4 border-t-2 border-gray-200 dark:border-gray-700 bg-gradient-to-r from-gray-50 to-blue-50 dark:from-gray-900 dark:to-gray-800">
           <button
             type="button"
             onClick={handleClose}
-            className="px-5 py-2.5 text-gray-700 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 font-medium transition-all shadow-sm"
+            className="px-5 py-2.5 text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border-2 border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:bg-gray-900 hover:border-gray-400 font-medium transition-all shadow-sm"
             disabled={loading}
           >
             Cancel

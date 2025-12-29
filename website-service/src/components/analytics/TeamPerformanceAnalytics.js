@@ -270,12 +270,12 @@ const TeamPerformanceAnalytics = ({ teamId }) => {
   const { productivity, memberReports, workTimeStats, trends } = teamData;
 
   return (
-    <div className="p-6 bg-gray-50 min-h-screen">
+    <div className="p-6 bg-gray-50 dark:bg-gray-900 min-h-screen">
       {/* Header */}
       <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Team Performance Analytics</h1>
-          <p className="text-gray-600">Monitor and analyze your team's performance metrics</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Team Performance Analytics</h1>
+          <p className="text-gray-600 dark:text-gray-300">Monitor and analyze your team's performance metrics</p>
         </div>
         <button
           onClick={refreshData}
@@ -289,48 +289,48 @@ const TeamPerformanceAnalytics = ({ teamId }) => {
 
       {/* Team Overview Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <UsersIcon className="h-8 w-8 text-blue-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Team Members</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Team Members</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {productivity?.totalMembers || 0}
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <ChartBarIcon className="h-8 w-8 text-green-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Avg Performance</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Avg Performance</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {productivity?.averageScore || 0}%
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <ClockIcon className="h-8 w-8 text-purple-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Total Hours</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Total Hours</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {workTimeStats?.totalHours || 0}h
               </p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex items-center">
             <TicketIcon className="h-8 w-8 text-yellow-500" />
             <div className="ml-4">
-              <p className="text-sm font-medium text-gray-500">Team Efficiency</p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Team Efficiency</p>
+              <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                 {productivity?.efficiency || 0}%
               </p>
             </div>
@@ -342,9 +342,9 @@ const TeamPerformanceAnalytics = ({ teamId }) => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         
         {/* Team Productivity Trends */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Team Productivity Trends</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Team Productivity Trends</h3>
             <button
               onClick={() => exportChart(chartRefs.productivity, 'productivity-trends')}
               className="text-blue-600 hover:text-blue-800"
@@ -364,9 +364,9 @@ const TeamPerformanceAnalytics = ({ teamId }) => {
         </div>
 
         {/* Member Performance Comparison */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Member Performance</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Member Performance</h3>
             <button
               onClick={() => exportChart(chartRefs.performance, 'member-performance')}
               className="text-blue-600 hover:text-blue-800"
@@ -386,9 +386,9 @@ const TeamPerformanceAnalytics = ({ teamId }) => {
         </div>
 
         {/* Workload Distribution */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Workload Distribution</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Workload Distribution</h3>
             <button
               onClick={() => exportChart(chartRefs.workload, 'workload-distribution')}
               className="text-blue-600 hover:text-blue-800"
@@ -408,9 +408,9 @@ const TeamPerformanceAnalytics = ({ teamId }) => {
         </div>
 
         {/* Efficiency Trends */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Weekly Efficiency</h3>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Weekly Efficiency</h3>
             <button
               onClick={() => exportChart(chartRefs.efficiency, 'efficiency-trends')}
               className="text-blue-600 hover:text-blue-800"
@@ -431,48 +431,48 @@ const TeamPerformanceAnalytics = ({ teamId }) => {
       </div>
 
       {/* Team Members Table */}
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Team Members Performance</h3>
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Team Members Performance</h3>
         </div>
         <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
+          <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead className="bg-gray-50 dark:bg-gray-900">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Member</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Role</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tasks Completed</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Performance Score</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Hours This Month</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Efficiency</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase">Member</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase">Role</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase">Tasks Completed</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase">Performance Score</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase">Hours This Month</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase">Efficiency</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase">Actions</th>
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
+            <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
               {memberReports.map((member, index) => (
-                <tr key={member.userId || index} className="hover:bg-gray-50">
+                <tr key={member.userId || index} className="hover:bg-gray-50 dark:bg-gray-900">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="flex-shrink-0 h-10 w-10">
-                        <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center text-sm font-medium text-gray-700">
+                        <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center text-sm font-medium text-gray-700 dark:text-gray-300">
                           {member.name?.charAt(0) || 'U'}
                         </div>
                       </div>
                       <div className="ml-4">
-                        <div className="text-sm font-medium text-gray-900">{member.name}</div>
-                        <div className="text-sm text-gray-500">{member.email}</div>
+                        <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{member.name}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{member.email}</div>
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     {member.role}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     {member.tasksCompleted}/{member.totalTasks}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center">
-                      <div className="flex-1 bg-gray-200 rounded-full h-2 mr-2">
+                      <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-2">
                         <div 
                           className={`h-2 rounded-full ${
                             member.performanceScore >= 90 ? 'bg-green-500' :
@@ -482,13 +482,13 @@ const TeamPerformanceAnalytics = ({ teamId }) => {
                           style={{ width: `${member.performanceScore}%` }}
                         ></div>
                       </div>
-                      <span className="text-sm text-gray-700">{member.performanceScore}%</span>
+                      <span className="text-sm text-gray-700 dark:text-gray-300">{member.performanceScore}%</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     {member.monthlyHours}h
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                     {member.efficiency}%
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
@@ -504,7 +504,7 @@ const TeamPerformanceAnalytics = ({ teamId }) => {
             </tbody>
           </table>
           {memberReports.length === 0 && (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-500 dark:text-gray-400 dark:text-gray-500">
               No team member data available
             </div>
           )}
@@ -514,33 +514,33 @@ const TeamPerformanceAnalytics = ({ teamId }) => {
       {/* Member Detail Modal */}
       {selectedMember && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-gray-800">
             <div className="mt-3">
-              <h3 className="text-lg font-medium text-gray-900 text-center">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 text-center">
                 {selectedMember.name} Performance Details
               </h3>
               <div className="mt-4 space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Performance Score</label>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Performance Score</label>
                   <p className="text-lg font-semibold">{selectedMember.performanceScore}%</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Tasks Completed</label>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Tasks Completed</label>
                   <p className="text-lg font-semibold">{selectedMember.tasksCompleted}/{selectedMember.totalTasks}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Monthly Hours</label>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Monthly Hours</label>
                   <p className="text-lg font-semibold">{selectedMember.monthlyHours}h</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Efficiency Rate</label>
+                  <label className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500">Efficiency Rate</label>
                   <p className="text-lg font-semibold">{selectedMember.efficiency}%</p>
                 </div>
               </div>
               <div className="mt-6 flex justify-end">
                 <button
                   onClick={() => setSelectedMember(null)}
-                  className="px-4 py-2 bg-gray-300 text-gray-700 rounded-md hover:bg-gray-400"
+                  className="px-4 py-2 bg-gray-300 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-400"
                 >
                   Close
                 </button>

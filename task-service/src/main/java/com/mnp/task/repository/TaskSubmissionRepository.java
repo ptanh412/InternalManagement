@@ -15,7 +15,6 @@ public interface TaskSubmissionRepository extends JpaRepository<TaskSubmission, 
     Optional<TaskSubmission> findByTaskIdAndSubmittedBy(String taskId, String submittedBy);
 
     // Add missing methods for TaskService
-    List<TaskSubmission> findByTaskId(String taskId);
     List<TaskSubmission> findByStatus(SubmissionStatus status);
     List<TaskSubmission> findByReviewedBy(String reviewedBy);
 }

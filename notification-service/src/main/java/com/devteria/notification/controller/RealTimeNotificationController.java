@@ -93,6 +93,117 @@ public class RealTimeNotificationController {
     }
 
     /**
+     * Endpoint for department post notifications
+     */
+    @PostMapping("/department-post")
+    public ResponseEntity<String> sendDepartmentPostNotification(@RequestBody DepartmentPostNotificationRequest request) {
+        try {
+            socketIONotificationService.sendDepartmentPostNotification(
+                    request.getEmployeeIds(),
+                    request.getPostId(),
+                    request.getDepartmentId(),
+                    request.getDepartmentName(),
+                    request.getAuthorName(),
+                    request.getPostContent()
+            );
+            return ResponseEntity.ok("Department post notification sent successfully");
+        } catch (Exception e) {
+            log.error("Failed to send department post notification", e);
+            return ResponseEntity.internalServerError().body("Failed to send notification");
+        }
+    }
+
+    /**
+     * Endpoint for task extension request notifications
+     */
+    @PostMapping("/task-extension-request")
+    public ResponseEntity<String> sendTaskExtensionRequestNotification(@RequestBody TaskExtensionRequestNotificationRequest request) {
+        try {
+            socketIONotificationService.sendTaskExtensionRequestNotification(
+                    request.getTeamLeadId(),
+                    request.getTaskId(),
+                    request.getTaskTitle(),
+                    request.getProjectName(),
+                    request.getRequestedBy(),
+                    request.getRequestedByName(),
+                    request.getExtensionHours(),
+                    request.getNewDueDate(),
+                    request.getReason()
+            );
+            return ResponseEntity.ok("Task extension request notification sent successfully");
+        } catch (Exception e) {
+            log.error("Failed to send task extension request notification", e);
+            return ResponseEntity.internalServerError().body("Failed to send notification");
+        }
+    }
+
+    /**
+     * Endpoint for task extension review notifications
+     */
+    @PostMapping("/task-extension-review")
+    public ResponseEntity<String> sendTaskExtensionReviewNotification(@RequestBody TaskExtensionReviewNotificationRequest request) {
+        try {
+            socketIONotificationService.sendTaskExtensionReviewNotification(
+                    request.getEmployeeId(),
+                    request.getTaskId(),
+                    request.getTaskTitle(),
+                    request.getProjectName(),
+                    request.getReviewedBy(),
+                    request.getReviewedByName(),
+                    request.getStatus(),
+                    request.getReviewComments(),
+                    request.getNewDueDate()
+            );
+            return ResponseEntity.ok("Task extension review notification sent successfully");
+        } catch (Exception e) {
+            log.error("Failed to send task extension review notification", e);
+            return ResponseEntity.internalServerError().body("Failed to send notification");
+        }
+    }
+
+    /**
+     * Endpoint for deadline reminder notifications
+     */
+    @PostMapping("/deadline-reminder")
+    public ResponseEntity<String> sendDeadlineReminderNotification(@RequestBody DeadlineReminderNotificationRequest request) {
+        try {
+            socketIONotificationService.sendDeadlineReminderNotification(
+                    request.getEmployeeId(),
+                    request.getTaskId(),
+                    request.getTaskTitle(),
+                    request.getProjectName(),
+                    request.getDueDate(),
+                    request.getReminderType()
+            );
+            return ResponseEntity.ok("Deadline reminder notification sent successfully");
+        } catch (Exception e) {
+            log.error("Failed to send deadline reminder notification", e);
+            return ResponseEntity.internalServerError().body("Failed to send notification");
+        }
+    }
+
+    /**
+     * Endpoint for project update notifications
+     */
+    @PostMapping("/project-update")
+    public ResponseEntity<String> sendProjectUpdateNotification(@RequestBody ProjectUpdateNotificationRequest request) {
+        try {
+            socketIONotificationService.sendProjectUpdateNotification(
+                    request.getMemberIds(),
+                    request.getProjectId(),
+                    request.getProjectName(),
+                    request.getUpdatedBy(),
+                    request.getUpdatedByName(),
+                    request.getUpdateDetails()
+            );
+            return ResponseEntity.ok("Project update notification sent successfully");
+        } catch (Exception e) {
+            log.error("Failed to send project update notification", e);
+            return ResponseEntity.internalServerError().body("Failed to send notification");
+        }
+    }
+
+    /**
      * Endpoint for project creation notifications
      */
     @PostMapping("/project-creation")
@@ -323,6 +434,82 @@ public class RealTimeNotificationController {
         private String title;
         private String message;
         private Map<String, Object> additionalData;
+    }
+
+    @Data
+    @Setter
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DepartmentPostNotificationRequest {
+        private java.util.List<String> employeeIds;
+        private String postId;
+        private String departmentId;
+        private String departmentName;
+        private String authorName;
+        private String postContent;
+    }
+
+    @Data
+    @Setter
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TaskExtensionRequestNotificationRequest {
+        private String teamLeadId;
+        private String taskId;
+        private String taskTitle;
+        private String projectName;
+        private String requestedBy;
+        private String requestedByName;
+        private Integer extensionHours;
+        private String newDueDate;
+        private String reason;
+    }
+
+    @Data
+    @Setter
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class TaskExtensionReviewNotificationRequest {
+        private String employeeId;
+        private String taskId;
+        private String taskTitle;
+        private String projectName;
+        private String reviewedBy;
+        private String reviewedByName;
+        private String status;
+        private String reviewComments;
+        private String newDueDate;
+    }
+
+    @Data
+    @Setter
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class DeadlineReminderNotificationRequest {
+        private String employeeId;
+        private String taskId;
+        private String taskTitle;
+        private String projectName;
+        private String dueDate;
+        private String reminderType; // "3_DAYS", "1_DAY", "OVERDUE"
+    }
+
+    @Data
+    @Setter
+    @Getter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ProjectUpdateNotificationRequest {
+        private java.util.List<String> memberIds;
+        private String projectId;
+        private String projectName;
+        private String updatedBy;
+        private String updatedByName;
+        private String updateDetails;
     }
 
     public static class BroadcastNotificationRequest {

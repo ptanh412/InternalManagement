@@ -18,4 +18,5 @@ public class EmailRequest {
     From from; // thay vì sender
     List<Personalization> personalizations;
     List<Content> content;
+    ReplyTo replyTo;
 }

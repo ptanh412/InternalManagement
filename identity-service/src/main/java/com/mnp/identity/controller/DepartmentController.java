@@ -47,6 +47,13 @@ public class DepartmentController {
                 .build();
     }
 
+    @GetMapping("/{departmentName}")
+    ApiResponse<DepartmentResponse> getDepartmentByName(@PathVariable("departmentName") String departmentName) {
+        return ApiResponse.<DepartmentResponse>builder()
+                .result(departmentService.getDepartmentByName(departmentName))
+                .build();
+    }
+
     @PutMapping("/{departmentId}")
     ApiResponse<DepartmentResponse> updateDepartment(
             @PathVariable String departmentId, @RequestBody @Valid DepartmentUpdateRequest request) {

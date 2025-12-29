@@ -30,7 +30,7 @@ export const useNotifications = () => {
     
     try {
       setLoading(true);
-      const recentNotifications = await notificationService.getRecentNotifications(userId, 7);
+      const recentNotifications = await notificationService.getRecentNotifications(userId, 365);
       setNotifications(recentNotifications);
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
@@ -47,6 +47,7 @@ export const useNotifications = () => {
     try {
       setLoading(true);
       const response = await notificationService.getUserNotifications(userId, page, size);
+      // console.log("Fetched notifications response:", response);
       return response;
     } catch (err) {
       console.error('Failed to fetch notifications:', err);

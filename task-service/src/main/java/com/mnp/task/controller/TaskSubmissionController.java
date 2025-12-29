@@ -34,7 +34,7 @@ public class TaskSubmissionController {
     @PostMapping
     public ResponseEntity<TaskSubmissionResponse> submitTask(
             @PathVariable String taskId,
-            @RequestBody @Valid TaskSubmissionRequest request,  // ✅ ĐÚNG - @RequestBody cho JSON
+            @RequestBody @Valid TaskSubmissionRequest request,
             HttpServletRequest httpRequest) {
         log.info("Submitting task {} for user {}", taskId, httpRequest.getRemoteUser());
         String userId = authenticationService.getUserIdFromRequest(httpRequest);

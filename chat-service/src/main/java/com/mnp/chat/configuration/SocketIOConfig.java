@@ -1,5 +1,7 @@
 package com.mnp.chat.configuration;
 
+import com.corundumstudio.socketio.protocol.JacksonJsonSupport;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -21,8 +23,23 @@ public class SocketIOConfig {
         // Enable CORS for all origins (adjust for production)
         configuration.setAllowCustomRequests(true);
 
-        // Configure Jackson to handle Java 8 time types
-        configuration.setJsonSupport(new com.corundumstudio.socketio.protocol.JacksonJsonSupport(new JavaTimeModule()));
+        // ✅ GIẢI PHÁP: Sử dụng Anonymous Class để cấu hình ObjectMapper bên trong
+        // Truyền JavaTimeModule vào constructor
+        configuration.setJsonSupport(new JacksonJsonSupport(new JavaTimeModule()) {
+            {
+                // 'objectMapper' là biến protected của lớp cha (JacksonJsonSupport)
+                // Chúng ta có thể cấu hình nó ngay tại đây:
+
+                // 1. BẬT timestamp dạng milliseconds cho ngày tháng (để frontend xử lý dễ hơn)
+                this.objectMapper.enable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+                // Note: Với JavaTimeModule, WRITE_DATES_AS_TIMESTAMPS sẽ trả về milliseconds (long)
+                // thay vì ISO-8601 string, giúp frontend xử lý dễ dàng hơn
+
+                // 2. Các cấu hình khác
+                this.objectMapper.disable(SerializationFeature.FAIL_ON_EMPTY_BEANS);
+                this.objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+            }
+        });
 
         // Authentication configuration - Fixed to return AuthorizationResult
         configuration.setAuthorizationListener(data -> {

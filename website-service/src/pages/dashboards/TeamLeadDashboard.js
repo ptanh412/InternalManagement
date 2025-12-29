@@ -17,6 +17,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../hooks/useAuth';
 import TeamPerformanceAnalytics from '../../components/analytics/TeamPerformanceAnalytics';
+import KPIWidget from '../../components/dashboard/KPIWidget';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -415,98 +416,6 @@ const TeamLeadDashboard = () => {
     }
   };
 
-  const leadStats = [
-    {
-      name: 'Team Members',
-      value: stats.teamMembers,
-      icon: UserGroupIcon,
-      color: 'bg-blue-500',
-      change: '+1',
-      changeType: 'positive'
-    },
-    {
-      name: 'Active Tasks',
-      value: stats.activeTasks,
-      icon: DocumentTextIcon,
-      color: 'bg-purple-500',
-      change: '+5',
-      changeType: 'positive'
-    },
-    {
-      name: 'Completed Tasks',
-      value: stats.completedTasks,
-      icon: CheckCircleIcon,
-      color: 'bg-green-500',
-      change: '+23',
-      changeType: 'positive'
-    },
-    {
-      name: 'Overdue Tasks',
-      value: stats.overdueTasks,
-      icon: ExclamationTriangleIcon,
-      color: 'bg-red-500',
-      change: '-2',
-      changeType: 'positive'
-    },
-    {
-      name: 'Team Efficiency',
-      value: `${stats.teamEfficiency}%`,
-      icon: ChartBarIcon,
-      color: 'bg-emerald-500',
-      change: '+2.1%',
-      changeType: 'positive'
-    },
-    {
-      name: 'Meetings Today',
-      value: stats.upcomingMeetings,
-      icon: CalendarDaysIcon,
-      color: 'bg-yellow-500',
-      change: '0',
-      changeType: 'neutral'
-    }
-  ];
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 text-green-800';
-      case 'away':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'busy':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const getPriorityColor = (priority) => {
-    switch (priority) {
-      case 'high':
-        return 'text-red-600 bg-red-100';
-      case 'medium':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'low':
-        return 'text-green-600 bg-green-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getTaskStatusColor = (status) => {
-    switch (status) {
-      case 'completed':
-        return 'text-green-600 bg-green-100';
-      case 'in-progress':
-        return 'text-blue-600 bg-blue-100';
-      case 'pending':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'overdue':
-        return 'text-red-600 bg-red-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -516,20 +425,20 @@ const TeamLeadDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
             Team Lead Dashboard
           </h1>
-          <p className="text-gray-600 mt-2">
+          <p className="text-gray-600 dark:text-gray-300 mt-2">
             Welcome back, {user?.name}! Here's your team overview.
           </p>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="border-b border-gray-200 mb-8">
+        {/* <div className="border-b border-gray-200 dark:border-gray-700 mb-8">
           <nav className="-mb-px flex space-x-8">
             <button
               onClick={() => setActiveTab('dashboard')}
@@ -571,50 +480,24 @@ const TeamLeadDashboard = () => {
               </div>
             </button>
           </nav>
-        </div>
+        </div> */}
 
         {/* Tab Content */}
         {activeTab === 'dashboard' && (
           <>
-            {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6 mb-8">
-          {leadStats.map((stat) => {
-            const IconComponent = stat.icon;
-            return (
-              <div key={stat.name} className="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow">
-                <div className="flex items-center">
-                  <div className={`p-3 rounded-md ${stat.color}`}>
-                    <IconComponent className="h-6 w-6 text-white" />
-                  </div>
-                  <div className="ml-4 flex-1">
-                    <p className="text-sm font-medium text-gray-600">
-                      {stat.name}
-                    </p>
-                    <div className="flex items-center">
-                      <p className="text-2xl font-semibold text-gray-900">
-                        {stat.value}
-                      </p>
-                      <span className={`ml-2 text-sm font-medium ${
-                        stat.changeType === 'positive' ? 'text-green-600' : 
-                        stat.changeType === 'negative' ? 'text-red-600' : 'text-gray-600'
-                      }`}>
-                        {stat.change}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+            {/* KPI Widget */}
+            <div className="mb-8">
+              <KPIWidget userId={user?.id} />
+            </div>
+
 
         {/* Team Lead Charts Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 mb-8">
           
           {/* Task Distribution Chart */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Task Distribution by Team Member</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Task Distribution by Team Member</h3>
               <button
                 onClick={() => exportChart(chartRefs.taskDistribution, 'task-distribution')}
                 className="text-blue-600 hover:text-blue-800"
@@ -634,9 +517,9 @@ const TeamLeadDashboard = () => {
           </div>
 
           {/* Task Priority Distribution */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Task Priority</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Task Priority</h3>
               <button
                 onClick={() => exportChart(chartRefs.priority, 'task-priority')}
                 className="text-blue-600 hover:text-blue-800"
@@ -656,9 +539,9 @@ const TeamLeadDashboard = () => {
           </div>
 
           {/* Productivity Trends */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Team Productivity Trends</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Team Productivity Trends</h3>
               <button
                 onClick={() => exportChart(chartRefs.productivity, 'productivity-trends')}
                 className="text-blue-600 hover:text-blue-800"
@@ -678,9 +561,9 @@ const TeamLeadDashboard = () => {
           </div>
 
           {/* Skills Coverage */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Skills Coverage</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Skills Coverage</h3>
               <button
                 onClick={() => exportChart(chartRefs.skills, 'skills-coverage')}
                 className="text-blue-600 hover:text-blue-800"
@@ -700,9 +583,9 @@ const TeamLeadDashboard = () => {
           </div>
 
           {/* Sprint Burndown */}
-          <div className="lg:col-span-2 bg-white rounded-lg shadow p-6">
+          <div className="lg:col-span-2 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Sprint Burndown</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Sprint Burndown</h3>
               <button
                 onClick={() => exportChart(chartRefs.burndown, 'sprint-burndown')}
                 className="text-blue-600 hover:text-blue-800"
@@ -722,9 +605,9 @@ const TeamLeadDashboard = () => {
           </div>
 
           {/* Member Performance */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Member Performance</h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Member Performance</h3>
               <button
                 onClick={() => exportChart(chartRefs.performance, 'member-performance')}
                 className="text-blue-600 hover:text-blue-800"
@@ -747,16 +630,16 @@ const TeamLeadDashboard = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Team Members */}
           {/* <div>
-            <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                   Team Members
                 </h2>
-                <UsersIcon className="h-5 w-5 text-gray-400" />
+                <UsersIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
               </div>
               <div className="space-y-4">
                 {teamMembers.map((member) => (
-                  <div key={member.id} className="flex items-center space-x-3 p-3 hover:bg-gray-50 rounded-lg">
+                  <div key={member.id} className="flex items-center space-x-3 p-3 hover:bg-gray-50 dark:bg-gray-900 rounded-lg">
                     <div className="flex-shrink-0">
                       <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
                         <span className="text-sm font-medium text-primary-600">
@@ -765,10 +648,10 @@ const TeamLeadDashboard = () => {
                       </div>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
                         {member.name}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
                         {member.role}
                       </p>
                     </div>
@@ -776,7 +659,7 @@ const TeamLeadDashboard = () => {
                       <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStatusColor(member.status)}`}>
                         {member.status}
                       </span>
-                      <span className="text-xs text-gray-500 mt-1">
+                      <span className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
                         {member.tasks} tasks
                       </span>
                     </div>
@@ -793,9 +676,9 @@ const TeamLeadDashboard = () => {
 
           {/* Tasks Overview */}
           {/* <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-md p-6">
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                   Team Tasks
                 </h2>
                 <button className="btn-primary flex items-center">
@@ -805,9 +688,9 @@ const TeamLeadDashboard = () => {
               </div>
               <div className="space-y-4">
                 {tasks.map((task) => (
-                  <div key={task.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                  <div key={task.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:shadow-md transition-shadow">
                     <div className="flex items-center justify-between mb-3">
-                      <h3 className="text-lg font-medium text-gray-900">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">
                         {task.title}
                       </h3>
                       <div className="flex items-center space-x-2">
@@ -821,11 +704,11 @@ const TeamLeadDashboard = () => {
                     </div>
                     
                     <div className="mb-3">
-                      <div className="flex justify-between text-sm text-gray-600 mb-1">
+                      <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-1">
                         <span>Progress</span>
                         <span>{task.progress}%</span>
                       </div>
-                      <div className="w-full bg-gray-200 rounded-full h-2">
+                      <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                         <div 
                           className="h-2 rounded-full bg-blue-500"
                           style={{ width: `${task.progress}%` }}
@@ -833,7 +716,7 @@ const TeamLeadDashboard = () => {
                       </div>
                     </div>
 
-                    <div className="flex items-center justify-between text-sm text-gray-600">
+                    <div className="flex items-center justify-between text-sm text-gray-600 dark:text-gray-300">
                       <span className="flex items-center">
                         <UsersIcon className="h-4 w-4 mr-1" />
                         {task.assignee}
@@ -852,16 +735,16 @@ const TeamLeadDashboard = () => {
 
         <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Recent Activities */}
-          {/* <div className="bg-white rounded-lg shadow-md p-6">
+          {/* <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-gray-900">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                 Team Activities
               </h2>
-              <EyeIcon className="h-5 w-5 text-gray-400" />
+              <EyeIcon className="h-5 w-5 text-gray-400 dark:text-gray-500" />
             </div>
             <div className="space-y-4">
               {recentActivities.map((activity) => (
-                <div key={activity.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 rounded-lg">
+                <div key={activity.id} className="flex items-start space-x-3 p-3 hover:bg-gray-50 dark:bg-gray-900 rounded-lg">
                   <div className="flex-shrink-0">
                     <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
                       <span className="text-xs font-medium text-primary-600">
@@ -870,11 +753,11 @@ const TeamLeadDashboard = () => {
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-900">
+                    <p className="text-sm text-gray-900 dark:text-gray-100">
                       <span className="font-medium">{activity.user}</span>{' '}
                       {activity.action}
                     </p>
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
                       {activity.timestamp}
                     </p>
                   </div>
@@ -889,33 +772,33 @@ const TeamLeadDashboard = () => {
           </div> */}
 
           {/* Quick Actions */}
-          {/* <div className="bg-white rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">
+          {/* <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">
               Quick Actions
             </h2>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200">
-                <DocumentTextIcon className="h-8 w-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-700">Create Task</span>
+              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200">
+                <DocumentTextIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Create Task</span>
               </button>
-              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200">
-                <CalendarDaysIcon className="h-8 w-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-700">Schedule Meeting</span>
+              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200">
+                <CalendarDaysIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Schedule Meeting</span>
               </button>
-              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200">
-                <ChartBarIcon className="h-8 w-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-700">Team Report</span>
+              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200">
+                <ChartBarIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Team Report</span>
               </button>
-              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200">
-                <ClockIcon className="h-8 w-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-700">Time Tracking</span>
+              <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200">
+                <ClockIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Time Tracking</span>
               </button>
               <button 
                 onClick={() => window.location.href = '/team-lead/chat'}
-                className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200"
+                className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-primary-500 hover:bg-primary-50 transition-colors duration-200"
               >
-                <ChatBubbleLeftRightIcon className="h-8 w-8 text-gray-400 mb-2" />
-                <span className="text-sm font-medium text-gray-700">Team Chat</span>
+                <ChatBubbleLeftRightIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
+                <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Team Chat</span>
               </button>
             </div>
           </div> */}
@@ -933,54 +816,54 @@ const TeamLeadDashboard = () => {
           <div className="space-y-6">
             
             {/* Team Overview */}
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-xl font-semibold text-gray-900 mb-6">Team Management</h2>
+            <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-6">Team Management</h2>
               
               {/* Team Information */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
                   <div className="text-2xl font-bold text-blue-600">{stats.teamMembers}</div>
-                  <div className="text-sm text-gray-600">Team Members</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Team Members</div>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
                   <div className="text-2xl font-bold text-green-600">{stats.totalTasks}</div>
-                  <div className="text-sm text-gray-600">Active Tasks</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Active Tasks</div>
                 </div>
-                <div className="bg-gray-50 p-4 rounded-lg">
+                <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
                   <div className="text-2xl font-bold text-purple-600">{stats.completedTasks}</div>
-                  <div className="text-sm text-gray-600">Completed Tasks</div>
+                  <div className="text-sm text-gray-600 dark:text-gray-300">Completed Tasks</div>
                 </div>
               </div>
 
               {/* Team Member List */}
               <div>
-                <h3 className="text-lg font-medium text-gray-900 mb-4">Team Members</h3>
+                <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Team Members</h3>
                 <div className="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
                   <table className="min-w-full divide-y divide-gray-300">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 dark:bg-gray-900">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Member</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Role</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Tasks</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Performance</th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">Status</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">Member</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">Role</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">Tasks</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">Performance</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 uppercase tracking-wide">Status</th>
                       </tr>
                     </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
+                    <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                       {teamMembers.map((member) => (
-                        <tr key={member.id} className="hover:bg-gray-50">
+                        <tr key={member.id} className="hover:bg-gray-50 dark:bg-gray-900">
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
                               <div className="flex-shrink-0 h-10 w-10">
                                 <div className="h-10 w-10 rounded-full bg-gray-300 flex items-center justify-center">
-                                  <span className="text-sm font-medium text-gray-700">
+                                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     {member.name.charAt(0)}
                                   </span>
                                 </div>
                               </div>
                               <div className="ml-4">
-                                <div className="text-sm font-medium text-gray-900">{member.name}</div>
-                                <div className="text-sm text-gray-500">{member.email}</div>
+                                <div className="text-sm font-medium text-gray-900 dark:text-gray-100">{member.name}</div>
+                                <div className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">{member.email}</div>
                               </div>
                             </div>
                           </td>
@@ -989,12 +872,12 @@ const TeamLeadDashboard = () => {
                               {member.role}
                             </span>
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                             {member.activeTasks}/{member.totalTasks}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
                             <div className="flex items-center">
-                              <div className="flex-1 bg-gray-200 rounded-full h-2 mr-2">
+                              <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-2">
                                 <div 
                                   className={`h-2 rounded-full ${
                                     member.performance >= 90 ? 'bg-green-500' :
@@ -1004,7 +887,7 @@ const TeamLeadDashboard = () => {
                                   style={{ width: `${member.performance}%` }}
                                 ></div>
                               </div>
-                              <span className="text-sm text-gray-700">{member.performance}%</span>
+                              <span className="text-sm text-gray-700 dark:text-gray-300">{member.performance}%</span>
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
@@ -1025,24 +908,24 @@ const TeamLeadDashboard = () => {
             </div>
 
             {/* Team Actions */}
-            {/* <div className="bg-white rounded-lg shadow p-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Team Actions</h3>
+            {/* <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Team Actions</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors duration-200">
-                  <PlusIcon className="h-8 w-8 text-gray-400 mb-2" />
-                  <span className="text-sm font-medium text-gray-700">Add Member</span>
+                <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors duration-200">
+                  <PlusIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Add Member</span>
                 </button>
-                <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors duration-200">
-                  <DocumentTextIcon className="h-8 w-8 text-gray-400 mb-2" />
-                  <span className="text-sm font-medium text-gray-700">Assign Task</span>
+                <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-green-500 hover:bg-green-50 transition-colors duration-200">
+                  <DocumentTextIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Assign Task</span>
                 </button>
-                <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-colors duration-200">
-                  <CalendarDaysIcon className="h-8 w-8 text-gray-400 mb-2" />
-                  <span className="text-sm font-medium text-gray-700">Schedule Meeting</span>
+                <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-purple-500 hover:bg-purple-50 transition-colors duration-200">
+                  <CalendarDaysIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Schedule Meeting</span>
                 </button>
-                <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 rounded-lg hover:border-yellow-500 hover:bg-yellow-50 transition-colors duration-200">
-                  <EyeIcon className="h-8 w-8 text-gray-400 mb-2" />
-                  <span className="text-sm font-medium text-gray-700">View Reports</span>
+                <button className="flex flex-col items-center p-6 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg hover:border-yellow-500 hover:bg-yellow-50 transition-colors duration-200">
+                  <EyeIcon className="h-8 w-8 text-gray-400 dark:text-gray-500 mb-2" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">View Reports</span>
                 </button>
               </div>
             </div> */}

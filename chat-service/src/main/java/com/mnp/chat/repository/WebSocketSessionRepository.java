@@ -16,10 +16,6 @@ public interface WebSocketSessionRepository extends MongoRepository<WebSocketSes
 
     List<WebSocketSession> findAllByUserIdIn(List<String> userIds);
 
-    List<WebSocketSession> findAllByUserId(String userId);
-
-    Optional<WebSocketSession> findByUserId(String userId);
-
     // Changed from Optional to List to handle multiple sessions for same user+conversation
     List<WebSocketSession> findByUserIdAndCurrentConversationId(String userId, String currentConversationId);
 

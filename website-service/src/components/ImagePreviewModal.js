@@ -10,12 +10,12 @@ const ImagePreviewModal = ({ isOpen, onClose, imageUrl, imageName, onDownload })
       onClick={onClose}
     >
       <div 
-        className="relative max-w-4xl max-h-[90vh] bg-white rounded-lg shadow-2xl overflow-hidden"
+        className="relative max-w-4xl max-h-[90vh] bg-white dark:bg-gray-800 rounded-lg shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-white">
-          <h3 className="text-lg font-medium text-gray-900 truncate pr-4">
+        <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 truncate pr-4">
             {imageName}
           </h3>
           <div className="flex items-center space-x-2">
@@ -28,7 +28,7 @@ const ImagePreviewModal = ({ isOpen, onClose, imageUrl, imageName, onDownload })
             </button>
             <button
               onClick={onClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              className="p-2 text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:bg-gray-800 rounded-lg transition-colors"
             >
               <XMarkIcon className="h-6 w-6" />
             </button>
@@ -36,7 +36,7 @@ const ImagePreviewModal = ({ isOpen, onClose, imageUrl, imageName, onDownload })
         </div>
 
         {/* Image Container */}
-        <div className="flex items-center justify-center p-6 bg-gray-50 max-h-[calc(90vh-80px)] overflow-auto">
+        <div className="flex items-center justify-center p-6 bg-gray-50 dark:bg-gray-900 max-h-[calc(90vh-80px)] overflow-auto">
           <img
             src={imageUrl}
             alt={imageName}

@@ -30,4 +30,8 @@ public class AddTaskToWorkloadRequest {
     LocalDateTime dueDate;
 
     String taskTitle;
+
+    String status;
+
+    LocalDateTime startedAt;
 }

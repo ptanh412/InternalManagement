@@ -8,20 +8,21 @@ This module implements continuous learning capabilities:
 - Real-time data collection and processing
 """
 
-import pandas as pd
-import yaml
-import joblib
 import logging
-import schedule
 import time
 from datetime import datetime, timedelta
-from typing import Dict, Any
+from typing import Any, Dict
+
+import joblib
+import pandas as pd
+import schedule
+import structlog
+import yaml
 from sqlalchemy import create_engine, text
 
-import structlog
+from src.data.data_collector import MultiDatabaseDataCollector
 
 from .hybrid_recommender import HybridRecommenderTrainer
-from src.data.data_collector import MultiDatabaseDataCollector
 
 logger = structlog.get_logger(__name__)
 
@@ -591,7 +592,7 @@ class MLDataEventProcessor:
 # Example usage and testing
 if __name__ == "__main__":
     import sys
-    
+
     # Setup logging
     logging.basicConfig(level=logging.INFO)
     

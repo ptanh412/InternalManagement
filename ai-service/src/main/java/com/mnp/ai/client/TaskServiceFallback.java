@@ -4,9 +4,10 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 
+import com.mnp.ai.dto.response.TaskMetricsResponse;
 import org.springframework.stereotype.Component;
 
-import com.mnp.ai.dto.TaskResponse;
+import com.mnp.ai.dto.response.TaskResponse;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -68,10 +69,10 @@ public class TaskServiceFallback implements TaskServiceClient {
     }
 
     @Override
-    public com.mnp.ai.dto.ApiResponse<com.mnp.ai.dto.TaskMetricsResponse> getUserTaskMetrics(String userId) {
+    public com.mnp.ai.dto.ApiResponse<TaskMetricsResponse> getUserTaskMetrics(String userId) {
         log.warn("Task service is unavailable, returning fallback task metrics for userId: {}", userId);
 
-        com.mnp.ai.dto.TaskMetricsResponse metrics = com.mnp.ai.dto.TaskMetricsResponse.builder()
+        TaskMetricsResponse metrics = TaskMetricsResponse.builder()
                 .totalTasks(0)
                 .completedTasks(0)
                 .averageQualityRating(0.0)
@@ -80,7 +81,7 @@ public class TaskServiceFallback implements TaskServiceClient {
                 .estimatedActualRatio(0.0)
                 .build();
 
-        return com.mnp.ai.dto.ApiResponse.<com.mnp.ai.dto.TaskMetricsResponse>builder()
+        return com.mnp.ai.dto.ApiResponse.<TaskMetricsResponse>builder()
                 .code(200)
                 .message("Fallback task metrics")
                 .result(metrics)

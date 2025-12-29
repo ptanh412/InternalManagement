@@ -3,9 +3,10 @@ import axios from 'axios';
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8888/api/v1';
 
 // Create axios instance
+// Increased timeout for AI service endpoints (from 100s to 180s default, 300s for AI)
 const api = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 100000,
+  timeout: 180000, // 3 minutes - increased from 100s
 });
 
 // Request interceptor
@@ -29,7 +30,9 @@ api.interceptors.request.use(
     //   url: config.url,
     //   method: config.method,
     //   contentType: config.headers['Content-Type'],
-    //   isFormData: config.data instanceof FormData
+    //   isFormData: config.data instanceof FormData,
+    //   hasToken: !!token,
+    //   authHeader: config.headers.Authorization
     // });
 
     return config;
@@ -44,13 +47,25 @@ api.interceptors.response.use(
     console.error('❌ API Error:', {
       url: error.config?.url,
       status: error.response?.status,
-      message: error.response?.data?.message || error.message
+      message: error.response?.data?.message || error.message,
+      fullResponse: error.response?.data,
+      headers: error.config?.headers
     });
 
     if (error.response?.status === 401) {
+      const currentPath = window.location.pathname;
+      
+      // // Don't remove token or redirect if on /posts page (public access allowed)
+      // if (currentPath === '/posts') {
+      //   // Just return the error, keep token intact for creating posts
+      //   return Promise.reject(error);
+      // }
+      
+      // For other pages, remove token and redirect
       localStorage.removeItem('token');
       localStorage.removeItem('refreshToken');
-      if (window.location.pathname !== '/login') {
+      
+      if (currentPath !== '/login') {
         window.location.href = '/login';
       }
     }
@@ -76,8 +91,15 @@ export const apiService = {
   changePassword: (data) => api.post('/identity/users/change-password', data),
 
   // Profile management
-
+  getAllProfile: () => api.get('/profile/users'),
+  getEmployeesOnly: (department = null) => {
+    const url = department 
+      ? `/profile/users/employees?department=${encodeURIComponent(department)}`
+      : '/profile/users/employees';
+    return api.get(url);
+  },
   getMyProfile: () => api.get('/profile/users/my-profile'),
+  getProfileById: (userId) => api.get(`/profile/api/profiles/${userId}`),
   
   updateMyProfile: (data) => api.put('/profile/users/my-profile', data),
   
@@ -128,6 +150,12 @@ export const apiService = {
   getUsersByRole: (roleName) => api.get(`/identity/users/role/${roleName}`),
 
   // Projects - Updated with all project-service endpoints
+  getUserWorkload: (userId) => api.get(`/workload/workloads/${userId}`),
+  getMyWorkTimeStatistics: (period = 'MONTHLY') => api.get('/workload/work-time/statistics/my-time', { params: { period } }),
+  getTeamWorkload: (departmentId) => api.get(`/workload/workloads/team/${departmentId}`),
+  getProjectWorkload: (projectId) => api.get(`/workload/workloads/project/${projectId}`),
+  getProjectWorkTimeStats: (projectId, period = 'WEEKLY') => api.get(`/workload/work-time/statistics/project/${projectId}`, { params: { period } }),
+  getAnalysticsProjects: () => api.get('/project/projects/analytics'),
   getProjects: (params) => api.get('/project/projects', { params }),
   getProjectsForUser: (userId, userRole) => api.get('/project/projects', { params: { userId, userRole } }),
   getProject: (id) => api.get(`/project/projects/${id}`),
@@ -171,6 +199,7 @@ export const apiService = {
   getTasksByTeamLead: (teamLeadId) => api.get(`/task/tasks/team-lead/${teamLeadId}`),
   getTasksAssignedToUser: (userId) => api.get(`/task/tasks/assigned/${userId}`),
   getMyTasks: () => api.get('/task/tasks/my-tasks'),
+  getTaskHoursStats: (projectId) => api.get('/task/tasks/hours-stats', { params: { projectId } }),
 
     // Time Tracking APIs
   getTimerStatus: (taskId) => api.get(`/task/tasks/${taskId}/timer/status`),
@@ -194,6 +223,17 @@ export const apiService = {
   submitTask: (taskId, data) => api.post(`/task/tasks/${taskId}/submissions`, data),
   getTaskSubmissions: (taskId) => api.get(`/task/tasks/${taskId}/submissions`),
   getMySubmissions: () => api.get('/task/my-submissions'),
+  getPendingSubmissions: () => api.get('/task/submissions/pending'),
+
+
+  // ✅ NEW: Extension APIs
+  requestExtension: (taskId, data) => api.post(`/task/extensions/${taskId}`, data),
+  reviewExtensionRequest: (extensionId, data) => api.put(`/task/extensions/${extensionId}/review`, data),
+  getTaskExtensions: (taskId) => api.get(`/task/extensions/${taskId}/history`),
+  getMyExtensions: () => api.get(`/task/extensions/my-requests`),
+  getPendingExtensions: () => api.get(`/task/extensions/pending`),
+  getAllStatusExtensions: () => api.get(`/task/extensions/all`),
+  getExtensionSummary: (taskId) => api.get(`/task/extensions/${taskId}/summary`),
 
   reviewSubmission: (taskId, submissionId, status, comments, qualityRating, taskComplexity) => 
     api.post(`/task/tasks/${taskId}/submissions/${submissionId}/review-detailed`, {
@@ -223,10 +263,10 @@ export const apiService = {
   }),
   getSupportedFileFormats: () => api.get('/ai/tasks/supported-formats'),
 
-  // AI Employee Recommendations
-  getTaskRecommendations: (taskId) => api.post(`/ai/recommendations/task/${taskId}`),
-  getEmergencyRecommendations: (taskId) => api.post(`/ai/recommendations/task/${taskId}/emergency`),
-  getTeamRecommendations: (taskId, teamId) => api.post(`/ai/recommendations/task/${taskId}/team/${teamId}`),
+  // AI Employee Recommendations - Extended timeout for AI processing
+  getTaskRecommendations: (taskId) => api.post(`/ai/recommendations/task/${taskId}`, {}, { timeout: 300000 }), // 5 minutes
+  getEmergencyRecommendations: (taskId) => api.post(`/ai/recommendations/task/${taskId}/emergency`, {}, { timeout: 300000 }), // 5 minutes
+  getTeamRecommendations: (taskId, teamId) => api.post(`/ai/recommendations/task/${taskId}/team/${teamId}`, {}, { timeout: 300000 }), // 5 minutes
 
   // Notifications
   getNotifications: () => api.get('/notifications'),
@@ -294,6 +334,7 @@ export const apiService = {
   getUserById: (userId) => api.get(`/identity/users/${userId}`),
   createUser: (data) => api.post('/identity/users', data),
   updateUser: (userId, data) => api.put(`/identity/users/${userId}`, data),
+  updateUserProfile: (userId, data) => api.put(`/profile/users/${userId}`, data),
   deleteUser: (userId) => api.delete(`/identity/users/${userId}`),
   updateUserStatus: (userId, data) => api.post(`/identity/users/${userId}/status`, data),
   getUsersByDepartment: (departmentId) => api.get(`/identity/users/department/${departmentId}`),
@@ -332,6 +373,19 @@ export const apiService = {
         }
       });
     },
+   // CV Analysis
+  analyzeCVOllama: (formData) => {
+      const token = localStorage.getItem('token');
+      console.log('📤 Sending CV analysis request with token:', token ? 'Present' : 'Missing');
+      
+      return api.post('/ai/cv/analyze-ollama', formData, {
+        headers: { 
+          'Content-Type': 'multipart/form-data',
+          // Token sẽ được tự động add bởi interceptor, nhưng có thể force:
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        }
+      });
+  },
   batchAnalyzeCV: (formData) => api.post('/ai/cv/batch', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
@@ -427,6 +481,57 @@ export const apiService = {
 
     // Manually refresh user workload (for troubleshooting)
     refreshUserWorkload: (userId) => api.post(`/workload/workloads/${userId}/refresh`),
+  },
+
+  // Meeting Room APIs
+  meetings: {
+    // Get all meetings for current user
+    getMeetings: (params) => api.get('/meetings', { params }),
+    
+    // Get specific meeting details
+    getMeeting: (meetingId) => api.get(`/meetings/${meetingId}`),
+    
+    // Create new meeting
+    createMeeting: (data) => api.post('/meetings', data),
+    
+    // Update meeting
+    updateMeeting: (meetingId, data) => api.put(`/meetings/${meetingId}`, data),
+    
+    // Delete meeting
+    deleteMeeting: (meetingId) => api.delete(`/meetings/${meetingId}`),
+    
+    // Join meeting
+    joinMeeting: (meetingId) => api.post(`/meetings/${meetingId}/join`),
+    
+    // Leave meeting
+    leaveMeeting: (meetingId) => api.post(`/meetings/${meetingId}/leave`),
+    
+    // Invite participants
+    inviteParticipants: (meetingId, data) => api.post(`/meetings/${meetingId}/invite`, data),
+    
+    // Remove participant
+    removeParticipant: (meetingId, userId) => api.delete(`/meetings/${meetingId}/participants/${userId}`),
+    
+    // Get meeting participants
+    getParticipants: (meetingId) => api.get(`/meetings/${meetingId}/participants`),
+    
+    // Start recording
+    startRecording: (meetingId) => api.post(`/meetings/${meetingId}/recording/start`),
+    
+    // Stop recording
+    stopRecording: (meetingId) => api.post(`/meetings/${meetingId}/recording/stop`),
+    
+    // Get meeting recordings
+    getRecordings: (meetingId) => api.get(`/meetings/${meetingId}/recordings`),
+    
+    // Send meeting chat message
+    sendChatMessage: (meetingId, data) => api.post(`/meetings/${meetingId}/chat`, data),
+    
+    // Get meeting chat history
+    getChatHistory: (meetingId) => api.get(`/meetings/${meetingId}/chat`),
+    
+    // Get upcoming meetings for project
+    getProjectMeetings: (projectId) => api.get(`/meetings/project/${projectId}`),
   },
 }
 

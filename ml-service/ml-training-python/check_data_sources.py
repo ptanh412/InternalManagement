@@ -5,12 +5,13 @@ Quick Data Source Checker
 Simple script to quickly check what data is available in each database.
 """
 
-import sys
 import os
+import sys
+
+import mysql.connector
+import pymongo
 import yaml
 from neo4j import GraphDatabase
-import pymongo
-import mysql.connector
 from sqlalchemy import create_engine, text
 
 # Add src to path

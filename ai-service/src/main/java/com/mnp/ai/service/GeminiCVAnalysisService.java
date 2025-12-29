@@ -37,9 +37,9 @@ public class GeminiCVAnalysisService {
     @Value("${google.gemini.temperature:0.2}")
     private Double temperature;
 
-    private final ObjectMapper objectMapper;
-    private final WebClient webClient;
-    private final IdentityIntegrationService identityIntegrationService;
+    protected final ObjectMapper objectMapper;
+    protected final WebClient webClient;
+    protected final IdentityIntegrationService identityIntegrationService;
 
     public CVAnalysisResult analyzeCV(String cvContent, String fileName) {
         log.info("Analyzing CV with Gemini AI: {}", fileName);
@@ -104,7 +104,7 @@ public class GeminiCVAnalysisService {
         }
     }
 
-    private String createCVAnalysisPrompt(String cvContent) {
+    protected String createCVAnalysisPrompt(String cvContent) {
         // Get available departments and seniority levels from identity-service
         String availableDepartments = identityIntegrationService.getAvailableDepartments().stream()
                 .map(dept -> dept.getName())
@@ -227,7 +227,7 @@ public class GeminiCVAnalysisService {
                 cvContent, availableDepartments, availableDepartments);
     }
 
-    private String extractTextFromGeminiResponse(String response) throws JsonProcessingException {
+    protected String extractTextFromGeminiResponse(String response) throws JsonProcessingException {
         JsonNode responseNode = objectMapper.readTree(response);
         JsonNode candidatesNode = responseNode.get("candidates");
 
@@ -255,7 +255,7 @@ public class GeminiCVAnalysisService {
         throw new RuntimeException("Could not extract text from Gemini CV analysis response");
     }
 
-    private CVAnalysisResult parseCVAnalysisResult(String jsonResponse, String fileName) {
+    protected CVAnalysisResult parseCVAnalysisResult(String jsonResponse, String fileName) {
         try {
             // Clean the JSON response
             String cleanJson = cleanJsonResponse(jsonResponse);
@@ -280,7 +280,7 @@ public class GeminiCVAnalysisService {
         }
     }
 
-    private ParsedUserProfile parseUserProfileFromJson(JsonNode rootNode) {
+    protected ParsedUserProfile parseUserProfileFromJson(JsonNode rootNode) {
         ParsedUserProfile.ParsedUserProfileBuilder builder = ParsedUserProfile.builder();
 
         // Parse personal information
@@ -466,7 +466,7 @@ public class GeminiCVAnalysisService {
         return builder.build();
     }
 
-    private Map<String, Double> parseSkillsFromJson(JsonNode skillsNode) {
+    protected Map<String, Double> parseSkillsFromJson(JsonNode skillsNode) {
         Map<String, Double> skills = new HashMap<>();
 
         if (skillsNode != null && skillsNode.isArray()) {
@@ -483,7 +483,7 @@ public class GeminiCVAnalysisService {
         return skills;
     }
 
-    private String cleanJsonResponse(String jsonResponse) {
+    protected String cleanJsonResponse(String jsonResponse) {
         String cleanJson = jsonResponse.trim();
 
         // Remove markdown code blocks
@@ -500,7 +500,7 @@ public class GeminiCVAnalysisService {
         return cleanJson.trim();
     }
 
-    private Double convertProficiencyToScore(String proficiencyLevel) {
+    protected Double convertProficiencyToScore(String proficiencyLevel) {
         if (proficiencyLevel == null) return 0.5;
 
         return switch (proficiencyLevel.toUpperCase()) {
@@ -513,7 +513,7 @@ public class GeminiCVAnalysisService {
         };
     }
 
-    private Double calculateConfidence(JsonNode rootNode) {
+    protected Double calculateConfidence(JsonNode rootNode) {
         int filledFields = 0;
         int totalFields =
                 7; // personalInfo, professionalSummary, skills, workExperience, education, certifications, projects
@@ -535,7 +535,7 @@ public class GeminiCVAnalysisService {
         return (double) filledFields / totalFields;
     }
 
-    private CVAnalysisResult createFallbackCVAnalysis(String cvContent, String fileName) {
+    protected CVAnalysisResult createFallbackCVAnalysis(String cvContent, String fileName) {
         log.info("Creating fallback CV analysis with identity-service integration");
 
         // Create basic profile using identity-service mappings
@@ -563,7 +563,7 @@ public class GeminiCVAnalysisService {
     }
 
     // Utility methods for JSON parsing
-    private String getStringValue(JsonNode node, String fieldName) {
+    protected String getStringValue(JsonNode node, String fieldName) {
         JsonNode fieldNode = node.get(fieldName);
         if (fieldNode != null && !fieldNode.isNull() && !"null".equals(fieldNode.asText())) {
             return fieldNode.asText();
@@ -571,22 +571,22 @@ public class GeminiCVAnalysisService {
         return null;
     }
 
-    private Integer getIntValue(JsonNode node, String fieldName, Integer defaultValue) {
+    protected Integer getIntValue(JsonNode node, String fieldName, Integer defaultValue) {
         JsonNode fieldNode = node.get(fieldName);
         return fieldNode != null && !fieldNode.isNull() ? fieldNode.asInt() : defaultValue;
     }
 
-    private Double getDoubleValue(JsonNode node, String fieldName, Double defaultValue) {
+    protected Double getDoubleValue(JsonNode node, String fieldName, Double defaultValue) {
         JsonNode fieldNode = node.get(fieldName);
         return fieldNode != null && !fieldNode.isNull() ? fieldNode.asDouble() : defaultValue;
     }
 
-    private Boolean getBooleanValue(JsonNode node, String fieldName, Boolean defaultValue) {
+    protected Boolean getBooleanValue(JsonNode node, String fieldName, Boolean defaultValue) {
         JsonNode fieldNode = node.get(fieldName);
         return fieldNode != null && !fieldNode.isNull() ? fieldNode.asBoolean() : defaultValue;
     }
 
-    private List<String> getStringListValue(JsonNode node, String fieldName) {
+    protected List<String> getStringListValue(JsonNode node, String fieldName) {
         List<String> result = new ArrayList<>();
         JsonNode arrayNode = node.get(fieldName);
 

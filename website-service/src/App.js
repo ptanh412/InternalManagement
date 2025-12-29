@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import DashboardLayout from './components/DashboardLayout';
+import './styles/CustomSelect.css';
 import Home from './pages/Home';
 import About from './pages/About';
 import Services from './pages/Services';
@@ -17,6 +18,7 @@ import TeamManagement from './pages/project-manager/TeamManagement';
 import TaskManagement from './pages/project-manager/TaskManagement';
 import AIRecommendations from './pages/project-manager/AIRecommendations';
 import RequirementsImport from './pages/project-manager/RequirementsImport';
+import TeamResourceDashboard from './pages/project-manager/TeamResourceDashboard';
 import TeamLeadProjectsManagement from './pages/team-lead/ProjectsManagement';
 import ProjectTasksView from './pages/team-lead/ProjectTasksView';
 import TeamLeadTeamManagement from './pages/team-lead/TeamManagement';
@@ -32,7 +34,9 @@ import UserManagement from './pages/admin/UserManagement';
 import CVAnalysis from './pages/admin/CVAnalysis';
 import RolesDepartments from './pages/admin/RolesDepartments';
 import ProjectManagerChat from './pages/project-manager/ProjectManagerChat';
+import ProjectManagerMeetings from './pages/project-manager/ProjectManagerMeetings';
 import TeamLeadChat from './pages/team-lead/TeamLeadChat';
+import TeamLeadMeetings from './pages/team-lead/TeamLeadMeetings';
 import EmployeeChat from './pages/employee/EmployeeChat';
 import { AuthProvider, useAuth } from './hooks/useAuth';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -40,6 +44,11 @@ import { SocketIOProvider } from './contexts/SocketIOContext';
 import NotificationContainer from './components/NotificationContainer';
 // import ToastContainer from './components/notifications/ToastContainer';
 import ProfilePage from './pages/shared/ProfilePage';
+import PostsPage from './pages/shared/PostsPage';
+import { TaskExtensionManagement } from './components/extensions';
+import PersonalProductivityDashboard from './pages/shared/PersonalProductivityDashboard';
+import PerformanceAnalytics from './components/analytics/PerformanceAnalytics';
+import ProjectDetailsHub from './pages/project-manager/ProjectDetailsHub';
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles = [] }) => {
@@ -100,6 +109,7 @@ const Layout = ({ children }) => {
                           location.pathname.startsWith('/project-manager') ||
                           location.pathname.startsWith('/team-lead') ||
                           location.pathname === '/profile' ||  // Thêm dòng này
+                          location.pathname === '/posts' ||  // Posts page with sidebar
                           location.pathname.startsWith('/employee');
                         
     // DEBUG
@@ -156,6 +166,8 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
+              <Route path="/posts" element={<PostsPage />} />
 
               {/* Role-based dashboard routes */}
               <Route
@@ -218,6 +230,23 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
+               <Route
+                path="/project-manager/projects/:projectId/tasks"
+                element={
+                  <ProtectedRoute allowedRoles={['PROJECT_MANAGER']}>
+                    <ProjectTasksView />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/project-manager/resources"
+                element={
+                  <ProtectedRoute allowedRoles={['PROJECT_MANAGER']}>
+                    <TeamResourceDashboard />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/project-manager/tasks"
                 element={
@@ -243,11 +272,29 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
+              {/* ĐÂY LÀ ROUTE MỚI: PROJECT DETAILS HUB */}
+              <Route
+                path="/project-manager/projects/:projectId"
+                element={
+                  <ProtectedRoute allowedRoles={['PROJECT_MANAGER']}>
+                    <ProjectDetailsHub /> 
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="/project-manager/chat"
                 element={
                   <ProtectedRoute allowedRoles={['PROJECT_MANAGER']}>
                     <ProjectManagerChat />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/project-manager/meetings"
+                element={
+                  <ProtectedRoute allowedRoles={['PROJECT_MANAGER']}>
+                    <ProjectManagerMeetings />
                   </ProtectedRoute>
                 }
               />
@@ -312,10 +359,18 @@ function App() {
                 }
               />
               <Route
+                path="/team-lead/resources"
+                element={
+                  <ProtectedRoute allowedRoles={['TEAM_LEAD']}>
+                    <TeamResourceDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/team-lead/tasks"
                 element={
                   <ProtectedRoute allowedRoles={['TEAM_LEAD']}>
-                    <TeamLeadTaskManagement />
+                    <MyTasks />
                   </ProtectedRoute>
                 }
               />
@@ -336,6 +391,30 @@ function App() {
                 }
               />
               <Route
+                path="/team-lead/extensions"
+                element={
+                  <ProtectedRoute allowedRoles={['TEAM_LEAD']}>
+                    <TaskExtensionManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/team-lead/submissions"
+                element={
+                  <ProtectedRoute allowedRoles={['TEAM_LEAD']}>
+                    <TaskSubmissions />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/team-lead/personal-productivity"
+                element={
+                  <ProtectedRoute allowedRoles={['TEAM_LEAD']}>
+                    <PersonalProductivityDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/team-lead/chat"
                 element={
                   <ProtectedRoute allowedRoles={['TEAM_LEAD']}>
@@ -344,10 +423,26 @@ function App() {
                 }
               />
               <Route
+                path="/team-lead/meetings"
+                element={
+                  <ProtectedRoute allowedRoles={['TEAM_LEAD']}>
+                    <TeamLeadMeetings />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="/team-lead/performance"
                 element={
                   <ProtectedRoute allowedRoles={['TEAM_LEAD', 'PROJECT_MANAGER', 'ADMIN']}>
                     <PerformanceManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/team-lead/tasks"
+                element={
+                  <ProtectedRoute allowedRoles={['TEAM_LEAD']}>
+                    <MyTasks />
                   </ProtectedRoute>
                 }
               />
@@ -362,10 +457,10 @@ function App() {
                 }
               />
               <Route
-                path="/employee/time-tracking"
+                path="/employee/personal-productivity"
                 element={
                   <ProtectedRoute allowedRoles={['USER', 'EMPLOYEE']}>
-                    <TimeTracking />
+                    <PersonalProductivityDashboard />
                   </ProtectedRoute>
                 }
               />
@@ -382,6 +477,16 @@ function App() {
                 element={
                   <ProtectedRoute allowedRoles={['USER', 'EMPLOYEE']}>
                     <EmployeeChat />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* Analytics/Performance - Accessible to all authenticated users */}
+              <Route
+                path="/analytics/performance"
+                element={
+                  <ProtectedRoute>
+                    <PerformanceAnalytics />
                   </ProtectedRoute>
                 }
               />

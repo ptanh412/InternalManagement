@@ -1,4 +1,4 @@
-package com.mnp.ai.dto;
+package com.mnp.ai.dto.request;
 
 import java.util.List;
 import java.util.Map;

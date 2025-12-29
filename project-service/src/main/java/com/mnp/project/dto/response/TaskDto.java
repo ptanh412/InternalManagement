@@ -22,5 +22,5 @@ public class TaskDto {
     Double progressPercentage;
     List<String> tags;
     List<TaskDependencyDto> taskDependencies;
-    List<TaskSkillDto> requiredSkills;
+    List<String> requiredSkills;
 }

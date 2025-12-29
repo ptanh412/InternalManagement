@@ -10,22 +10,13 @@ import {
   BuildingOfficeIcon,
   DocumentTextIcon,
   ClockIcon,
-  CheckCircleIcon,
-  BoltIcon,
   UsersIcon,
   FolderIcon,
-  PresentationChartLineIcon,
   BeakerIcon,
-  MagnifyingGlassIcon,
-  UserPlusIcon,
-  AcademicCapIcon,
   ChartPieIcon,
-  TagIcon,
-  CalendarDaysIcon,
-  InboxArrowDownIcon,
   ArrowUpTrayIcon,
-  EyeIcon,
-  WrenchScrewdriverIcon
+  NewspaperIcon,
+  VideoCameraIcon
 } from '@heroicons/react/24/outline';
 
 export const NAVIGATION_ITEMS = {
@@ -59,6 +50,13 @@ export const NAVIGATION_ITEMS = {
       description: 'Manage organizational structure'
     },
     {
+      name: 'Posts',
+      href: '/posts',
+      icon: NewspaperIcon,
+      current: false,
+      description: 'Social feed and announcements'
+    },
+    {
       name: 'Chat',
       href: '/admin/chat',
       icon: ChatBubbleBottomCenterTextIcon,
@@ -89,40 +87,26 @@ export const NAVIGATION_ITEMS = {
       current: false,
       description: 'Manage all projects'
     },
+    // {
+    //   name: 'Team Management',
+    //   href: '/project-manager/team',
+    //   icon: UserGroupIcon,
+    //   current: false,
+    //   description: 'Manage project teams'
+    // },
     {
-      name: 'Team Management',
-      href: '/project-manager/team',
-      icon: UserGroupIcon,
+      name: 'Resource Dashboard',
+      href: '/project-manager/resources',
+      icon: ChartPieIcon,
       current: false,
-      description: 'Manage project teams'
+      description: 'View team workload and resources'
     },
     {
-      name: 'Task Management',
-      href: '/project-manager/tasks',
-      icon: ClipboardDocumentListIcon,
+      name: 'Posts',
+      href: '/posts',
+      icon: NewspaperIcon,
       current: false,
-      description: 'Oversee all tasks'
-    },
-    {
-      name: 'AI Recommendations',
-      href: '/project-manager/ai-recommendations',
-      icon: BoltIcon,
-      current: false,
-      description: 'AI-powered insights'
-    },
-    {
-      name: 'Requirements Import',
-      href: '/project-manager/requirements',
-      icon: InboxArrowDownIcon,
-      current: false,
-      description: 'Import project requirements'
-    },
-    {
-      name: 'Performance Management',
-      href: '/team-lead/performance',
-      icon: ChartBarIcon,
-      current: false,
-      description: 'View and manage team performance'
+      description: 'Team feed and updates'
     },
     {
       name: 'Chat',
@@ -130,6 +114,13 @@ export const NAVIGATION_ITEMS = {
       icon: ChatBubbleBottomCenterTextIcon,
       current: false,
       description: 'Team communication'
+    },
+    {
+      name: 'Meetings',
+      href: '/project-manager/meetings',
+      icon: VideoCameraIcon,
+      current: false,
+      description: 'Video meetings and conferences'
     }
   ],
   
@@ -149,6 +140,13 @@ export const NAVIGATION_ITEMS = {
       description: 'Your assigned projects'
     },
     {
+      name: 'My Tasks',
+      href: '/team-lead/tasks',
+      icon: ClipboardDocumentListIcon,
+      current: false,
+      description: 'View and manage your tasks'
+    },
+    {
       name: 'Team Management',
       href: '/team-lead/team',
       icon: UserGroupIcon,
@@ -156,32 +154,39 @@ export const NAVIGATION_ITEMS = {
       description: 'Manage your team'
     },
     {
-      name: 'Task Management',
-      href: '/team-lead/tasks',
-      icon: ClipboardDocumentListIcon,
+      name: 'Workload Dashboard',
+      href: '/team-lead/personal-productivity',
+      icon: BeakerIcon,
       current: false,
-      description: 'Assign and track tasks'
+      description: 'Monitor team workload'
     },
     {
-      name: 'AI Recommendations',
-      href: '/team-lead/ai-recommendations',
-      icon: BoltIcon,
-      current: false,
-      description: 'AI-powered team insights'
-    },
-    {
-      name: 'Requirements Import',
-      href: '/team-lead/requirements',
-      icon: InboxArrowDownIcon,
-      current: false,
-      description: 'Import task requirements'
-    },
-    {
-      name: 'Performance Management',
-      href: '/team-lead/performance',
+      name: 'Team Resources',
+      href: '/team-lead/resources',
       icon: ChartBarIcon,
       current: false,
-      description: 'View and manage team performance'
+      description: 'Team workload and performance'
+    },
+    {
+      name: 'Task Extensions',
+      href: '/team-lead/extensions',
+      icon: ClockIcon,
+      current: false,
+      description: 'Manage extension requests'
+    },
+    {
+      name: 'Task Submissions',
+      href: '/team-lead/submissions',
+      icon: ArrowUpTrayIcon,
+      current: false,
+      description: 'Submit completed work'
+    },
+    {
+      name: 'Posts',
+      href: '/posts',
+      icon: NewspaperIcon,
+      current: false,
+      description: 'Team feed and updates'
     },
     {
       name: 'Chat',
@@ -189,6 +194,13 @@ export const NAVIGATION_ITEMS = {
       icon: ChatBubbleBottomCenterTextIcon,
       current: false,
       description: 'Team communication'
+    },
+    {
+      name: 'Meetings',
+      href: '/team-lead/meetings',
+      icon: VideoCameraIcon,
+      current: false,
+      description: 'Video meetings and conferences'
     }
   ],
   
@@ -208,11 +220,11 @@ export const NAVIGATION_ITEMS = {
       description: 'View and manage your tasks'
     },
     {
-      name: 'Time Tracking',
-      href: '/employee/time-tracking',
-      icon: ClockIcon,
+      name: 'Workload Dashboard',
+      href: '/employee/personal-productivity',
+      icon: BeakerIcon,
       current: false,
-      description: 'Track your work hours'
+      description: 'Monitor team workload'
     },
     {
       name: 'Task Submissions',
@@ -220,6 +232,13 @@ export const NAVIGATION_ITEMS = {
       icon: ArrowUpTrayIcon,
       current: false,
       description: 'Submit completed work'
+    },
+    {
+      name: 'Posts',
+      href: '/posts',
+      icon: NewspaperIcon,
+      current: false,
+      description: 'Company feed and updates'
     },
     {
       name: 'Chat',

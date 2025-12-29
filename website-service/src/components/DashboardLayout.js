@@ -7,6 +7,7 @@ import { useAuth } from '../hooks/useAuth';
 
 const DashboardLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(false);
   const { isAuthenticated, user } = useAuth();
   const location = useLocation();
   
@@ -20,12 +21,12 @@ const DashboardLayout = ({ children }) => {
   }
 
   return (
-    <div className={`${isChatPage ? 'h-screen' : 'min-h-screen'} bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100`}>
+    <div className={`${isChatPage ? 'h-screen' : 'min-h-screen'} bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-100 dark:from-black dark:via-gray-800 dark:to-gray-800`}>
       {/* Mobile menu button */}
       <div className="lg:hidden fixed top-4 left-4 z-50">
         <button
           onClick={() => setSidebarOpen(true)}
-          className="p-3 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg text-gray-700 hover:text-gray-900 hover:bg-white transition-all duration-300 hover:scale-105 border border-white/20"
+          className="p-3 rounded-xl bg-white/90 backdrop-blur-sm shadow-lg text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:text-gray-100 hover:bg-white dark:bg-gray-800 transition-all duration-300 hover:scale-105 border border-white/20"
         >
           <Bars3Icon className="w-6 h-6" />
         </button>
@@ -33,11 +34,13 @@ const DashboardLayout = ({ children }) => {
 
       <div className={`flex ${isChatPage ? 'h-full' : ''}`}>
         {/* Desktop Sidebar - Fixed position, full height */}
-        <div className="hidden lg:block lg:fixed lg:left-0 lg:top-0 lg:bottom-0 lg:overflow-y-auto sidebar-scrollbar w-64 h-full z-30 bg-white">
+        <div className={`hidden lg:block lg:fixed lg:left-0 lg:top-0 lg:bottom-0 lg:overflow-y-auto sidebar-scrollbar ${isCollapsed ? 'w-16' : 'w-64'} h-full z-30 bg-white transition-all duration-300`}>
           <SidebarMenu 
             isOpen={true}
             onToggle={() => {}}
             isMobile={false}
+            isCollapsed={isCollapsed}
+            setIsCollapsed={setIsCollapsed}
           />
         </div>
 
@@ -49,7 +52,7 @@ const DashboardLayout = ({ children }) => {
         />
 
         {/* Main Content */}
-        <div className={`flex-1 lg:ml-64 flex flex-col ${isChatPage ? 'h-full' : ''} min-h-0 w-full`}>
+        <div className={`flex-1 ${isCollapsed ? 'lg:ml-16' : 'lg:ml-64'} flex flex-col ${isChatPage ? 'h-full' : ''} min-h-0 w-full transition-all duration-300`}>
           {/* Beautiful Header - Ensure it's above all other content */}
           <div className="sticky top-0 z-40 flex-shrink-0">
             <DashboardHeader title="Dashboard" subtitle="Welcome back!" />

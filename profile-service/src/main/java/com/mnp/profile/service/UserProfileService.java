@@ -72,11 +72,63 @@ public class UserProfileService {
         return buildUserProfileResponse(userProfile);
     }
 
-    @PreAuthorize("hasRole('ADMIN')")
+//    @PreAuthorize("hasRole('ADMIN')")
     public List<UserProfileResponse> getAllProfiles() {
         var profiles = userProfileRepository.findAll();
 
         return profiles.stream().map(this::buildUserProfileResponse).toList();
+    }
+
+    /**
+     * ⚡ Optimized: Get only EMPLOYEE role users (no ADMIN/MANAGER)
+     * Optionally filter by department
+     */
+    public List<UserProfileResponse> getEmployeesOnly(String department) {
+        var profiles = userProfileRepository.findAll();
+
+        return profiles.stream()
+                .map(this::buildUserProfileResponseSimple) // ⚡ Build response first
+                .filter(response -> {
+                    var user = response.getUser(); // ⚡ Now we have UserResponse
+                    if (user == null) return false;
+                    
+                    // Only EMPLOYEE role
+                    boolean isEmployee = "EMPLOYEE".equals(user.getRoleName());
+                    if (!isEmployee) return false;
+                    
+                    // Optional department filter
+                    if (department != null && !department.isEmpty()) {
+                        return department.equals(user.getDepartmentName());
+                    }
+                    
+                    return true;
+                })
+                .toList();
+    }
+
+    /**
+     * ⚡ Simplified response without fetching task metrics (faster!)
+     */
+    private UserProfileResponse buildUserProfileResponseSimple(UserProfile profile) {
+        UserProfileResponse response = userProfileMapper.toUserProfileResponse(profile);
+
+        // Fetch user data from identity-service (needed for role/department filtering)
+        try {
+            var userResponse = identityClient.getUser(profile.getUserId());
+            if (userResponse != null && userResponse.getResult() != null) {
+                response.setUser(userResponse.getResult());
+            } else {
+                response.setUser(createFallbackUserResponse(profile.getUserId()));
+            }
+        } catch (Exception e) {
+            log.warn("Error fetching user data for userId: {}, error: {}", 
+                    profile.getUserId(), e.getMessage());
+            response.setUser(createFallbackUserResponse(profile.getUserId()));
+        }
+
+        // ⚡ Skip task metrics to improve performance
+
+        return response;
     }
 
     public UserProfileResponse getMyProfile() {

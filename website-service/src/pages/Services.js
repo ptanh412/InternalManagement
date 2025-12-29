@@ -155,13 +155,13 @@ const Services = () => {
       </section>
 
       {/* Services Grid */}
-      <section className="py-20 bg-gray-50">
+      <section className="py-20 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               What We Offer
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               Explore our comprehensive suite of internal management tools 
               designed to meet all your business needs.
             </p>
@@ -176,16 +176,16 @@ const Services = () => {
                     <div className="p-2 bg-primary-100 rounded-lg mr-4">
                       <IconComponent className="h-6 w-6 text-primary-600" />
                     </div>
-                    <h3 className="text-xl font-semibold text-gray-900">
+                    <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
                       {service.name}
                     </h3>
                   </div>
-                  <p className="text-gray-600 mb-6">
+                  <p className="text-gray-600 dark:text-gray-300 mb-6">
                     {service.description}
                   </p>
                   <ul className="space-y-2 mb-6">
                     {service.features.map((feature, index) => (
-                      <li key={index} className="flex items-center text-sm text-gray-600">
+                      <li key={index} className="flex items-center text-sm text-gray-600 dark:text-gray-300">
                         <CheckCircleIcon className="h-4 w-4 text-green-500 mr-2 flex-shrink-0" />
                         {feature}
                       </li>
@@ -202,13 +202,13 @@ const Services = () => {
       </section>
 
       {/* Pricing Plans */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white dark:bg-gray-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-4">
               Choose Your Plan
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg text-gray-600 dark:text-gray-300 max-w-2xl mx-auto">
               Select the perfect plan for your team size and requirements. 
               All plans include our core features with varying levels of access.
             </p>
@@ -229,7 +229,7 @@ const Services = () => {
                 )}
                 
                 <div className="text-center">
-                  <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
                     {plan.name}
                   </h3>
                   <div className="mb-4">
@@ -237,17 +237,17 @@ const Services = () => {
                       {plan.price}
                     </span>
                     {plan.price !== 'Custom' && (
-                      <span className="text-gray-600">/month</span>
+                      <span className="text-gray-600 dark:text-gray-300">/month</span>
                     )}
                   </div>
-                  <p className="text-gray-600 mb-6">
+                  <p className="text-gray-600 dark:text-gray-300 mb-6">
                     {plan.description}
                   </p>
                 </div>
 
                 <ul className="space-y-3 mb-8">
                   {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-center text-gray-600">
+                    <li key={index} className="flex items-center text-gray-600 dark:text-gray-300">
                       <CheckCircleIcon className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
                       {feature}
                     </li>
@@ -283,13 +283,13 @@ const Services = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/login"
-              className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-primary-600 bg-white hover:bg-gray-50 transition-colors duration-200"
+              className="inline-flex items-center px-8 py-3 border border-transparent text-base font-medium rounded-md text-primary-600 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:bg-gray-900 transition-colors duration-200"
             >
               Start Free Trial
             </Link>
             <Link
               to="/contact"
-              className="inline-flex items-center px-8 py-3 border-2 border-white text-base font-medium rounded-md text-white hover:bg-white hover:text-primary-600 transition-colors duration-200"
+              className="inline-flex items-center px-8 py-3 border-2 border-white text-base font-medium rounded-md text-white hover:bg-white dark:bg-gray-800 hover:text-primary-600 transition-colors duration-200"
             >
               <ChatBubbleLeftRightIcon className="mr-2 h-5 w-5" />
               Contact Sales

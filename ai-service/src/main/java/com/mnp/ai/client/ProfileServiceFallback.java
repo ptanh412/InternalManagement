@@ -8,8 +8,8 @@ import java.util.List;
 import org.springframework.stereotype.Component;
 
 import com.mnp.ai.dto.ApiResponse;
-import com.mnp.ai.dto.UserProfileResponse;
-import com.mnp.ai.dto.UserSkillResponse;
+import com.mnp.ai.dto.response.UserProfileResponse;
+import com.mnp.ai.dto.response.UserSkillResponse;
 
 import lombok.extern.slf4j.Slf4j;
 

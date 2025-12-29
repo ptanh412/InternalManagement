@@ -26,19 +26,15 @@ public interface TaskRepository extends JpaRepository<Task, String> {
     List<Task> findByStatusAndAssignedTo(TaskStatus status, String assignedTo);
     List<Task> findByProjectIdAndStatusAndAssignedTo(String projectId, TaskStatus status, String assignedTo);
 
-    // Custom queries for backward compatibility
-    @Query("SELECT t FROM Task t WHERE t.assignedTo = :assignedTo AND t.status = :status")
-    List<Task> findByAssignedToAndStatus(@Param("assignedTo") String assignedTo, @Param("status") TaskStatus status);
-
-    @Query("SELECT t FROM Task t WHERE t.createdBy = :createdBy AND t.status = :status")
-    List<Task> findByCreatedByAndStatus(@Param("createdBy") String createdBy, @Param("status") TaskStatus status);
-
     // Custom queries for reminder notifications
     @Query("SELECT t FROM Task t WHERE t.dueDate BETWEEN :now AND :next24Hours AND t.status NOT IN ('DONE', 'CANCELLED') AND t.assignedTo IS NOT NULL")
     List<Task> findTasksDueWithin24Hours(@Param("now") LocalDateTime now, @Param("next24Hours") LocalDateTime next24Hours);
+    // Deadline reminder queries for 3 days and 1 day before
+    @Query("SELECT t FROM Task t WHERE t.dueDate BETWEEN :start AND :end AND t.status IN ('TODO', 'IN_PROGRESS') AND t.assignedTo IS NOT NULL")
+    List<Task> findTasksDueInRange(@Param("start") LocalDateTime start, @Param("end") LocalDateTime end);
 
-    @Query("SELECT t FROM Task t WHERE t.dueDate <= :now AND t.status NOT IN ('DONE', 'CANCELLED') AND t.assignedTo IS NOT NULL")
-    List<Task> findOverdueTasks(@Param("now") LocalDateTime now);
+    @Query("SELECT t FROM Task t WHERE t.dueDate < :now AND t.status IN ('TODO', 'IN_PROGRESS') AND t.assignedTo IS NOT NULL")
+    List<Task> findOverdueActiveTasks(@Param("now") LocalDateTime now);
 
     // Method for finding tasks by assignee or creator (for performance metrics)
     @Query("SELECT t FROM Task t WHERE t.assignedTo = :userId OR t.createdBy = :userId")

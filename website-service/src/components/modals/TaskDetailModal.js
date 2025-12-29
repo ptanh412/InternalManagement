@@ -115,22 +115,22 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
 
   // Check if current user can edit submission
   const canEditSubmission = 
-    (submission.status === 'PENDING' || submission.status === 'REJECTED');
+    (submission.status === 'PENDING' || submission.status === 'REJECTED') && currentUser.role === 'EMPLOYEE';
 
   return (
-    <div className="border border-gray-200 rounded-lg p-6 bg-white">
+    <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-6 bg-white dark:bg-gray-800">
       {/* Submission Header */}
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
           <div className="flex items-center space-x-3 mb-2">
-            <h5 className="text-lg font-medium text-gray-900">
+            <h5 className="text-lg font-medium text-gray-900 dark:text-gray-100">
               Submission #{submission.id || 'N/A'}
             </h5>
             <span className={`px-2 py-1 text-xs font-medium rounded-full ${getSubmissionStatusColor(submission.status || 'PENDING')}`}>
               {submission.status || 'PENDING'}
             </span>
           </div>
-          <div className="text-sm text-gray-600 space-y-1">
+          <div className="text-sm text-gray-600 dark:text-gray-300 space-y-1">
             <p>Submitted by: {submission.submittedBy || 'Unknown'}</p>
             <p>Date: {submission.submittedAt ? new Date(submission.submittedAt).toLocaleString() : 'Unknown'}</p>
           </div>
@@ -152,18 +152,18 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
       <div className="space-y-4 mb-4">
         {/* Description */}
         <div>
-          <h6 className="text-sm font-medium text-gray-700 mb-2">Description</h6>
+          <h6 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Description</h6>
           {editSubmissionMode ? (
             <textarea
               rows={4}
               value={editedDescription}
               onChange={(e) => setEditedDescription(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               placeholder="Update your submission description..."
             />
           ) : (
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-900">
+            <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
+              <p className="text-sm text-gray-900 dark:text-gray-100">
                 {submission.description || 'No description provided'}
               </p>
             </div>
@@ -173,7 +173,7 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
         {/* Attachments */}
         {submission.attachments && submission.attachments.length > 0 && (
           <div>
-            <h6 className="text-sm font-medium text-gray-700 mb-2">Attachments</h6>
+            <h6 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Attachments</h6>
             <div className="space-y-2">
               {submission.attachments.map((attachment, idx) => {
                 const isImage = isImageFile(attachment.type);
@@ -199,19 +199,19 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
                           }}
                         />
                         <DocumentTextIcon 
-                          className="h-12 w-12 text-gray-500 hidden" 
+                          className="h-12 w-12 text-gray-500 dark:text-gray-400 dark:text-gray-500 hidden" 
                         />
                       </div>
                     ) : (
-                      <DocumentTextIcon className="h-8 w-8 text-gray-500 flex-shrink-0" />
+                      <DocumentTextIcon className="h-8 w-8 text-gray-500 dark:text-gray-400 dark:text-gray-500 flex-shrink-0" />
                     )}
                     
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
                         {attachment.name}
                       </p>
                       <div className="flex items-center space-x-2">
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
                           {attachment.size || 'Unknown size'}
                         </p>
                         {isImage && (
@@ -252,14 +252,14 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
 
       {/* Edit Submission Actions */}
       {editSubmissionMode && (
-        <div className="border-t border-gray-200 pt-4 mb-4">
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mb-4">
           <div className="flex justify-end space-x-3">
             <button
               onClick={() => {
                 setEditSubmissionMode(false);
                 setEditedDescription(submission.description || '');
               }}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:bg-gray-900"
             >
               Cancel
             </button>
@@ -275,23 +275,23 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
 
       {/* Review Section - For Pending Submissions */}
       {submission.status === 'PENDING' && !editSubmissionMode && (
-        <div className="border-t border-gray-200 pt-4">
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
           {reviewMode ? (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Review Comments</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Review Comments</label>
                 <textarea
                   rows={3}
                   value={reviewComments}
                   onChange={(e) => setReviewComments(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   placeholder="Provide feedback for the team member..."
                 />
               </div>
 
               {/* Quality Rating */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Quality Rating (1-5) <span className="text-red-500">*</span>
                 </label>
                 <div className="flex items-center space-x-2">
@@ -310,20 +310,20 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
                     </button>
                   ))}
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1">
                   1 = Poor, 2 = Fair, 3 = Good, 4 = Very Good, 5 = Excellent
                 </p>
               </div>
 
               {/* Task Complexity */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                   Task Complexity <span className="text-red-500">*</span>
                 </label>
                 <select
                   value={taskComplexity}
                   onChange={(e) => setTaskComplexity(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="LOW">Low - Simple task, minimal effort required</option>
                   <option value="MEDIUM">Medium - Moderate complexity and effort</option>
@@ -340,7 +340,7 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
                     setQualityRating(null);
                     setTaskComplexity('MEDIUM');
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:bg-gray-900"
                 >
                   Cancel
                 </button>
@@ -383,9 +383,9 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
 
       {/* Previous Review Section */}
       {submission.reviewComments && (
-        <div className="border-t border-gray-200 pt-4 mt-4">
+        <div className="border-t border-gray-200 dark:border-gray-700 pt-4 mt-4">
           <div className="flex items-center justify-between mb-2">
-            <h6 className="text-sm font-medium text-gray-700">Review Feedback</h6>
+            <h6 className="text-sm font-medium text-gray-700 dark:text-gray-300">Review Feedback</h6>
             {canEditReview && !editReviewMode && (
               <button
                 onClick={() => setEditReviewMode(true)}
@@ -400,11 +400,11 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
           {editReviewMode ? (
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Status</label>
                 <select
                   value={editedStatus}
                   onChange={(e) => setEditedStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 >
                   <option value="APPROVED">Approved</option>
                   <option value="REJECTED">Rejected</option>
@@ -412,12 +412,12 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Comments</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Comments</label>
                 <textarea
                   rows={3}
                   value={editedComments}
                   onChange={(e) => setEditedComments(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   placeholder="Update your review comments..."
                 />
               </div>
@@ -428,7 +428,7 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
                     setEditedComments(submission.reviewComments || '');
                     setEditedStatus(submission.status);
                   }}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                  className="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:bg-gray-900"
                 >
                   Cancel
                 </button>
@@ -442,9 +442,9 @@ const SubmissionReviewCard = ({ submission, onReview, onEditReview, onEditSubmis
             </div>
           ) : (
             <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-gray-900">{submission.reviewComments}</p>
+              <p className="text-sm text-gray-900 dark:text-gray-100">{submission.reviewComments}</p>
               {submission.reviewedBy && (
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-2">
                   Reviewed by {submission.reviewedBy} on {new Date(submission.reviewedAt).toLocaleString()}
                 </p>
               )}
@@ -586,7 +586,7 @@ const handleEditReview = async (submissionId, status, comments) => {
       case 'IN_REVIEW':
         return <DocumentTextIcon className="h-5 w-5 text-purple-600" />;
       default:
-        return <ExclamationTriangleIcon className="h-5 w-5 text-gray-600" />;
+        return <ExclamationTriangleIcon className="h-5 w-5 text-gray-600 dark:text-gray-300" />;
     }
   };
 
@@ -605,16 +605,16 @@ const handleEditReview = async (submissionId, status, comments) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center">
             <DocumentTextIcon className="h-6 w-6 text-blue-600 mr-3" />
-            <h2 className="text-xl font-semibold text-gray-900">Task Management</h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-100">Task Management</h2>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
+            className="text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:text-gray-400"
           >
             <XMarkIcon className="h-6 w-6" />
           </button>
@@ -622,7 +622,7 @@ const handleEditReview = async (submissionId, status, comments) => {
 
         {/* Tabs - only show submissions tab if user has permission */}
         {(user.role === 'TEAM_LEAD' || user.role === 'PROJECT_MANAGER' || user.role === 'ADMIN') && (
-          <div className="flex border-b border-gray-200">
+          <div className="flex border-b border-gray-200 dark:border-gray-700">
             <button
               onClick={() => setActiveTab('details')}
               className={`px-6 py-3 text-sm font-medium ${
@@ -660,7 +660,7 @@ const handleEditReview = async (submissionId, status, comments) => {
               <div>
                 <div className="flex items-center gap-3 mb-3">
                   {getStatusIcon(task.status)}
-                  <h3 className="text-2xl font-bold text-gray-900">{task.title}</h3>
+                  <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{task.title}</h3>
                 </div>
                 <div className="flex gap-2">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(task.status)}`}>
@@ -674,8 +674,8 @@ const handleEditReview = async (submissionId, status, comments) => {
 
               {/* Description */}
               <div>
-                <h4 className="text-lg font-medium text-gray-900 mb-2">Description</h4>
-                <p className="text-gray-600 leading-relaxed">
+                <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Description</h4>
+                <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
                   {task.description || 'No description provided'}
                 </p>
               </div>
@@ -684,16 +684,16 @@ const handleEditReview = async (submissionId, status, comments) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Assignment Info */}
                 <div className="space-y-4">
-                  <h4 className="text-lg font-medium text-gray-900">Assignment</h4>
+                  <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">Assignment</h4>
                   
-                  <div className="flex items-center text-sm text-gray-600">
+                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
                     <UserIcon className="h-4 w-4 mr-2" />
                     <span className="font-medium mr-2">Assigned to:</span>
                     {assigneeName || 'Unassigned'}
                   </div>
                   
                   {task.createdBy && (
-                    <div className="flex items-center text-sm text-gray-600">
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
                       <UserIcon className="h-4 w-4 mr-2" />
                       <span className="font-medium mr-2">Created by:</span>
                       {task.createdBy}
@@ -703,22 +703,22 @@ const handleEditReview = async (submissionId, status, comments) => {
 
                 {/* Timeline Info */}
                 <div className="space-y-4">
-                  <h4 className="text-lg font-medium text-gray-900">Timeline</h4>
+                  <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">Timeline</h4>
                   
-                  <div className="flex items-center text-sm text-gray-600">
+                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
                     <CalendarDaysIcon className="h-4 w-4 mr-2" />
                     <span className="font-medium mr-2">Due Date:</span>
                     {formatDate(task.dueDate)}
                   </div>
                   
-                  <div className="flex items-center text-sm text-gray-600">
+                  <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
                     <CalendarDaysIcon className="h-4 w-4 mr-2" />
                     <span className="font-medium mr-2">Created:</span>
                     {formatDate(task.createdAt)}
                   </div>
                   
                   {task.updatedAt && (
-                    <div className="flex items-center text-sm text-gray-600">
+                    <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
                       <CalendarDaysIcon className="h-4 w-4 mr-2" />
                       <span className="font-medium mr-2">Last Updated:</span>
                       {formatDate(task.updatedAt)}
@@ -729,55 +729,112 @@ const handleEditReview = async (submissionId, status, comments) => {
 
               {/* Progress and Time Tracking */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Time Tracking */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-medium text-gray-900">Time Tracking</h4>
-                  
-                  <div className="flex items-center text-sm text-gray-600">
-                    <ClockIcon className="h-4 w-4 mr-2" />
-                    <span className="font-medium mr-2">Estimated:</span>
-                    {task.estimatedHours || 0} hours
-                  </div>
-                  
-                  <div className="flex items-center text-sm text-gray-600">
-                    <ClockIcon className="h-4 w-4 mr-2" />
-                    <span className="font-medium mr-2">Actual:</span>
-                    {task.actualHours || 0} hours
-                  </div>
-                </div>
+                {/* Conditional rendering based on task status */}
+                {(task.status === 'IN_REVIEW' || task.status === 'COMPLETED' || task.status === 'DONE') ? (
+                  <>
+                    {/* Time Tracking - shown for REVIEW/DONE */}
+                    <div className="space-y-4">
+                      <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">Time Tracking</h4>
+                      
+                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                        <ClockIcon className="h-4 w-4 mr-2" />
+                        <span className="font-medium mr-2">Estimated:</span>
+                        {task.estimatedHours || 0} hours
+                      </div>
+                      
+                      <div className="flex items-center text-sm text-gray-600 dark:text-gray-300">
+                        <ClockIcon className="h-4 w-4 mr-2" />
+                        <span className="font-medium mr-2">Actual:</span>
+                        {task.actualHours || 0} hours
+                      </div>
+                    </div>
 
-                {/* Progress */}
-                <div className="space-y-4">
-                  <h4 className="text-lg font-medium text-gray-900">Progress</h4>
-                  
-                  <div>
-                    <div className="flex justify-between text-sm text-gray-600 mb-1">
-                      <span>Completion</span>
-                      <span>{task.progressPercentage || 0}%</span>
+                    {/* Progress - shown for REVIEW/DONE */}
+                    <div className="space-y-4">
+                      <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">Progress</h4>
+                      
+                      <div>
+                        <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-1">
+                          <span>Completion</span>
+                          <span>{task.progressPercentage || 0}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                          <div 
+                            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${task.progressPercentage || 0}%` }}
+                          ></div>
+                        </div>
+                      </div>
                     </div>
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${task.progressPercentage || 0}%` }}
-                      ></div>
-                    </div>
+                  </>
+                ) : (
+                  /* Time-based progress bar for IN_PROGRESS/CANCELLED */
+                  <div className="col-span-2 space-y-4">
+                    <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">Time Progress</h4>
+                    
+                    {task.dueDate ? (
+                      (() => {
+                        const now = new Date();
+                        const startDate = task.createdAt ? new Date(task.createdAt) : now;
+                        const dueDate = new Date(task.dueDate);
+                        const totalTime = dueDate.getTime() - startDate.getTime();
+                        const elapsedTime = now.getTime() - startDate.getTime();
+                        const timeProgress = Math.min(Math.max((elapsedTime / totalTime) * 100, 0), 100);
+                        const isOverdue = now > dueDate;
+                        
+                        return (
+                          <div>
+                            <div className="flex justify-between text-sm mb-1">
+                              <span className="text-gray-600 dark:text-gray-300">
+                                Started: {new Date(startDate).toLocaleDateString()}
+                              </span>
+                              <span className={`font-medium ${isOverdue ? 'text-red-600' : 'text-gray-900'}`}>
+                                {isOverdue ? 'Overdue' : `${Math.round(timeProgress)}% time elapsed`}
+                              </span>
+                              <span className="text-gray-600 dark:text-gray-300">
+                                Due: {new Date(dueDate).toLocaleDateString()}
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                              <div 
+                                className={`h-2 rounded-full transition-all duration-300 ${
+                                  isOverdue 
+                                    ? 'bg-red-600' 
+                                    : timeProgress > 75 
+                                      ? 'bg-yellow-500' 
+                                      : 'bg-green-500'
+                                }`}
+                                style={{ width: `${Math.min(timeProgress, 100)}%` }}
+                              ></div>
+                            </div>
+                            {isOverdue && (
+                              <p className="text-xs text-red-600 mt-1">
+                                ⚠️ This task is overdue by {Math.ceil((now - dueDate) / (1000 * 60 * 60 * 24))} days
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })()
+                    ) : (
+                      <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500">No due date set for this task</p>
+                    )}
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Tags and Skills */}
               {(task.tags?.length > 0 || task.requiredSkills?.length > 0) && (
                 <div className="space-y-4">
-                  <h4 className="text-lg font-medium text-gray-900">Tags & Skills</h4>
+                  <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100">Tags & Skills</h4>
                   
                   {task.tags?.length > 0 && (
                     <div>
-                      <span className="text-sm font-medium text-gray-700 mb-2 block">Tags:</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Tags:</span>
                       <div className="flex flex-wrap gap-2">
                         {task.tags.map((tag, index) => (
                           <span
                             key={index}
-                            className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 text-gray-700"
+                            className="inline-flex items-center px-2 py-1 rounded-md text-xs bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300"
                           >
                             <TagIcon className="h-3 w-3 mr-1" />
                             {tag}
@@ -789,7 +846,7 @@ const handleEditReview = async (submissionId, status, comments) => {
                   
                   {/* {task.requiredSkills?.length > 0 && (
                     <div>
-                      <span className="text-sm font-medium text-gray-700 mb-2 block">Required Skills:</span>
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 block">Required Skills:</span>
                       <div className="flex flex-wrap gap-2">
                         {task.requiredSkills.map((skill, index) => (
                           <span
@@ -809,49 +866,49 @@ const handleEditReview = async (submissionId, status, comments) => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {task.type && (
                   <div>
-                    <span className="text-sm font-medium text-gray-700">Type:</span>
-                    <span className="ml-2 text-sm text-gray-600">{task.type}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Type:</span>
+                    <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">{task.type}</span>
                   </div>
                 )}
                 
                 {task.difficulty && (
                   <div>
-                    <span className="text-sm font-medium text-gray-700">Difficulty:</span>
-                    <span className="ml-2 text-sm text-gray-600">{task.difficulty}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Difficulty:</span>
+                    <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">{task.difficulty}</span>
                   </div>
                 )}
                 
                 {task.department && (
                   <div>
-                    <span className="text-sm font-medium text-gray-700">Department:</span>
-                    <span className="ml-2 text-sm text-gray-600">{task.department}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Department:</span>
+                    <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">{task.department}</span>
                   </div>
                 )}
                 
                 {task.taskType && (
                   <div>
-                    <span className="text-sm font-medium text-gray-700">Task Type:</span>
-                    <span className="ml-2 text-sm text-gray-600">{task.taskType}</span>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Task Type:</span>
+                    <span className="ml-2 text-sm text-gray-600 dark:text-gray-300">{task.taskType}</span>
                   </div>
                 )}
               </div>
             </div>
           ) : (
                 <div className="text-center py-12">
-                  <ExclamationTriangleIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Task not found</h3>
-                  <p className="text-gray-600">The task details could not be loaded.</p>
+                  <ExclamationTriangleIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Task not found</h3>
+                  <p className="text-gray-600 dark:text-gray-300">The task details could not be loaded.</p>
                 </div>
               )}
             </div>
           )}
 
           {/* Submissions Tab */}
-          {activeTab === 'submissions' && (user.role === 'TEAM_LEAD' || user.role === 'PROJECT_MANAGER' || user.role === 'ADMIN') && (
+          {activeTab === 'submissions' && (
             <div className="p-6">
               <div className="mb-6">
-                <h4 className="text-lg font-medium text-gray-900 mb-2">Task Submissions</h4>
-                <p className="text-sm text-gray-600">
+                <h4 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">Task Submissions</h4>
+                <p className="text-sm text-gray-600 dark:text-gray-300">
                   Review and manage submissions for this task.
                 </p>
               </div>
@@ -862,9 +919,9 @@ const handleEditReview = async (submissionId, status, comments) => {
                 </div>
               ) : submissions.length === 0 ? (
                 <div className="text-center py-12">
-                  <DocumentTextIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">No submissions yet</h3>
-                  <p className="text-gray-600">
+                  <DocumentTextIcon className="h-12 w-12 text-gray-400 dark:text-gray-500 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">No submissions yet</h3>
+                  <p className="text-gray-600 dark:text-gray-300">
                     No submissions have been made for this task.
                   </p>
                 </div>
@@ -886,10 +943,10 @@ const handleEditReview = async (submissionId, status, comments) => {
         </div>
 
         {/* Footer */}
-        <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-gray-50">
+        <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50"
+            className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:bg-gray-900"
           >
             Close
           </button>

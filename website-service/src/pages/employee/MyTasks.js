@@ -5,11 +5,47 @@ import { apiService } from '../../services/apiService';
 import socketIOService from '../../services/socketIOService';
 import EnhancedSubmitReportModal from '../../components/modals/EnhancedSubmitReportModal';
 import { 
-  Clock, Play, Pause, Calendar, User, FolderOpen, 
-  CheckCircle, AlertCircle, TrendingUp, FileText,
-  Filter, RefreshCw, Eye, Send
+  Clock, Play, FileText, TrendingUp, HelpCircle, 
+  AlertCircle, FolderOpen, User, Calendar, 
+  Eye, Send, Filter, RefreshCw, Search,
+  CheckCircle2, AlertTriangle, Timer, Briefcase, MoreVertical
 } from 'lucide-react';
 import { useTaskTimer } from '../../hooks/useTaskTimer';
+import TaskExtensionModal from '../../components/TaskExtensionModal';
+
+
+const StatCard = ({ title, value, subValue, icon: Icon, color, trend }) => (
+  <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 transition-all hover:shadow-md hover:-translate-y-1 duration-300">
+    <div className="flex justify-between items-start">
+      <div>
+        <p className="text-sm font-medium text-gray-500 dark:text-gray-400 dark:text-gray-500 mb-1">{title}</p>
+        <h3 className="text-3xl font-bold text-gray-900 dark:text-gray-100 dark:text-white">{value}</h3>
+        {subValue && <p className="text-xs text-gray-400 dark:text-gray-500 mt-1 dark:text-gray-300">{subValue}</p>}
+      </div>
+      <div className={`p-3 rounded-xl ${color}`}>
+        <Icon className="w-6 h-6 text-white" />
+      </div>
+    </div>
+  </div>
+);
+
+const StatusTab = ({ active, label, count, onClick, color }) => (
+  <button
+    onClick={onClick}
+    className={`flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 dark:bg-gray-700 dark:text-white  ${
+      active 
+        ? `bg-${color}-50 text-${color}-700 shadow-sm ring-1 ring-${color}-200 dark:text-white` 
+        : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700 dark:text-gray-300 dark:hover:bg-gray-700/50 dark:hover:text-white'
+    }`}
+  >
+    {label}
+    <span className={`ml-2 px-2 py-0.5 rounded-full text-xs dark:text-white dark:bg-gray-700  ${
+      active ? `bg-${color}-200 text-${color}-800` : 'bg-gray-200 text-gray-600'
+    }`}>
+      {count}
+    </span>
+  </button>
+);
 
 const MyTasks = () => {
   const { user } = useAuth();
@@ -17,22 +53,24 @@ const MyTasks = () => {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('all');
-  const [timeTracking, setTimeTracking] = useState({});
   const [taskStats, setTaskStats] = useState(null);
   const [reportModal, setReportModal] = useState({ open: false, task: null });
   const [reportData, setReportData] = useState({
-    workDone: '',
-    challenges: '',
-    achievements: '',
-    nextSteps: '',
-    estimatedProgress: 0
+    description: '',
+    progressPercentage: 0
   });
+  const [extensionModal, setExtensionModal] = useState({ open: false, task: null });
+
   const [viewMode, setViewMode] = useState('card'); // card or list
+
+  const [searchQuery, setSearchQuery] = useState(''); // Thêm state search
 
   useEffect(() => {
     loadMyTasks();
   }, []);
 
+
+  
   // Calculate stats whenever tasks change
   useEffect(() => {
     loadTaskStats();
@@ -251,7 +289,7 @@ const MyTasks = () => {
       setLoading(true);
       
       const response = await apiService.getMyTasks();
-      console.log("List task: ", response);
+      // console.log("List task: ", response);
       
       if (response && response.length > 0) {
         const transformedTasks = await Promise.all(
@@ -274,7 +312,6 @@ const MyTasks = () => {
                                 'Unknown User';
               }
             }
-
             return {
               id: task.id,
               title: task.title || task.name,
@@ -350,9 +387,13 @@ const MyTasks = () => {
     }
   };
 
-  const filteredTasks = statusFilter === 'all' 
-    ? tasks 
-    : tasks.filter(task => task.status === statusFilter);
+  // Filter tasks logic update (bao gồm cả search)
+  const filteredTasks = tasks.filter(task => {
+    const matchesStatus = statusFilter === 'all' ? true : task.status === statusFilter;
+    const matchesSearch = task.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                          task.projectName.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesStatus && matchesSearch;
+  });
 
 
   const isOverdue = (dueDate) => {
@@ -377,113 +418,105 @@ const MyTasks = () => {
     }
   };
 
-  const handleUpdateProgress = async (taskId, progress) => {
+ // ✅ Helper function: Check if task can request extension
+  const canRequestExtension = (task) => {
+    if (!task) return false;
+    
+    // Cannot extend if task is completed or cancelled
+    if (task.status === 'DONE' || task.status === 'CANCELLED' || task.status === 'REVIEW') {
+      return false;
+    }
+    
+    // Cannot extend if already at max extensions (2)
+    if (task.extensionCount >= 2) {
+      return false;
+    }
+    
+    // Cannot extend if there's a pending extension request
+    if (task.hasPendingExtension) {
+      return false;
+    }
+    
+    // Can extend if task is overdue OR close to deadline (within 24 hours)
+    const dueDate = new Date(task.dueDate);
+    const now = new Date();
+    const hoursUntilDue = (dueDate - now) / (1000 * 60 * 60);
+    
+    return hoursUntilDue < 24 || dueDate < now;
+  };
+
+  // ✅ Helper function: Check if task can submit report
+  const canSubmitReport = (task) => {
+    if (!task) return false;
+    
+    // Can submit if task is IN_PROGRESS or REVIEW
+    if (task.status !== 'IN_PROGRESS' && task.status !== 'REVIEW') {
+      return false;
+    }
+    
+    // Cannot submit if overdue (should request extension first)
+    const dueDate = new Date(task.dueDate);
+    const now = new Date();
+    
+    if (dueDate < now) {
+      return false;
+    }
+    
+    return true;
+  };
+
+  // ✅ Helper function: Determine which button to show
+  const getTaskActionButton = (task) => {
+    const taskIsOverdue = task.dueDate && new Date(task.dueDate) < new Date();
+    
+    // Priority 1: If overdue -> show Extend button
+    if (taskIsOverdue && canRequestExtension(task)) {
+      return 'extend';
+    }
+    
+    // Priority 2: If can submit report -> show Report button
+    if (canSubmitReport(task)) {
+      return 'report';
+    }
+    
+    // Priority 3: If close to deadline and can extend -> show Extend button
+    if (canRequestExtension(task)) {
+      return 'extend';
+    }
+    
+    // Default: Show Report button (disabled)
+    return null;
+  };
+
+   // ✅ Handle extension request submission
+  const handleRequestExtension = async (extensionData) => {
+    console.log('Requesting extension with data:', extensionData);
     try {
-      // API call to update task progress
-      const updateData = { progress: progress };
-      await apiService.updateTaskProgress(taskId, updateData);
-      
-      // Update local state
-      setTasks(tasks.map(task => 
-        task.id === taskId ? { ...task, progress } : task
-      ));
-      
-      showInfo(`Task progress updated to ${progress}%`);
+      const response = await apiService.requestExtension(extensionModal.task.id, extensionData);
+      console.log('Extension request response:', response);
+      if (response?.result) {
+        showSuccess('Extension request submitted successfully');
+        
+        // Update task in local state
+        setTasks(prevTasks => 
+          prevTasks.map(t => 
+            t.id === extensionModal.task.id 
+              ? { ...t, hasPendingExtension: true }
+              : t
+          )
+        );
+        
+        // Close modal
+        setExtensionModal({ open: false, task: null });
+        
+        // Optionally reload tasks to get updated data
+        await loadMyTasks();
+      }
     } catch (error) {
-      console.error('Failed to update progress:', error);
-      showInfo('Failed to update task progress', 'error');
+      console.error('Failed to request extension:', error);
+      const errorMessage = error.response?.data?.message || 'Failed to submit extension request';
+      // showError(errorMessage);
     }
-  };
-
-  const handleSubmitTask = async (taskId) => {
-    try {
-      // API call to submit task for review
-      const submissionData = {
-        submissionMessage: 'Task completed and ready for review',
-        submissionDate: new Date().toISOString()
-      };
-      
-      await apiService.submitTask(taskId, submissionData);
-      
-      // Update task status to REVIEW and progress to 100%
-      const statusUpdateData = { status: 'REVIEW' };
-      await apiService.updateTaskStatus(taskId, statusUpdateData);
-      
-      // Update local state
-      setTasks(tasks.map(task => 
-        task.id === taskId ? { 
-          ...task, 
-          status: 'REVIEW', 
-          progress: 100,
-          lastSubmission: new Date().toISOString().split('T')[0]
-        } : task
-      ));
-      
-      showSuccess('Task submitted for review successfully');
-    } catch (error) {
-      console.error('Failed to submit task:', error);
-      showInfo('Failed to submit task for review', 'error');
-    }
-  };
-
-  const handleTimeTracking = (taskId) => {
-    if (timeTracking[taskId]) {
-      // Stop tracking
-      setTimeTracking(prev => ({ ...prev, [taskId]: null }));
-    } else {
-      // Start tracking
-      setTimeTracking(prev => ({ ...prev, [taskId]: new Date() }));
-    }
-  };
-
-  
-  const getStatusConfig = (status) => {
-    const configs = {
-      TODO: { color: 'bg-gray-100 text-gray-700 border-gray-200', icon: Clock },
-      IN_PROGRESS: { color: 'bg-blue-100 text-blue-700 border-blue-200', icon: TrendingUp },
-      REVIEW: { color: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: Eye },
-      TESTING: { color: 'bg-purple-100 text-purple-700 border-purple-200', icon: AlertCircle },
-      DONE: { color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle }
-    };
-    return configs[status] || configs.TODO;
-  };
-
-  const getPriorityConfig = (priority) => {
-    const configs = {
-      HIGH: 'bg-red-50 text-red-700 border-red-200',
-      MEDIUM: 'bg-orange-50 text-orange-700 border-orange-200',
-      LOW: 'bg-green-50 text-green-700 border-green-200'
-    };
-    return configs[priority] || configs.MEDIUM;
-  };
-
-  // Function to refresh tasks
-  const refreshTasks = async () => {
-    await loadMyTasks();
-    showInfo('Tasks refreshed');
-  };
-
-  // Report handling functions
-  const handleOpenReportModal = (task) => {
-    setReportModal({ open: true, task });
-    setReportData({
-      workDone: '',
-      challenges: '',
-      achievements: '',
-      nextSteps: '',
-      estimatedProgress: task.progress || 0
-    });
-  };
-
-  const handleCloseReportModal = () => {
-    setReportModal({ open: false, task: null });
-    setReportData({
-      workDone: '',
-      challenges: '',
-      achievements: '',
-      nextSteps: '',
-      estimatedProgress: 0
-    });
   };
 
  const handleSubmitReport = async (submissionData) => {
@@ -555,6 +588,8 @@ const MyTasks = () => {
     ));
 
     showSuccess('Task submitted successfully');
+    setReportModal({ open: false, task: null });
+
     return response;
     
   } catch (error) {
@@ -578,294 +613,468 @@ const MyTasks = () => {
     );
   }
 
-  const TaskCard = ({ task }) => {
-    const statusConfig = getStatusConfig(task.status);
-    const StatusIcon = statusConfig.icon;
-    const isTracking = timeTracking[task.id];
-
-    const { 
-    isRunning, 
-    totalLoggedSeconds, 
-    currentSessionSeconds, 
-    loading,
-    startTimer, 
-    stopTimer,
-    formatTime,
-    getTotalHours
-  } = useTaskTimer(task.id, user.id);
-
-  const handleTimerToggle = async () => {
-    if (isRunning) {
-      const result = await stopTimer();
-      if (result.success) {
-        showSuccess('Timer stopped successfully');
-      } 
-    } else {
-      const result = await startTimer();
-      if (result.success) {
-        showSuccess('Timer started');
-      } 
+  const getStatusConfig = (status) => {
+    switch (status) {
+      case 'TODO':
+        return { label: 'To Do', color: 'gray', icon: Clock };
+      case 'IN_PROGRESS':
+        return { label: 'In Progress', color: 'blue', icon: Play };
+      case 'REVIEW':
+        return { label: 'In Review', color: 'orange', icon: FileText };
+      case 'TESTING':
+        return { label: 'In Testing', color: 'purple', icon: TrendingUp };
+      default:
+        return { label: 'Unknown', color: 'gray', icon: HelpCircle };
     }
   };
 
-    return (
-      <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all duration-200 border border-gray-100 overflow-hidden">
-        {/* Header with colored accent */}
-        <div className={`h-1.5 ${task.priority === 'HIGH' ? 'bg-red-500' : task.priority === 'MEDIUM' ? 'bg-orange-500' : 'bg-green-500'}`}></div>
-        
-        <div className="p-6">
-          {/* Title & Status Row */}
-          <div className="flex items-start justify-between mb-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 mb-2">
-                <h3 className="text-lg font-semibold text-gray-900 leading-tight">{task.title}</h3>
-                {isOverdue(task.dueDate) && task.status !== 'DONE' && (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-700 border border-red-200">
-                    <AlertCircle className="w-3 h-3 mr-1" />
-                    Overdue
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-gray-600 line-clamp-2">{task.description}</p>
-            </div>
-          </div>
+  const getPriorityConfig = (priority) => {
+    switch (priority) {
+      case 'LOW':
+        return 'border-green-500 text-green-600 bg-green-50';
+      case 'MEDIUM':
+        return 'border-yellow-500 text-yellow-600 bg-yellow-50';
+      case 'HIGH':
+        return 'border-red-500 text-red-600 bg-red-50';
+      default:
+        return 'border-gray-500 text-gray-600 bg-gray-50';
+    }
+  };
 
-          {/* Meta Info Grid */}
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <div className="flex items-center text-sm text-gray-600">
-              <FolderOpen className="w-4 h-4 mr-2 text-gray-400" />
-              <span className="truncate">{task.projectName}</span>
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <User className="w-4 h-4 mr-2 text-gray-400" />
-              <span className="truncate">{task.assignedBy}</span>
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-              <span>
-                Start: {task.startDate 
-                  ? new Date(task.startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-                  : "Haven't started"}
-              </span>
-            </div>
-            <div className="flex items-center text-sm text-gray-600">
-              <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-              <span className={isOverdue(task.dueDate) && task.status !== 'DONE' ? 'text-red-600 font-medium' : ''}>
-                Due: {new Date(task.dueDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-              </span>
-            </div>
-          </div>
+  // --- REDESIGNED TASK CARD (FIXED OVERDUE LOGIC) ---
+  const TaskCard = ({ task }) => {
+    console.log('Rendering TaskCard for task:', task.title);
+    // const statusConfig = getStatusConfig(task.status);
+    // const StatusIcon = statusConfig.icon;
+    
+    // Config màu sắc cho Priority
+    const priorityColors = {
+      HIGH: 'text-red-600 bg-red-50 border-red-100',
+      MEDIUM: 'text-orange-600 bg-orange-50 border-orange-100',
+      LOW: 'text-green-600 bg-green-50 border-green-100'
+    };
 
-          {/* Progress Bar */}
-          <div className="mb-4">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-medium text-gray-700">Progress</span>
-              <span className="text-xs font-semibold text-gray-900">{task.progress}%</span>
-            </div>
-            <div className="relative w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div 
-                className={`h-full rounded-full transition-all duration-300 ${
-                  task.progress < 30 ? 'bg-red-500' :
-                  task.progress < 70 ? 'bg-orange-500' : 'bg-green-500'
-                }`}
-                style={{ width: `${task.progress}%` }}
-              />
-            </div>
-          </div>
+    // --- SỬA LỖI LOGIC OVERDUE TẠI ĐÂY ---
+    const checkIsOverdue = (dueDateValue) => {
+      if (!dueDateValue) return false;
+      
+      // Chuyển mọi giá trị về Date object để so sánh
+      const due = new Date(dueDateValue);
+      const now = new Date();
 
-          {/* Time Tracking */}
-          <div className="flex items-center justify-between mb-4 p-3 bg-gray-50 rounded-lg">
-            <div className="flex items-center space-x-3">
-              <Clock className="w-4 h-4 text-gray-400" />
-              <div className="text-sm">
-                 <span className="font-medium text-gray-900">
-                   {getTotalHours()}h
-                 </span>
-                <span className="text-gray-500">
-                   {' / '}{task.estimatedHours}h
-                </span>
-              </div>
-            </div>
-            
+      // Nếu chỉ có ngày (YYYY-MM-DD), set về cuối ngày
+      if (String(dueDateValue).length <= 10) {
+          due.setHours(23, 59, 59, 999);
+      }
+
+      return due < now;
+  };
+
+    const taskIsOverdue = checkIsOverdue(task.dueDate) && task.status !== 'DONE';
+    
+    // --- LOGIC HIỂN THỊ NÚT BẤM ---
+    const getActionView = () => {
+      // 1. Task đã xong hoặc hủy -> Không hiện nút
+      if (task.status === 'DONE' || task.status === 'CANCELLED') return null;
+
+      // 2. Task Quá hạn -> Ưu tiên hiện Extension
+      if (taskIsOverdue) {
+        if (canRequestExtension(task)) {
+          return (
             <button
-              onClick={() => handleTimeTracking(task.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                isTracking 
-                  ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-200'
-                  : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200'
-              }`}
+              onClick={() => setExtensionModal({ open: true, task })}
+              className="flex-1 inline-flex justify-center items-center px-4 py-2 bg-orange-50 text-orange-700 hover:bg-orange-100 border border-orange-200 text-xs font-semibold rounded-lg transition-all"
             >
-               <button
-                onClick={handleTimerToggle}
-                disabled={loading}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all disabled:opacity-50 ${
-                  isRunning 
-                    ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-200'
-                    : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-200'
-                }`}
-            >
-                {isRunning ? (
-                  <>
-                    <Pause className="w-3 h-3" />
-                    Stop
-                    <span className="ml-1 font-semibold">
-                      {formatTime(currentSessionSeconds)}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-3 h-3" />
-                    Start
-                  </>
-                )}
-              </button>
+              <Clock className="w-3.5 h-3.5 mr-1.5" /> 
+              Extend (Overdue)
             </button>
-          </div>
+          );
+        } else {
+          return (
+            <button disabled className="flex-1 inline-flex justify-center items-center px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 text-xs font-semibold rounded-lg cursor-not-allowed">
+              <AlertTriangle className="w-3.5 h-3.5 mr-1.5" /> Max Extensions
+            </button>
+          );
+        }
+      }
 
-          {/* Skills Tags */}
-          <div className="flex flex-wrap gap-1.5 mb-4">
-            {task.skills.slice(0, 4).map((skill, idx) => (
-              <span key={idx} className="px-2 py-1 text-xs font-medium bg-indigo-50 text-indigo-700 rounded-md border border-indigo-100">
-                {skill}
-              </span>
-            ))}
-            {task.skills.length > 4 && (
-              <span className="px-2 py-1 text-xs font-medium text-gray-500">
-                +{task.skills.length - 4}
+      // 3. Task chưa quá hạn -> Hiện Report
+      return (
+        <div className="flex gap-2 w-full">
+          {task.status === 'IN_PROGRESS' || task.status === 'TODO' ? (
+
+          <button
+            onClick={() => setReportModal({ open: true, task })}
+            className="flex-1 inline-flex justify-center items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white border border-gray-300 dark:border-gray-600 text-xs font-semibold rounded-lg transition-all shadow-sm"
+          >
+            <FileText className="w-3.5 h-3.5 mr-1.5" /> Submit Task
+          </button>
+          ): (
+            <span
+              className="flex-1 inline-flex justify-center items-center px-4 py-2 bg-gray-100 dark:bg-gray-800 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700 text-xs font-semibold rounded-lg cursor-not-allowed"
+            >
+              Review
+            </span>
+          )}
+
+          {/* Nút Submit khi progress cao */}
+          {/* {task.progress >= 90 && (
+            <button
+              onClick={() => setReportModal({ open: true, task })}
+              className="flex-1 inline-flex justify-center items-center px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-all shadow-sm hover:shadow"
+            >
+              <Send className="w-3.5 h-3.5 mr-1.5" /> Submit Task
+            </button>
+          )} */}
+          
+          {/* Nút Extend phụ (Optional) */}
+          {canRequestExtension(task) && (
+             <button
+                onClick={() => setExtensionModal({ open: true, task })}
+                className="p-2 text-orange-600 hover:bg-orange-50 border border-transparent hover:border-orange-200 rounded-lg transition-all"
+                title="Request Extension Early"
+             >
+               <Clock className="w-4 h-4" />
+             </button>
+          )}
+        </div>
+      );
+    };
+
+    // Helper hiển thị ngày tháng chuẩn (Format lại ngày hiển thị cho đẹp)
+    // Tìm hàm này bên trong TaskCard và sửa lại
+    const formatDisplayDate = (dateString) => {
+        if (!dateString) return 'N/A';
+
+        // ✅ BƯỚC QUAN TRỌNG: Ép kiểu về String để tránh lỗi .endsWith
+        const str = String(dateString); 
+        
+        let normalizedDateStr = str;
+        
+        // Kiểm tra và xử lý chuỗi
+        if (!str.endsWith('Z') && !str.includes('+')) {
+            normalizedDateStr += 'Z';
+        }
+        
+        const date = new Date(normalizedDateStr);
+        
+        // Kiểm tra nếu ngày không hợp lệ (Invalid Date)
+        if (isNaN(date.getTime())) return str; 
+
+        return date.toLocaleDateString('en-US', { 
+            month: 'short', 
+            day: 'numeric' 
+        });
+    }
+
+    return (
+      <div className="group bg-white dark:bg-gray-800 rounded-2xl p-5 border border-gray-100 dark:border-gray-700 shadow-sm hover:shadow-lg transition-all duration-300 relative overflow-hidden">
+        {/* Priority Stripe */}
+        <div className={`absolute left-0 top-0 bottom-0 w-1.5 ${
+          task.priority === 'HIGH' ? 'bg-red-500' : task.priority === 'MEDIUM' ? 'bg-orange-500' : 'bg-green-500'
+        }`} />
+
+        {/* Header: Project & Meta */}
+        <div className="flex justify-between items-start mb-3 pl-3">
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-300 border border-gray-100 dark:border-gray-700 dark:bg-gray-700 dark:border-gray-600">
+              <FolderOpen className="w-3 h-3 mr-1.5 text-gray-400 dark:text-gray-500 dark:text-gray-300" />
+              {task.projectName}
+            </span>
+            {taskIsOverdue && (
+              <span className="inline-flex items-center px-2 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 border border-red-100 animate-pulse">
+                <AlertCircle className="w-3 h-3 mr-1" /> Overdue
               </span>
             )}
           </div>
+          <button className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:text-gray-300 p-1 rounded-full hover:bg-gray-50 dark:bg-gray-900">
+            <MoreVertical className="w-4 h-4" />
+          </button>
+        </div>
 
-          {/* Status & Actions */}
-          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-            <div className="flex items-center gap-2">
-              <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${statusConfig.color}`}>
-                <StatusIcon className="w-3 h-3 mr-1.5" />
-                {task.status.replace('_', ' ')}
-              </span>
-              <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${getPriorityConfig(task.priority)}`}>
-                {task.priority}
-              </span>
+        {/* Main Content */}
+        <div className="pl-3 mb-4">
+          <div className="flex justify-between items-start mb-2">
+            <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 leading-snug group-hover:text-indigo-600 transition-colors cursor-pointer dark:text-gray-100">
+              {task.title}
+            </h3>
+          </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 dark:text-gray-500 line-clamp-2 leading-relaxed dark:text-gray-300">
+            {task.description}
+          </p>
+        </div>
+
+        {/* Info Grid */}
+        <div className="pl-3 grid grid-cols-2 gap-y-3 gap-x-4 mb-5">
+          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+            <Calendar className="w-3.5 h-3.5 mr-2 text-gray-400 dark:text-gray-500" />
+            <span>Due: <span className={`font-medium ${taskIsOverdue ? 'text-red-500' : 'text-gray-700'} dark:text-gray-200`}>
+              {/* Sử dụng hàm formatDisplayDate để hiển thị đúng ngày theo giờ địa phương */}
+              {formatDisplayDate(task.dueDate)}
+            </span></span>
+          </div>
+          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500">
+            <User className="w-3.5 h-3.5 mr-2 text-gray-400 dark:text-gray-500" />
+            <span className="truncate max-w-[100px]">{task.assignedBy}</span>
+          </div>
+          <div className="flex items-center text-xs text-gray-500 dark:text-gray-400 dark:text-gray-500 col-span-2">
+            <div className={`px-2 py-0.5 rounded border text-[10px] font-bold uppercase tracking-wider ${priorityColors[task.priority]}`}>
+              {task.priority} Priority
             </div>
-
-            <div className="flex items-center gap-2">
-              {task.status === 'TODO' && (
-                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700 transition-colors" onClick={() => handleStartTask(task.id)}>
-                  <Play className="w-3 h-3" />
-                  Start Task
-                </button>
-              )}
-              
-              {(task.status === 'IN_PROGRESS' || task.status === 'REVIEW') && (
-                <button 
-                  onClick={() => setReportModal({ open: true, task })}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-300 text-gray-700 text-xs font-medium rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  <FileText className="w-3 h-3" />
-                  Report
-                </button>
-              )}
-
-              {task.status === 'IN_PROGRESS' && task.progress >= 90 && (
-                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700 transition-colors">
-                  <Send className="w-3 h-3" />
-                  Submit
-                </button>
-              )}
-
-              <button className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors">
-                <Eye className="w-4 h-4" />
-              </button>
+            <div className="ml-auto flex items-center gap-1">
+               {task.skills.slice(0, 3).map((skill, i) => (
+                 <span key={i} className="w-2 h-2 rounded-full bg-indigo-400" title={skill}></span>
+               ))}
             </div>
           </div>
+        </div>
+
+        {/* Progress & Stats */}
+        {/* Progress & Stats Area */}
+        <div className="pl-3 bg-gray-50 dark:bg-gray-900 rounded-xl p-3 mb-4 border border-gray-100 dark:border-gray-700 dark:bg-gray-700 dark:border-gray-600">
+          {(task.status === 'REVIEW' || task.status === 'DONE') ? (
+            /* HIỂN THỊ KHI ĐÃ HOÀN THÀNH HOẶC ĐANG REVIEW */
+            <>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide dark:text-gray-100">Progress</span>
+                <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">{task.progress}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3 dark:bg-gray-700">
+                <div 
+                  className={`h-1.5 rounded-full transition-all duration-500 ${
+                    task.progress === 100 ? 'bg-green-500' : 'bg-indigo-600'
+                  }`}
+                  style={{ width: `${task.progress}%` }}
+                ></div>
+              </div>
+              <div className="flex items-center text-gray-500 dark:text-gray-400 dark:text-gray-500 text-xs">
+                <Clock className="w-3.5 h-3.5 mr-1.5" />
+                <span>
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">{task.actualHours || 0}h</span> 
+                  {' / '}{task.estimatedHours}h est.
+                </span>
+              </div>
+            </>
+          ) : (
+            /* HIỂN THỊ KHI IN_PROGRESS HOẶC CANCELLED (Tính theo thời gian) */
+            <>
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wide dark:text-gray-100">Time Remaining</span>
+                <span className={`text-xs font-bold ${task.status === 'CANCELLED' ? 'text-gray-400' : 'text-orange-600'} dark:text-orange-400`}>
+                  {(() => {
+                    if (task.status === 'CANCELLED') return 'Cancelled';
+                    const now = new Date();
+                    const due = new Date(task.dueDate);
+                    const start = new Date(task.startDate || task.createdDate);
+                    const total = due - start;
+                    const elapsed = now - start;
+                    const percent = Math.min(Math.max(Math.round((elapsed / total) * 100), 0), 100);
+                    return `${percent}% time elapsed`;
+                  })()}
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-1.5 mb-3 dark:bg-gray-700">
+                <div 
+                  className={`h-1.5 rounded-full transition-all duration-500 ${
+                    task.status === 'CANCELLED' ? 'bg-gray-400' : 'bg-orange-500'
+                  }`}
+                  style={{ 
+                    width: `${(() => {
+                      const now = new Date();
+                      const due = new Date(task.dueDate);
+                      const start = new Date(task.startDate || task.createdDate);
+                      const total = due - start;
+                      const elapsed = now - start;
+                      return Math.min(Math.max((elapsed / total) * 100, 0), 100);
+                    })()}%` 
+                  }}
+                ></div>
+              </div>
+              <div className="flex items-center text-gray-500 dark:text-gray-400 dark:text-gray-500 text-xs">
+                <Timer className="w-3.5 h-3.5 mr-1.5" />
+                <span>Deadline Tracking</span>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Actions Footer */}
+        <div className="pl-3 flex items-center justify-end gap-2 pt-2 border-t border-gray-50 mt-4 dark:border-gray-700">
+          
+          {getActionView()}
+          
+          <button className="p-2 text-gray-400 dark:text-gray-500 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors border border-transparent hover:border-indigo-100">
+            <Eye className="w-4 h-4" />
+          </button>
         </div>
       </div>
     );
   };
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mb-4"></div>
+          <p className="text-gray-500 dark:text-gray-400 dark:text-gray-500 font-medium">Loading your workspace...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="min-h-screen bg-gray-50/50 dark:bg-gray-900/50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-1">My Tasks</h1>
-              <p className="text-gray-600">Track and manage your assigned work</p>
+        
+        {/* 1. Header Section */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 tracking-tight dark:text-white">My Workspace</h1>
+            <p className="text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1 flex items-center">
+              <Calendar className="w-4 h-4 mr-2" />
+              {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            </p>
+          </div>
+          <button 
+            onClick={loadMyTasks}
+            className="inline-flex items-center px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 rounded-xl hover:bg-gray-50 dark:bg-gray-900 hover:border-gray-300 dark:border-gray-600 transition-all shadow-sm font-medium text-sm dark:hover:bg-gray-700/50"
+          >
+            <RefreshCw className="w-4 h-4 mr-2" /> Refresh Data
+          </button>
+        </div>
+
+        {/* 2. Stats Overview (Replaced grid of 8 with 4 impactful cards) */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-10 dark:bg-black">
+          <StatCard 
+            title="Active Tasks" 
+            value={taskStats.inProgress} 
+            subValue={`${taskStats.todo} pending start`}
+            icon={Briefcase} 
+            color="bg-blue-500 dark:bg-blue-600"
+          />
+          <StatCard 
+            title="This Week's Effort" 
+            value={`${taskStats.hoursThisWeek}h`} 
+            subValue="Tracked hours"
+            icon={Timer} 
+            color="bg-indigo-500"
+          />
+          <StatCard 
+            title="Completion Rate" 
+            value={`${taskStats.completionRate}%`} 
+            subValue={`${taskStats.done} tasks finished`}
+            icon={CheckCircle2} 
+            color="bg-green-500"
+          />
+          <StatCard 
+            title="Attention Needed" 
+            value={taskStats.overdue} 
+            subValue="Overdue tasks"
+            icon={AlertTriangle} 
+            color="bg-red-500"
+          />
+        </div>
+
+        {/* 3. Filters & Controls */}
+        <div className="bg-white dark:bg-gray-800 p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 mb-8 sticky top-4 z-10">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            {/* Status Tabs */}
+            <div className="flex items-center gap-1 overflow-x-auto w-full md:w-auto pb-2 md:pb-0 px-2 hide-scrollbar dark:text-white dark::-webkit-scrollbar">
+              <StatusTab 
+                label="All" 
+                count={taskStats.total} 
+                active={statusFilter === 'all'} 
+                onClick={() => setStatusFilter('all')} 
+                color="indigo"
+              />
+              <StatusTab 
+                label="To Do" 
+                count={taskStats.todo} 
+                active={statusFilter === 'TODO'} 
+                onClick={() => setStatusFilter('TODO')} 
+                color="gray dark:text-gray-300"
+              />
+              <StatusTab 
+                label="In Progress" 
+                count={taskStats.inProgress} 
+                active={statusFilter === 'IN_PROGRESS'} 
+                onClick={() => setStatusFilter('IN_PROGRESS')} 
+                color="blue"
+              />
+              <StatusTab 
+                label="Review" 
+                count={taskStats.review} 
+                active={statusFilter === 'REVIEW'} 
+                onClick={() => setStatusFilter('REVIEW')} 
+                color="orange"
+              />
+              <StatusTab 
+                label="Done" 
+                count={taskStats.done} 
+                active={statusFilter === 'DONE'} 
+                onClick={() => setStatusFilter('DONE')} 
+                color="green"
+              />
             </div>
-            <button className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors shadow-sm">
-              <RefreshCw className="w-4 h-4" />
-              Refresh
-            </button>
+
+            {/* Search Box */}
+            <div className="relative w-full md:w-64 px-2">
+              <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 text-gray-400 dark:text-gray-500" />
+              </div>
+              <input
+                type="text"
+                className="block w-full pl-10 pr-3 py-2.5 border-none bg-gray-50 dark:bg-gray-900 rounded-xl text-sm text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all dark:bg-gray-700 dark:text-gray-200 dark:placeholder-gray-500 dark:placeholder-gray-400"
+                placeholder="Search tasks..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
-          {[
-            { label: 'Total', value: taskStats.total, color: 'gray' },
-            { label: 'To Do', value: taskStats.todo, color: 'gray' },
-            { label: 'In Progress', value: taskStats.inProgress, color: 'blue' },
-            { label: 'Review', value: taskStats.review, color: 'yellow' },
-            { label: 'Testing', value: taskStats.testing, color: 'purple' },
-            { label: 'Done', value: taskStats.done, color: 'green' },
-            { label: 'Overdue', value: taskStats.overdue, color: 'red' },
-            { label: 'This Week', value: `${taskStats.hoursThisWeek}h`, color: 'indigo' }
-          ].map((stat, idx) => (
-            <div key={idx} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-              <div className={`text-2xl font-bold mb-1 text-${stat.color}-600`}>
-                {stat.value}
-              </div>
-              <div className="text-xs text-gray-600 font-medium">{stat.label}</div>
+        {/* 4. Task Grid */}
+        {filteredTasks.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-1 xl:grid-cols-2 gap-6">
+            {filteredTasks.map(task => (
+              <TaskCard key={task.id} task={task} />
+            ))}
+          </div>
+        ) : (
+          /* Empty State */
+          <div className="text-center py-20 bg-white dark:bg-gray-800 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-indigo-50 mb-4">
+              <FolderOpen className="w-8 h-8 text-indigo-400" />
             </div>
-          ))}
-        </div>
-
-        {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-gray-400" />
-                <span className="text-sm font-medium text-gray-700">Status:</span>
-              </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="pl-3 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent bg-white"
+            <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">No tasks found</h3>
+            <p className="text-gray-500 dark:text-gray-400 dark:text-gray-500 mt-1 max-w-sm mx-auto">
+              {searchQuery 
+                ? `We couldn't find any tasks matching "${searchQuery}"` 
+                : statusFilter !== 'all' 
+                  ? `You don't have any tasks in the "${statusFilter.replace('_', ' ')}" status.` 
+                  : "You're all caught up! Enjoy your free time."}
+            </p>
+            {statusFilter !== 'all' && (
+              <button 
+                onClick={() => setStatusFilter('all')}
+                className="mt-4 text-indigo-600 hover:text-indigo-700 font-medium text-sm"
               >
-                <option value="all">All Tasks</option>
-                <option value="TODO">To Do</option>
-                <option value="IN_PROGRESS">In Progress</option>
-                <option value="REVIEW">Review</option>
-                <option value="TESTING">Testing</option>
-                <option value="DONE">Done</option>
-              </select>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button className={`p-2 rounded-lg ${viewMode === 'card' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-400 hover:bg-gray-50'}`}>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-                </svg>
+                Clear filters
               </button>
-              <button className={`p-2 rounded-lg ${viewMode === 'list' ? 'bg-indigo-50 text-indigo-600' : 'text-gray-400 hover:bg-gray-50'}`}>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
-              </button>
-            </div>
+            )}
           </div>
-        </div>
+        )}
 
-        {/* Tasks Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {tasks.map(task => (
-            <TaskCard key={task.id} task={task} />
-          ))}
-        </div>
+        {/* Modals (Extension & Report) */}
+        {extensionModal.open && (
+          <TaskExtensionModal
+            isOpen={extensionModal.open}
+            task={extensionModal.task}
+            onClose={() => setExtensionModal({ open: false, task: null })}
+            onSubmit={handleRequestExtension}
+          />
+        )}
 
-        {/* Enhanced Report Modal */}
         {reportModal.open && (
           <EnhancedSubmitReportModal
             isOpen={reportModal.open}

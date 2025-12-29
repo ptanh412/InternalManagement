@@ -2,11 +2,14 @@ package com.mnp.workload.controller;
 
 import com.mnp.workload.dto.request.ApiResponse;
 import com.mnp.workload.dto.response.WorkTimeStatisticsResponse;
+import com.mnp.workload.exception.AppException;
+import com.mnp.workload.exception.ErrorCode;
 import com.mnp.workload.service.WorkTimeStatisticsService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -78,91 +81,79 @@ public class WorkTimeStatisticsController {
     }
 
     /**
-     * Get department work time overview
+     * Get project work time overview
      */
-    @GetMapping("/statistics/department/{departmentId}")
-    public ApiResponse<List<WorkTimeStatisticsResponse>> getDepartmentWorkTimeStatistics(
-            @PathVariable String departmentId,
-            @RequestParam(defaultValue = "MONTHLY") String period) {
+    @GetMapping("/statistics/project/{projectId}")
+    public ApiResponse<List<WorkTimeStatisticsResponse>> getProjectWorkTimeStatistics(
+            @PathVariable String projectId,
+            @RequestParam String period) {
 
-        log.info("Generating department work time statistics for department: {}", departmentId);
+        log.info("Generating project work time statistics for project: {}", projectId);
 
-        List<String> departmentUserIds = fetchDepartmentUserIds(departmentId);
-
-        List<WorkTimeStatisticsResponse> statistics = departmentUserIds.stream()
-                .map(userId -> workTimeStatisticsService.generateWorkTimeStatistics(userId, period))
-                .collect(Collectors.toList());
+        List<WorkTimeStatisticsResponse> statistics = 
+            workTimeStatisticsService.generateProjectWorkTimeStatistics(projectId, period);
 
         return ApiResponse.<List<WorkTimeStatisticsResponse>>builder()
                 .result(statistics)
-                .message("Department work time statistics generated successfully")
+                .message("Project work time statistics generated successfully")
                 .build();
     }
 
     /**
-     * Get team productivity metrics
+     * Get project productivity metrics
      */
-    @GetMapping("/productivity/team/{teamId}")
-    public ApiResponse<TeamProductivitySummary> getTeamProductivityMetrics(
-            @PathVariable String teamId,
+    @GetMapping("/productivity/project/{projectId}")
+    public ApiResponse<ProjectProductivitySummary> getProjectProductivityMetrics(
+            @PathVariable String projectId,
             @RequestParam(defaultValue = "MONTHLY") String period) {
 
-        log.info("Generating team productivity metrics for team: {}", teamId);
+        log.info("Generating project productivity metrics for project: {}", projectId);
 
-        List<String> teamUserIds = fetchTeamUserIds(teamId);
-        List<WorkTimeStatisticsResponse> teamStatistics = teamUserIds.stream()
-                .map(userId -> workTimeStatisticsService.generateWorkTimeStatistics(userId, period))
-                .collect(Collectors.toList());
+        List<WorkTimeStatisticsResponse> projectStatistics = 
+            workTimeStatisticsService.generateProjectWorkTimeStatistics(projectId, period);
 
-        TeamProductivitySummary summary = calculateTeamProductivitySummary(teamStatistics);
+        ProjectProductivitySummary summary = calculateProjectProductivitySummary(projectStatistics);
 
-        return ApiResponse.<TeamProductivitySummary>builder()
+        return ApiResponse.<ProjectProductivitySummary>builder()
                 .result(summary)
-                .message("Team productivity metrics generated successfully")
+                .message("Project productivity metrics generated successfully")
                 .build();
     }
 
     private String getCurrentUserId() {
-        // In real implementation, extract from security context
-        return "current-user-id";
+        var authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || authentication.getName() == null) {
+            throw new AppException(ErrorCode.UNAUTHENTICATED);
+        }
+        return authentication.getName();
     }
 
-    private List<String> fetchDepartmentUserIds(String departmentId) {
-        // In real implementation, query database
-        return List.of("user1", "user2", "user3");
-    }
-
-    private List<String> fetchTeamUserIds(String teamId) {
-        // In real implementation, query database
-        return List.of("user1", "user2", "user3", "user4");
-    }
-
-    private TeamProductivitySummary calculateTeamProductivitySummary(List<WorkTimeStatisticsResponse> teamStatistics) {
-        double avgHoursPerWeek = teamStatistics.stream()
+    private ProjectProductivitySummary calculateProjectProductivitySummary(List<WorkTimeStatisticsResponse> projectStatistics) {
+        double avgHoursPerWeek = projectStatistics.stream()
                 .mapToDouble(WorkTimeStatisticsResponse::getAverageHoursPerWeek)
                 .average().orElse(0.0);
 
-        double avgProductivity = teamStatistics.stream()
+        double avgProductivity = projectStatistics.stream()
                 .mapToDouble(WorkTimeStatisticsResponse::getProductiveHoursPercentage)
                 .average().orElse(0.0);
 
-        return TeamProductivitySummary.builder()
-                .teamSize(teamStatistics.size())
+        return ProjectProductivitySummary.builder()
+                .projectMemberCount(projectStatistics.size())
                 .averageWeeklyHours(avgHoursPerWeek)
                 .averageProductivityPercentage(avgProductivity)
-                .totalTeamHours(teamStatistics.stream().mapToDouble(WorkTimeStatisticsResponse::getTotalHoursThisMonth).sum())
+                .totalProjectHours(projectStatistics.stream().mapToDouble(WorkTimeStatisticsResponse::getTotalHoursThisMonth).sum())
                 .build();
     }
 
-    // Inner class for team summary
+    // Inner class for project productivity summary
     @lombok.Data
     @lombok.Builder
     @lombok.NoArgsConstructor
     @lombok.AllArgsConstructor
-    public static class TeamProductivitySummary {
-        private Integer teamSize;
+    public static class ProjectProductivitySummary {
+        private Integer projectMemberCount;
         private Double averageWeeklyHours;
         private Double averageProductivityPercentage;
-        private Double totalTeamHours;
+        private Double totalProjectHours;
     }
 }

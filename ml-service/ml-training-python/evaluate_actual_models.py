@@ -16,8 +16,8 @@ Usage:
     python evaluate_actual_models.py --mode demo
 """
 
-import sys
 import os
+import sys
 
 # Add src to path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -25,9 +25,10 @@ src_path = os.path.join(current_dir, 'src')
 if src_path not in sys.path:
     sys.path.insert(0, src_path)
 
-from src.utils.model_evaluation import evaluate_trained_models, evaluate_demo_models
-from datetime import datetime
 import argparse
+from datetime import datetime
+
+from src.utils.model_evaluation import evaluate_demo_models, evaluate_trained_models
 
 
 def main():

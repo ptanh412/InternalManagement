@@ -24,6 +24,7 @@ public class UserProfile {
     String department;
     String role;
     String seniorityLevel; // From identity-service (INTERN, JUNIOR, MID_LEVEL, SENIOR, LEAD, PRINCIPAL)
+    Double performanceScore;
 
     // Skills and competencies - aligned with profile-service structure
     Map<String, Double> skills; // skill -> proficiency level (0-1)
@@ -59,14 +60,6 @@ public class UserProfile {
 
     // Methods to fix compilation errors in HybridRecommendationAlgorithm
     public Double getTaskCompletionRate() {
-        return averageTaskCompletionRate != null ? averageTaskCompletionRate : 0.0;
-    }
-
-    public Map<String, Double> getTaskTypeSuccessRates() {
-        return taskTypeSuccess;
-    }
-
-    public Double getAverageTaskCompletionRate() {
         return averageTaskCompletionRate != null ? averageTaskCompletionRate : 0.0;
     }
 }

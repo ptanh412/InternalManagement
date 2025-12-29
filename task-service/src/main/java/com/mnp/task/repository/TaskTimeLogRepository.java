@@ -23,8 +23,6 @@ public interface TaskTimeLogRepository extends JpaRepository<TaskTimeLog, String
     List<TaskTimeLog> findByTaskIdOrderByStartTimeDesc(String taskId);
 
     // Tìm tất cả time logs của user
-    List<TaskTimeLog> findByUserIdOrderByStartTimeDesc(String userId);
-
     // Tính tổng giờ đã log cho task
     @Query("SELECT COALESCE(SUM(t.durationSeconds), 0) FROM TaskTimeLog t " +
             "WHERE t.taskId = :taskId AND t.status = 'COMPLETED'")

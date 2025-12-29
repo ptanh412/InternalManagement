@@ -97,8 +97,93 @@ public class ChatMessageService {
 
     public ChatMessageResponse create(ChatMessageRequest request) {
         String userId = getCurrentUserId();
+        
+        // If recipientId is provided instead of conversationId, find or create conversation
+        if (request.getRecipientId() != null && request.getConversationId() == null) {
+            log.info("Creating conversation with recipientId: {}", request.getRecipientId());
+            String conversationId = findOrCreateConversation(userId, request.getRecipientId());
+            request.setConversationId(conversationId);
+            log.info("Conversation found/created: {}", conversationId);
+        }
+        
         return createMessage(request, null, "TEXT", userId);
     }
+    
+    /**
+     * Find existing conversation between two users or create a new one
+     */
+    private String findOrCreateConversation(String userId, String recipientId) {
+        // Generate hash to find existing conversation
+        List<String> userIds = List.of(userId, recipientId);
+        var sortedIds = userIds.stream().sorted().toList();
+        String userIdHash = generateParticipantHash(sortedIds);
+        
+        // Try to find existing conversation
+        var existingConversation = conversationRepository.findByParticipantsHash(userIdHash);
+        
+        if (existingConversation.isPresent()) {
+            log.info("Found existing conversation: {}", existingConversation.get().getId());
+            return existingConversation.get().getId();
+        }
+        
+        // Create new conversation
+        log.info("Creating new conversation between {} and {}", userId, recipientId);
+        
+        // Fetch user infos
+        var userInfoResponse = profileClient.getProfile(userId);
+        var recipientInfoResponse = profileClient.getProfile(recipientId);
+        
+        if (Objects.isNull(userInfoResponse) || Objects.isNull(recipientInfoResponse)) {
+            throw new AppException(ErrorCode.UNCATEGORIZED_EXCEPTION);
+        }
+        
+        var userInfo = userInfoResponse.getResult();
+        var recipientInfo = recipientInfoResponse.getResult();
+        
+        // For DIRECT conversation, we don't set groupName
+        // Frontend will display the other participant's name based on participants list
+        
+        List<ParticipantInfo> participantInfos = List.of(
+            ParticipantInfo.builder()
+                .userId(userInfo.getUserId())
+                .username(userInfo.getUser().getUsername())
+                .firstName(userInfo.getUser().getFirstName())
+                .lastName(userInfo.getUser().getLastName())
+                .avatar(userInfo.getAvatar())
+                .departmentName(userInfo.getUser().getDepartmentName())
+                .positionTitle(userInfo.getUser().getPositionTitle())
+                .seniorityLevel(userInfo.getUser().getSeniorityLevel())
+                .roleName(userInfo.getUser().getRoleName())
+                .build(),
+            ParticipantInfo.builder()
+                .userId(recipientInfo.getUserId())
+                .username(recipientInfo.getUser().getUsername())
+                .firstName(recipientInfo.getUser().getFirstName())
+                .lastName(recipientInfo.getUser().getLastName())
+                .avatar(recipientInfo.getAvatar())
+                .departmentName(recipientInfo.getUser().getDepartmentName())
+                .positionTitle(recipientInfo.getUser().getPositionTitle())
+                .seniorityLevel(recipientInfo.getUser().getSeniorityLevel())
+                .roleName(recipientInfo.getUser().getRoleName())
+                .build()
+        );
+        
+        Conversation newConversation = Conversation.builder()
+            .type("DIRECT")
+            .participants(participantInfos)
+            .participantsHash(userIdHash)
+            .createdBy(userId)
+            .createdDate(Instant.now())
+            .modifiedDate(Instant.now())
+            .build();
+        
+        newConversation = conversationRepository.save(newConversation);
+        log.info("New conversation created with ID: {}", newConversation.getId());
+        
+        return newConversation.getId();
+    }
+    
+
 
     public ChatMessageResponse createReply(ReplyMessageRequest request, String userId) {
         // Validate reply to message exists and belongs to the conversation
@@ -774,26 +859,6 @@ public class ChatMessageService {
         }
     }
 
-    /**
-     * Tính unread count cho tất cả conversations của user
-     * Sử dụng khi: Load sidebar conversations list
-     */
-    public Map<String, Long> getUnreadCountsForUser(String userId) {
-        // Tìm tất cả conversations mà user tham gia
-        List<Conversation> conversations = conversationRepository
-                .findAllByParticipantsUserId(userId);
-
-        Map<String, Long> unreadCounts = new HashMap<>();
-
-        for (Conversation conversation : conversations) {
-            long count = getUnreadCount(conversation.getId(), userId);
-            if (count > 0) {
-                unreadCounts.put(conversation.getId(), count);
-            }
-        }
-
-        return unreadCounts;
-    }
 
     private ChatMessageResponse toChatMessageResponse(ChatMessage chatMessage, String userId) {
         var chatMessageResponse = chatMessageMapper.toChatMessageResponse(chatMessage);

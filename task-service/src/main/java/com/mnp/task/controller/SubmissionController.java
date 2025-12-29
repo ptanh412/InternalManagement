@@ -21,13 +21,6 @@ public class SubmissionController {
 
     TaskService taskService;
 
-//    @PutMapping("/{submissionId}/review")
-//    public ResponseEntity<TaskSubmissionResponse> reviewSubmission(
-//            @PathVariable String submissionId,
-//            @Valid @RequestBody SubmissionReviewRequest request) {
-//        return ResponseEntity.ok(taskService.reviewSubmission(submissionId, request));
-//    }
-
     @GetMapping("/pending")
     public ResponseEntity<List<TaskSubmissionResponse>> getPendingSubmissions() {
         return ResponseEntity.ok(taskService.getPendingSubmissions());

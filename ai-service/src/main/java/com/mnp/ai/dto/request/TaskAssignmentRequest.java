@@ -1,4 +1,4 @@
-package com.mnp.ai.dto;
+package com.mnp.ai.dto.request;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

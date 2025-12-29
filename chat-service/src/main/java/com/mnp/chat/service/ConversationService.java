@@ -44,8 +44,6 @@ public class ConversationService {
     ChatMessageRepository chatMessageRepository;
     ChatMessageService chatMessageService;
     ProfileClient profileClient;
-//    ChatNotificationService chatNotificationService;
-
     ObjectMapper objectMapper; // Add ObjectMapper for JSON parsing
 
     public List<ConversationResponse> myConversations() {
@@ -198,14 +196,6 @@ public class ConversationService {
                 // If user hasn't read it, count it as unread
                 if (!userHasRead) {
                     unreadCount++;
-//                    log.info(
-//                            "🔍 Unread message found (after last addition): id={}, type={}, createdDate={}, message='{}'",
-//                            message.getId(),
-//                            message.getType(),
-//                            message.getCreatedDate(),
-//                            message.getMessage()
-//                                    .substring(
-//                                            0, Math.min(30, message.getMessage().length())));
                 }
             }
         } else {
@@ -429,12 +419,6 @@ public class ConversationService {
 
         // Send notifications to newly added members
         String addedByName = getParticipantName(conversation.getParticipants(), userId);
-//        for (ParticipantInfo newParticipant : newParticipants) {
-//            chatNotificationService.notifyUserAddedToGroup(
-//                    conversation.getGroupName(), conversation.getId(), newParticipant, addedByName);
-//        }
-
-        // Convert to ConversationResponse
         return toConversationResponse(updatedConversation, userId);
     }
 
@@ -785,15 +769,6 @@ public class ConversationService {
                 .build();
 
         chatMessageRepository.save(addMemberMessage);
-
-        // Send project-specific notification to the newly added user
-        String projectManagerName = getParticipantName(projectGroup.getParticipants(), projectGroup.getCreatedBy());
-//        chatNotificationService.notifyUserAddedToProjectGroup(
-//                extractProjectNameFromGroupName(projectGroup.getGroupName()),
-//                projectId,
-//                updatedGroup.getId(),
-//                newParticipant,
-//                projectManagerName);
 
         log.info("User {} added successfully to project group: {}", userId, projectId);
         return toConversationResponse(updatedGroup, userId);

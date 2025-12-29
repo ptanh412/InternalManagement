@@ -1,5 +1,5 @@
 server:
-  port: 8083
+  port: 8091
   servlet:
     context-path: /post
 spring:
@@ -7,9 +7,19 @@ spring:
     name: post-service
   data:
     mongodb:
-      uri: mongodb://root:root@localhost:27017/post-service?authSource=admin
+      uri: mongodb://localhost:27017/post-service
+
+socket:
+  port: 8092
+  host: localhost
+jwt:
+  signerKey: "1TjXchw5FloESb63Kc+DFhTARvpWL4jUGCwfGWxuG5SIf/1y/LgJxHnMqaF6A/ij"
+  valid-duration: 7200 # in second
+  refreshable-duration: 72000 # in seconds
 
 app:
   services:
     profile:
       url: http://localhost:8081/profile
+    identity: http://localhost:8080/identity
+    notification: http://localhost:8082/notification

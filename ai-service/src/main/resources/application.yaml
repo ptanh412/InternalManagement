@@ -14,9 +14,13 @@ spring:
       client:
         config:
           default:
-            connectTimeout: 5000
-            readTimeout: 10000
+            connectTimeout: 100000000  # 10 seconds
+            readTimeout: 300000000    # 300 seconds (5 minutes) for ML training
             loggerLevel: basic
+          ml-service:
+            connectTimeout: 10000000  # 10 seconds
+            readTimeout: 300000000    # 300 seconds (5 minutes) for ML training operations
+            loggerLevel: full
 
   servlet:
     multipart:
@@ -41,10 +45,15 @@ jwt:
 google:
   gemini:
     api:
-      key: AIzaSyDmDUn9EhmYTHXmCh8nM62E5wwT2AaR4qE
-    model: gemini-2.0-flash	  # Correct model name - user confirmed this works with API testing
+      key: YOUR_API_KEY
+    model: gemini-2.5-flash	  # Correct model name - user confirmed this works with API testing
     max-tokens: 16384  # Increased from 8192 to allow complete task generation
     temperature: 0.3
+
+ollama:
+  model: llama3
+  api:
+    url: http://localhost:11434/api/generate
 
 # Service URLs for Feign clients
 app:

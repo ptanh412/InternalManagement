@@ -5,8 +5,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 import com.mnp.ai.dto.ApiResponse;
-import com.mnp.ai.dto.UserAvailabilityResponse;
-import com.mnp.ai.dto.UserWorkloadResponse;
+import com.mnp.ai.dto.response.UserAvailabilityResponse;
+import com.mnp.ai.dto.response.UserWorkloadResponse;
 
 @FeignClient(name = "workload-service", url = "${app.services.workload:http://localhost:8091/workload}")
 public interface WorkloadServiceClient {

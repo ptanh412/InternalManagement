@@ -12,14 +12,14 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from typing import Dict, Optional
 
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+import uvicorn
+from fastapi import BackgroundTasks, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import uvicorn
 
-from ..models.hybrid_recommender import HybridRecommenderTrainer
+from ..data.data_collector import MultiDatabaseDataCollector, SyntheticDataGenerator
 from ..models.continuous_learning import ContinuousModelTrainer
-from ..data.data_collector import SyntheticDataGenerator, MultiDatabaseDataCollector
+from ..models.hybrid_recommender import HybridRecommenderTrainer
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -364,8 +364,8 @@ async def predict_candidates(request: dict):
     """
     try:
         from datetime import datetime
+
         import pandas as pd
-        import numpy as np
 
         start_time = datetime.now()
 
@@ -457,7 +457,6 @@ async def predict_candidates(request: dict):
 
 def prepare_ml_features(df_candidates: 'pd.DataFrame', task_data: dict) -> 'pd.DataFrame':
     """Prepare features for ML model from AI-engineered features"""
-    import pandas as pd
 
     df = df_candidates.copy()
 

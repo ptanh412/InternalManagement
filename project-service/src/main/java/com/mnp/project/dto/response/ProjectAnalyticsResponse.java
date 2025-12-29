@@ -28,4 +28,6 @@ public class ProjectAnalyticsResponse {
     Map<String, Integer> projectsByStatus;
     Map<String, Integer> projectsByPriority;
     Map<String, BigDecimal> budgetByStatus;
+
+    Map<String, Integer> projectsCreatedByMonth;
 }

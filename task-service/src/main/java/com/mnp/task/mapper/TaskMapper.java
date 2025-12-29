@@ -21,15 +21,30 @@ public interface TaskMapper {
     @Mapping(target = "actualHours", ignore = true)
     @Mapping(target = "startedAt", ignore = true)
     @Mapping(target = "completedAt", ignore = true)
-    @Mapping(target = "progressPercentage", constant = "0.0")
+    @Mapping(target = "originalEstimatedHours", ignore = true)
+    @Mapping(target = "originalDueDate", ignore = true)
+    @Mapping(target = "extensionCount", ignore = true)
+    @Mapping(target = "totalExtensionHours", ignore = true)
+    @Mapping(target = "lastExtensionDate", ignore = true)
+    @Mapping(target = "hadExtension", ignore = true )
     Task toTask(TaskCreationRequest request);
 
     @Mapping(source = "assignedTo", target = "assigneeId")
     @Mapping(source = "startedAt", target = "startedAt") // Thêm dòng này explicit
     @Mapping(source = "completedAt", target = "completedAt")
     @Mapping(source = "actualHours", target = "actualHours")
+    @Mapping(target = "hasPendingExtension", ignore = true)  // ✅ NEW
     TaskResponse toTaskResponse(Task task);
 
     @Mapping(source = "assigneeId", target = "assignedTo")
+    @Mapping(target = "createdAt", ignore = true)
+    @Mapping(target = "updatedAt", ignore = true)
+    @Mapping(target = "createdBy", ignore = true)
+    @Mapping(target = "originalEstimatedHours", ignore = true)
+    @Mapping(target = "originalDueDate", ignore = true)
+    @Mapping(target = "extensionCount", ignore = true)
+    @Mapping(target = "totalExtensionHours", ignore = true)
+    @Mapping(target = "lastExtensionDate", ignore = true)
+    @Mapping(target = "hadExtension", ignore = true)
     void updateTask(@MappingTarget Task task, TaskUpdateRequest request);
 }
