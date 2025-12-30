@@ -1,0 +1,1 @@
+{"indexes":[{"v":{"$numberInt":"2"},"key":{"_id":{"$numberInt":"1"}},"name":"_id_"}],"uuid":"a2a07ca8e1c146e8aa085a69726918b9","collectionName":"cv_analysis_history","type":"collection"}
